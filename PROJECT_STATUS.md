@@ -118,15 +118,18 @@ None. Phase 3.1 fully complete. Ready to proceed to Phase 3.2.
 - [x] Branch naming convention (GIT_WORKFLOW.md)
 - [x] Fixed frontend linting errors (dashboard, login, signup, store)
 - [x] Root package.json with workspaces configuration
+- [x] SonarCloud integration for code quality scanning (PR #2 pending merge)
 
 ### Key Files Created
 - `.eslintrc.json` - Backend (Node.js) strict linting rules
 - `.eslintrc.json` - Frontend (Next.js/TypeScript) strict linting rules
 - `.prettierrc.json` - Code formatting (backend + frontend)
 - `.husky/pre-commit` - Auto-lint on commit
-- `.github/workflows/lint.yml` - GitHub Actions linting on PR
+- `.github/workflows/lint.yml` - GitHub Actions linting + SonarCloud scanning on PR
 - `.github/pull_request_template.md` - PR template with checklist
 - `GIT_WORKFLOW.md` - Complete branch and commit strategy
+- `sonar-project.properties` - SonarCloud configuration
+- `SONARCLOUD_SETUP.md` - SonarCloud setup and integration guide
 - `package.json` - Root monorepo config with lint scripts
 
 ### Linting Commands (Available Now)
