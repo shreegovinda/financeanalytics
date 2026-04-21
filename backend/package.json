@@ -22,6 +22,7 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
+    "multer": "^2.1.1",
     "pdfplumber": "^0.0.1-security",
     "pg": "^8.20.0",
     "xlsx": "^0.18.5"
