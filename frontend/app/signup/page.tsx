@@ -5,6 +5,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { authAPI } from '@/lib/api';
 
+interface APIError {
+  response?: {
+    data?: {
+      error?: string;
+    };
+  };
+}
+
 export default function SignupPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -29,9 +37,10 @@ export default function SignupPage() {
       const response = await authAPI.register(email, password, name);
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
-      router.push('/dashboard');
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Signup failed');
+      void router.push('/dashboard');
+    } catch (err: unknown) {
+      const apiError = err as APIError;
+      setError(apiError.response?.data?.error || 'Signup failed');
     } finally {
       setLoading(false);
     }

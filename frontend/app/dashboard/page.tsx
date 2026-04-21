@@ -10,22 +10,39 @@ interface User {
   name: string;
 }
 
-export default function DashboardPage() {
-  const [user, setUser] = useState<User | null>(null);
+export default function DashboardPage(): JSX.Element {
   const router = useRouter();
+
+  const getInitialUser = (): User | null => {
+    const userData = localStorage.getItem('user');
+    if (!userData) return null;
+    try {
+      return JSON.parse(userData) as User;
+    } catch {
+      return null;
+    }
+  };
+
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
 
     if (!token) {
-      router.push('/login');
+      void router.push('/login');
       return;
     }
 
-    if (userData) {
-      setUser(JSON.parse(userData));
+    const userData = getInitialUser();
+    if (!userData) {
+      void router.push('/login');
+      return;
     }
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setUser(userData);
+    setIsLoading(false);
   }, [router]);
 
   const handleLogout = () => {
@@ -34,7 +51,7 @@ export default function DashboardPage() {
     router.push('/login');
   };
 
-  if (!user) {
+  if (isLoading || !user) {
     return <div className="flex items-center justify-center h-screen">Loading...</div>;
   }
 

@@ -16,3 +16,13 @@ yarn-error.log*
 *.swp
 *.swo
 uploads/
+
+# ESLint cache
+.eslintcache
+
+# Prettier cache
+.prettierignore
+
+# IDE
+.vscode/settings.json
+.idea/

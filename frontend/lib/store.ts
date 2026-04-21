@@ -19,12 +19,14 @@ export const useAuthStore = create<AuthStore>((set) => ({
   user: null,
   token: null,
 
-  login: async (email, password) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  login: async (email: string, password: string): Promise<void> => {
     // Will be implemented with API call
     set({ token: 'temp-token' });
   },
 
-  register: async (email, password, name) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  register: async (email: string, password: string, name: string): Promise<void> => {
     // Will be implemented with API call
     set({ token: 'temp-token' });
   },

@@ -1,0 +1,30 @@
+{
+  "name": "financeanalytics",
+  "version": "1.0.0",
+  "description": "Personal finance statement analyzer for Indian banks",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "lint": "npm run lint --workspace=backend && npm run lint --workspace=frontend",
+    "lint:fix": "npm run lint:fix --workspace=backend && npm run lint:fix --workspace=frontend",
+    "format": "npm run format --workspace=backend && npm run format --workspace=frontend",
+    "format:check": "npm run format:check --workspace=backend && npm run format:check --workspace=frontend"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.10"
+  },
+  "lint-staged": {
+    "backend/**/*.{js,jsx}": [
+      "cd backend && npm run lint:fix",
+      "cd backend && npm run format"
+    ],
+    "frontend/**/*.{ts,tsx,js,jsx}": [
+      "cd frontend && npm run lint:fix",
+      "cd frontend && npm run format"
+    ]
+  }
+}
