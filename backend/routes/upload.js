@@ -4,9 +4,8 @@ const path = require('path');
 const fs = require('fs');
 const pool = require('../config/db');
 const auth = require('../middleware/auth');
-const { parseICICI } = require('../services/parsers/icici');
-const { parseHDFC } = require('../services/parsers/hdfc');
-const { parseAxis } = require('../services/parsers/axis');
+const { parseStatement } = require('../services/parsers/generic');
+const { categorizeBatch } = require('../services/claude');
 
 const router = express.Router();
 
@@ -43,58 +42,95 @@ router.post('/', auth, upload.single('file'), async (req, res) => {
   }
 
   const { bankName } = req.body;
-  if (!bankName || !['ICICI', 'HDFC', 'Axis'].includes(bankName.toUpperCase())) {
+  if (!bankName || bankName.trim().length === 0) {
     fs.unlinkSync(req.file.path);
-    return res.status(400).json({ error: 'Valid bank name required: ICICI, HDFC, or Axis' });
+    return res.status(400).json({ error: 'Bank name is required' });
   }
 
   const filePath = req.file.path;
   const userId = req.user.id;
+  const bankNameNormalized = bankName.trim().toUpperCase();
+  let statementId = null;
 
   try {
     const client = await pool.connect();
 
     const statementResult = await client.query(
       'INSERT INTO statements (user_id, bank_name, file_name, status) VALUES ($1, $2, $3, $4) RETURNING id',
-      [userId, bankName.toUpperCase(), req.file.originalname, 'processing'],
+      [userId, bankNameNormalized, req.file.originalname, 'processing'],
     );
 
-    const statementId = statementResult.rows[0].id;
+    statementId = statementResult.rows[0].id;
 
     client.release();
 
+    // Use generic parser for any bank statement format
     let transactions = [];
-    const bank = bankName.toUpperCase();
-
-    if (bank === 'ICICI') {
-      transactions = await parseICICI(filePath);
-    } else if (bank === 'HDFC') {
-      transactions = await parseHDFC(filePath);
-    } else if (bank === 'AXIS') {
-      transactions = await parseAxis(filePath);
+    try {
+      transactions = await parseStatement(filePath);
+    } catch (parseErr) {
+      console.error('Parse error:', parseErr);
+      throw new Error(`Failed to parse statement: ${parseErr.message}`);
     }
 
     const client2 = await pool.connect();
+    let client2Released = false;
 
     try {
       await client2.query('BEGIN');
 
+      const txnIds = [];
       for (const txn of transactions) {
         if (txn.date && txn.amount) {
-          await client2.query(
-            'INSERT INTO transactions (user_id, statement_id, date, amount, description, type) VALUES ($1, $2, $3, $4, $5, $6)',
+          const result = await client2.query(
+            'INSERT INTO transactions (user_id, statement_id, date, amount, description, type) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
             [userId, statementId, txn.date, txn.amount, txn.description, txn.type],
           );
+          txnIds.push(result.rows[0].id);
         }
       }
 
       await client2.query('UPDATE statements SET status = $1 WHERE id = $2', ['completed', statementId]);
       await client2.query('COMMIT');
+
+      client2.release();
+      client2Released = true;
+
+      // Queue transactions for async categorization (don't block response)
+      if (txnIds.length > 0) {
+        categorizeBatch(transactions)
+          .then(async (results) => {
+            const updateClient = await pool.connect();
+            try {
+              for (const result of results) {
+                if (result.transactionIndex < txnIds.length) {
+                  await updateClient.query(
+                    'UPDATE transactions SET ai_suggested_category = $1 WHERE id = $2',
+                    [result.category, txnIds[result.transactionIndex]],
+                  );
+                }
+              }
+            } catch (err) {
+              console.error('Error updating categorizations:', err);
+            } finally {
+              updateClient.release();
+            }
+          })
+          .catch((err) => {
+            console.error('Batch categorization failed:', err);
+          });
+      }
     } catch (err) {
-      await client2.query('ROLLBACK');
+      try {
+        await client2.query('ROLLBACK');
+      } catch (rollbackErr) {
+        console.error('Rollback error:', rollbackErr);
+      }
       throw err;
     } finally {
-      client2.release();
+      if (!client2Released) {
+        client2.release();
+      }
     }
 
     fs.unlinkSync(filePath);
@@ -112,13 +148,16 @@ router.post('/', auth, upload.single('file'), async (req, res) => {
       fs.unlinkSync(filePath);
     }
 
-    try {
-      await pool.query('UPDATE statements SET status = $1 WHERE id = $2', ['failed', req.body.statementId]);
-    } catch (_) {
-      // Ignore
+    // Update statement status to failed if we have a statementId
+    if (statementId) {
+      try {
+        await pool.query('UPDATE statements SET status = $1 WHERE id = $2', ['failed', statementId]);
+      } catch (_) {
+        // Ignore error in cleanup
+      }
     }
 
-    res.status(500).json({ error: `Failed to process ${bankName} statement: ${err.message}` });
+    res.status(500).json({ error: `Failed to process statement: ${err.message}` });
   }
 });
 

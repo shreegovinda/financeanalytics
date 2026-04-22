@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../config/db');
 const auth = require('../middleware/auth');
+const { categorizeBatch } = require('../services/claude');
 
 const router = express.Router();
 
@@ -107,8 +108,8 @@ router.get('/stats/summary', auth, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT
-        SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END) as total_income,
-        SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END) as total_expenses,
+        SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END)::numeric as total_income,
+        SUM(CASE WHEN type = 'debit' THEN ABS(amount) ELSE 0 END)::numeric as total_expenses,
         COUNT(*) as transaction_count
       FROM transactions WHERE user_id = $1`,
       [req.user.id],
@@ -118,6 +119,55 @@ router.get('/stats/summary', auth, async (req, res) => {
   } catch (err) {
     console.error('Error fetching stats:', err);
     res.status(500).json({ error: 'Failed to fetch stats' });
+  }
+});
+
+router.post('/categorize', auth, async (req, res) => {
+  try {
+    const { transactionIds } = req.body;
+
+    if (!transactionIds || !Array.isArray(transactionIds) || transactionIds.length === 0) {
+      return res.status(400).json({ error: 'Transaction IDs array required' });
+    }
+
+    const result = await pool.query(
+      'SELECT id, date, amount, description, type FROM transactions WHERE user_id = $1 AND id = ANY($2)',
+      [req.user.id, transactionIds],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'No transactions found' });
+    }
+
+    const txns = result.rows.map((row) => ({
+      date: row.date,
+      description: row.description,
+      amount: row.amount,
+      type: row.type,
+    }));
+
+    const categorizations = await categorizeBatch(txns);
+
+    const updatePromises = categorizations.map((cat) => {
+      const txnIndex = cat.transactionIndex;
+      if (txnIndex < result.rows.length) {
+        return pool.query('UPDATE transactions SET ai_suggested_category = $1 WHERE id = $2', [
+          cat.category,
+          result.rows[txnIndex].id,
+        ]);
+      }
+    });
+
+    await Promise.all(updatePromises);
+
+    res.json({
+      success: true,
+      categorized: categorizations.length,
+      message: `${categorizations.length} transactions categorized`,
+    });
+  } catch (err) {
+    console.error('Error categorizing transactions:', err);
+    res.status(500).json({ error: `Failed to categorize transactions: ${err.message}` });
   }
 });
 

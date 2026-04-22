@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import axios from 'axios';
+import { apiGet, getErrorMessage } from '@/lib/api';
 
 interface Statement {
   id: string;
@@ -42,21 +42,17 @@ export default function StatementDetailsPage() {
   const fetchStatementDetails = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(
+      const data = await apiGet<{ statement: Statement; transactions: Transaction[] }>(
         `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/upload/${params.id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
+        token,
       );
 
-      setStatement(response.data.statement);
-      setTransactions(response.data.transactions);
+      setStatement(data.statement);
+      setTransactions(data.transactions);
       setError('');
     } catch (err) {
       setError('Failed to load statement details');
-      console.error(err);
+      console.error(getErrorMessage(err));
     } finally {
       setLoading(false);
     }

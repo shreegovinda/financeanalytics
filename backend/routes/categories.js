@@ -77,26 +77,88 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-router.delete('/:id', auth, async (req, res) => {
+router.put('/:id', auth, async (req, res) => {
   try {
-    const result = await pool.query('SELECT is_default FROM categories WHERE id = $1 AND user_id = $2', [
-      req.params.id,
+    const { name, color } = req.body;
+    const categoryId = req.params.id;
+
+    const cat = await pool.query('SELECT is_default FROM categories WHERE id = $1 AND user_id = $2', [
+      categoryId,
       req.user.id,
     ]);
 
-    if (result.rows.length === 0) {
+    if (cat.rows.length === 0) {
       return res.status(404).json({ error: 'Category not found' });
     }
 
-    if (result.rows[0].is_default) {
-      return res.status(400).json({ error: 'Cannot delete default categories' });
+    if (cat.rows[0].is_default) {
+      return res.status(400).json({ error: 'Cannot modify default categories' });
     }
 
-    await pool.query('DELETE FROM categories WHERE id = $1', [req.params.id]);
-    res.json({ success: true });
+    let updateQuery = 'UPDATE categories SET ';
+    const updates = [];
+    const params = [];
+    let paramIndex = 1;
+
+    if (name !== undefined) {
+      updates.push(`name = $${paramIndex}`);
+      params.push(name);
+      paramIndex++;
+    }
+
+    if (color !== undefined) {
+      updates.push(`color = $${paramIndex}`);
+      params.push(color);
+      paramIndex++;
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    updateQuery += updates.join(', ') + ` WHERE id = $${paramIndex} AND user_id = $${paramIndex + 1} RETURNING id, name, color, is_default`;
+    params.push(categoryId, req.user.id);
+
+    const result = await pool.query(updateQuery, params);
+    res.json(result.rows[0]);
   } catch (err) {
-    console.error('Error deleting category:', err);
-    res.status(500).json({ error: 'Failed to delete category' });
+    console.error('Error updating category:', err);
+    res.status(500).json({ error: 'Failed to update category' });
+  }
+});
+
+router.post('/bulk-reassign', auth, async (req, res) => {
+  try {
+    const { transactionIds, categoryId } = req.body;
+
+    if (!transactionIds || !Array.isArray(transactionIds) || transactionIds.length === 0) {
+      return res.status(400).json({ error: 'Transaction IDs array required' });
+    }
+
+    if (!categoryId) {
+      return res.status(400).json({ error: 'Category ID required' });
+    }
+
+    // Verify category exists and belongs to user
+    const catCheck = await pool.query(
+      'SELECT id FROM categories WHERE id = $1 AND user_id = $2',
+      [categoryId, req.user.id],
+    );
+
+    if (catCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Category not found' });
+    }
+
+    // Update transactions
+    const result = await pool.query(
+      'UPDATE transactions SET category_id = $1 WHERE user_id = $2 AND id = ANY($3) RETURNING id',
+      [categoryId, req.user.id, transactionIds],
+    );
+
+    res.json({ success: true, updated: result.rows.length });
+  } catch (err) {
+    console.error('Error reassigning transactions:', err);
+    res.status(500).json({ error: 'Failed to reassign transactions' });
   }
 });
 

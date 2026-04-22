@@ -1,40 +1,43 @@
-const pdfplumber = require('pdfplumber');
+const fs = require('fs');
+const PDFParse = require('pdf-parse');
 
 async function parseICICI(filePath) {
   const transactions = [];
 
   try {
-    const pdf = await pdfplumber.open(filePath);
+    const dataBuffer = fs.readFileSync(filePath);
+    const data = await PDFParse(dataBuffer);
+    const text = data.text;
 
-    for (let i = 0; i < pdf.page_count; i++) {
-      const page = pdf.get_page(i + 1);
-      const tables = await page.extract_tables();
+    const lines = text.split('\n');
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i].trim();
+      const dateMatch = line.match(/(\d{2}\/\d{2}\/\d{4})/);
 
-      if (!tables || tables.length === 0) continue;
+      if (dateMatch) {
+        const dateStr = dateMatch[1];
+        const description = line.substring(0, line.indexOf(dateStr)).trim();
+        const amountStr = line.substring(line.indexOf(dateStr) + dateStr.length).trim();
 
-      for (const table of tables) {
-        for (let j = 1; j < table.length; j++) {
-          const row = table[j];
-          if (!row || row.length < 4) continue;
+        const debitMatch = amountStr.match(/^(\d+\.?\d*)\s/);
+        const creditMatch = amountStr.match(/\s(\d+\.?\d*)\s*$/);
 
-          const [dateStr, description, debit, credit, balance] = row;
-
-          if (!dateStr || (!debit && !credit)) continue;
-
-          const amount = parseFloat(debit || credit || 0);
-          const type = debit ? 'debit' : 'credit';
+        if (debitMatch || creditMatch) {
+          const amount = parseFloat(debitMatch ? debitMatch[1] : creditMatch ? creditMatch[1] : 0);
+          const type = debitMatch ? 'debit' : 'credit';
 
           transactions.push({
             date: parseDate(dateStr),
-            description: String(description || '').trim(),
+            description: description || 'ICICI Transaction',
             amount: Math.abs(amount),
             type,
           });
         }
       }
+      i++;
     }
 
-    pdf.close();
     return transactions;
   } catch (err) {
     throw new Error(`ICICI parsing failed: ${err.message}`);
@@ -42,24 +45,11 @@ async function parseICICI(filePath) {
 }
 
 function parseDate(dateStr) {
-  if (!dateStr) return null;
-  const formats = [
-    /(\d{2})\/(\d{2})\/(\d{4})/, // DD/MM/YYYY
-    /(\d{4})-(\d{2})-(\d{2})/,   // YYYY-MM-DD
-  ];
-
-  for (const format of formats) {
-    const match = String(dateStr).match(format);
-    if (match) {
-      if (match[0].includes('-')) {
-        return new Date(match[1], match[2] - 1, match[3]);
-      } else {
-        return new Date(match[3], match[2] - 1, match[1]);
-      }
-    }
+  const match = String(dateStr).match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  if (match) {
+    return new Date(parseInt(match[3]), parseInt(match[2]) - 1, parseInt(match[1]));
   }
-
-  return null;
+  return new Date();
 }
 
 module.exports = { parseICICI };

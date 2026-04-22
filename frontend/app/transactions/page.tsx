@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import axios from 'axios';
+import Link from 'next/link';
+import { apiGet, apiPut, getErrorMessage } from '@/lib/api';
+import { CardGridSkeleton, TableSkeletonLoader } from '@/components/Skeleton';
 
 interface Transaction {
   id: string;
@@ -11,6 +13,14 @@ interface Transaction {
   description: string;
   type: string;
   category_id?: string;
+  ai_suggested_category?: string;
+}
+
+interface Category {
+  id: string;
+  name: string;
+  color: string;
+  is_default: boolean;
 }
 
 interface Stats {
@@ -22,11 +32,14 @@ interface Stats {
 export default function TransactionsPage() {
   const router = useRouter();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [editingTxnId, setEditingTxnId] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -47,49 +60,96 @@ export default function TransactionsPage() {
       if (startDate) query += `startDate=${startDate}&`;
       if (endDate) query += `endDate=${endDate}&`;
 
-      const [txnRes, statsRes] = await Promise.all([
-        axios.get(`${apiUrl}${query}limit=1000`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        axios.get(`${apiUrl}/api/transactions/stats/summary`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
+      const [txnData, statsData, catData] = await Promise.all([
+        apiGet<Transaction[]>(`${apiUrl}${query}limit=1000`, token),
+        apiGet<Stats>(`${apiUrl}/api/transactions/stats/summary`, token),
+        apiGet<Category[]>(`${apiUrl}/api/categories`, token),
       ]);
 
-      setTransactions(txnRes.data);
-      setStats(statsRes.data);
+      setTransactions(txnData);
+      setStats(statsData);
+      setCategories(catData);
       setError('');
     } catch (err) {
       setError('Failed to load transactions');
-      console.error(err);
+      console.error(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
   };
 
+  const handleUpdateCategory = async (txnId: string, categoryId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+      await apiPut(`${apiUrl}/api/transactions/${txnId}`, { categoryId }, token);
+
+      setTransactions(transactions.map((t) => (t.id === txnId ? { ...t, category_id: categoryId } : t)));
+      setEditingTxnId(null);
+      setSelectedCategory('');
+    } catch (err) {
+      setError('Failed to update category');
+      console.error(getErrorMessage(err));
+    }
+  };
+
+  const getCategoryName = (txn: Transaction): string => {
+    if (txn.category_id) {
+      const cat = categories.find((c) => c.id === txn.category_id);
+      return cat?.name || 'Unknown';
+    }
+    return txn.ai_suggested_category || 'Uncategorized';
+  };
+
+  const getCategoryColor = (txn: Transaction): string => {
+    if (txn.category_id) {
+      const cat = categories.find((c) => c.id === txn.category_id);
+      return cat?.color || '#6b7280';
+    }
+    return '#6b7280';
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
+      <header className="bg-white shadow">
+        <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-gray-800">Transactions</h1>
+          <div className="flex gap-2">
+            <Link href="/settings" className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition">
+              Manage Categories
+            </Link>
+            <Link href="/dashboard" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+              Dashboard
+            </Link>
+          </div>
+        </div>
+      </header>
+
       <div className="max-w-6xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Transactions</h1>
           <p className="text-gray-600">View and manage all your transactions</p>
         </div>
 
-        {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-              <p className="text-sm text-gray-600 mb-2">Total Income</p>
-              <p className="text-3xl font-bold text-green-600">₹{(stats.total_income || 0).toFixed(2)}</p>
+        {loading ? (
+          <CardGridSkeleton count={3} />
+        ) : (
+          stats && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+                <p className="text-sm text-gray-600 mb-2">Total Income</p>
+                <p className="text-3xl font-bold text-green-600">₹{(stats.total_income || 0).toFixed(2)}</p>
+              </div>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+                <p className="text-sm text-gray-600 mb-2">Total Expenses</p>
+                <p className="text-3xl font-bold text-red-600">₹{(stats.total_expenses || 0).toFixed(2)}</p>
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                <p className="text-sm text-gray-600 mb-2">Total Transactions</p>
+                <p className="text-3xl font-bold text-blue-600">{stats.transaction_count}</p>
+              </div>
             </div>
-            <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-              <p className="text-sm text-gray-600 mb-2">Total Expenses</p>
-              <p className="text-3xl font-bold text-red-600">₹{(stats.total_expenses || 0).toFixed(2)}</p>
-            </div>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-              <p className="text-sm text-gray-600 mb-2">Total Transactions</p>
-              <p className="text-3xl font-bold text-blue-600">{stats.transaction_count}</p>
-            </div>
-          </div>
+          )
         )}
 
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
@@ -116,14 +176,15 @@ export default function TransactionsPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Recent Transactions</h2>
-          </div>
+        {loading ? (
+          <TableSkeletonLoader rows={8} />
+        ) : (
+          <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">Recent Transactions</h2>
+            </div>
 
-          {loading ? (
-            <div className="px-6 py-8 text-center text-gray-500">Loading...</div>
-          ) : error ? (
+            {error ? (
             <div className="px-6 py-8 bg-red-50 text-red-700">{error}</div>
           ) : transactions.length === 0 ? (
             <div className="px-6 py-8 text-center text-gray-500">
@@ -136,8 +197,10 @@ export default function TransactionsPage() {
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Date</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Description</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Category</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Type</th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">Amount</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Action</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -145,6 +208,30 @@ export default function TransactionsPage() {
                     <tr key={txn.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(txn.date).toLocaleDateString()}</td>
                       <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">{txn.description}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {editingTxnId === txn.id ? (
+                          <select
+                            value={selectedCategory}
+                            onChange={(e) => setSelectedCategory(e.target.value)}
+                            className="px-2 py-1 border border-gray-300 rounded text-sm"
+                          >
+                            <option value="">-- Select --</option>
+                            {categories.map((cat) => (
+                              <option key={cat.id} value={cat.id}>
+                                {cat.name}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-3 h-3 rounded-full"
+                              style={{ backgroundColor: getCategoryColor(txn) }}
+                            />
+                            <span className="text-sm text-gray-900">{getCategoryName(txn)}</span>
+                          </div>
+                        )}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
                           className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -157,13 +244,42 @@ export default function TransactionsPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
                         {txn.type === 'credit' ? '+' : '-'}₹{txn.amount.toFixed(2)}
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {editingTxnId === txn.id ? (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleUpdateCategory(txn.id, selectedCategory)}
+                              className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                            >
+                              Save
+                            </button>
+                            <button
+                              onClick={() => setEditingTxnId(null)}
+                              className="px-2 py-1 bg-gray-400 text-white text-xs rounded hover:bg-gray-500"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setEditingTxnId(txn.id);
+                              setSelectedCategory(txn.category_id || '');
+                            }}
+                            className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                          >
+                            Edit
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

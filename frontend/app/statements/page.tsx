@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import FileUploadForm from '@/components/FileUploadForm';
-import axios from 'axios';
+import { apiGet, getErrorMessage } from '@/lib/api';
+import { TableSkeletonLoader } from '@/components/Skeleton';
 
 interface Statement {
   id: string;
@@ -32,17 +33,15 @@ export default function StatementsPage() {
   const fetchStatements = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/upload`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      setStatements(response.data);
+      const data = await apiGet<Statement[]>(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/upload`,
+        token,
+      );
+      setStatements(data);
       setError('');
     } catch (err) {
       setError('Failed to load statements');
-      console.error(err);
+      console.error(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -65,14 +64,15 @@ export default function StatementsPage() {
           <FileUploadForm onUploadSuccess={handleUploadSuccess} />
         </div>
 
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">Your Statements</h2>
-          </div>
+        {loading ? (
+          <TableSkeletonLoader rows={5} />
+        ) : (
+          <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Your Statements</h2>
+            </div>
 
-          {loading ? (
-            <div className="px-6 py-8 text-center text-gray-500">Loading...</div>
-          ) : error ? (
+            {error ? (
             <div className="px-6 py-8 bg-red-50 text-red-700">{error}</div>
           ) : statements.length === 0 ? (
             <div className="px-6 py-8 text-center text-gray-500">No statements uploaded yet. Upload your first statement above!</div>
@@ -113,8 +113,9 @@ export default function StatementsPage() {
                 </tbody>
               </table>
             </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
