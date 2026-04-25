@@ -1,15 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiGet, apiPut, getErrorMessage } from '@/lib/api';
+import { formatDate, parseDisplayDateToIso } from '@/lib/date';
 import { CardGridSkeleton, TableSkeletonLoader } from '@/components/Skeleton';
 
 interface Transaction {
   id: string;
   date: string;
-  amount: number;
+  amount: number | string;
   description: string;
   type: string;
   category_id?: string;
@@ -24,8 +25,8 @@ interface Category {
 }
 
 interface Stats {
-  total_income: number;
-  total_expenses: number;
+  total_income: number | string;
+  total_expenses: number | string;
   transaction_count: number;
 }
 
@@ -41,29 +42,21 @@ export default function TransactionsPage() {
   const [editingTxnId, setEditingTxnId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      router.push('/login');
-      return;
-    }
-
-    fetchData();
-  }, [router, startDate, endDate]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const query = new URLSearchParams({ limit: '1000' });
+      const startDateParam = parseDisplayDateToIso(startDate);
+      const endDateParam = parseDisplayDateToIso(endDate);
 
-      let query = '/api/transactions?';
-      if (startDate) query += `startDate=${startDate}&`;
-      if (endDate) query += `endDate=${endDate}&`;
+      if (startDateParam) query.set('startDate', startDateParam);
+      if (endDateParam) query.set('endDate', endDateParam);
 
       const [txnData, statsData, catData] = await Promise.all([
-        apiGet<Transaction[]>(`${apiUrl}${query}limit=1000`, token),
-        apiGet<Stats>(`${apiUrl}/api/transactions/stats/summary`, token),
-        apiGet<Category[]>(`${apiUrl}/api/categories`, token),
+        apiGet<Transaction[]>(`${apiUrl}/api/transactions?${query.toString()}`, token ?? undefined),
+        apiGet<Stats>(`${apiUrl}/api/transactions/stats/summary`, token ?? undefined),
+        apiGet<Category[]>(`${apiUrl}/api/categories`, token ?? undefined),
       ]);
 
       setTransactions(txnData);
@@ -76,14 +69,24 @@ export default function TransactionsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [endDate, startDate]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.push('/auth');
+      return;
+    }
+
+    void Promise.resolve().then(fetchData);
+  }, [fetchData, router]);
 
   const handleUpdateCategory = async (txnId: string, categoryId: string) => {
     try {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-      await apiPut(`${apiUrl}/api/transactions/${txnId}`, { categoryId }, token);
+      await apiPut(`${apiUrl}/api/transactions/${txnId}`, { categoryId }, token ?? undefined);
 
       setTransactions(transactions.map((t) => (t.id === txnId ? { ...t, category_id: categoryId } : t)));
       setEditingTxnId(null);
@@ -116,10 +119,10 @@ export default function TransactionsPage() {
         <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-gray-800">Transactions</h1>
           <div className="flex gap-2">
-            <Link href="/settings" className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition">
+            <Link href="/settings" className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition cursor-pointer">
               Manage Categories
             </Link>
-            <Link href="/dashboard" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+            <Link href="/dashboard" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition cursor-pointer">
               Dashboard
             </Link>
           </div>
@@ -138,11 +141,11 @@ export default function TransactionsPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <div className="bg-green-50 border border-green-200 rounded-lg p-6">
                 <p className="text-sm text-gray-600 mb-2">Total Income</p>
-                <p className="text-3xl font-bold text-green-600">₹{(stats.total_income || 0).toFixed(2)}</p>
+                <p className="text-3xl font-bold text-green-600">₹{(Number(stats.total_income) || 0).toFixed(2)}</p>
               </div>
               <div className="bg-red-50 border border-red-200 rounded-lg p-6">
                 <p className="text-sm text-gray-600 mb-2">Total Expenses</p>
-                <p className="text-3xl font-bold text-red-600">₹{(stats.total_expenses || 0).toFixed(2)}</p>
+                <p className="text-3xl font-bold text-red-600">₹{(Number(stats.total_expenses) || 0).toFixed(2)}</p>
               </div>
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
                 <p className="text-sm text-gray-600 mb-2">Total Transactions</p>
@@ -158,7 +161,9 @@ export default function TransactionsPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
               <input
-                type="date"
+                type="text"
+                inputMode="numeric"
+                placeholder="dd/mm/yyyy"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -167,7 +172,9 @@ export default function TransactionsPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
               <input
-                type="date"
+                type="text"
+                inputMode="numeric"
+                placeholder="dd/mm/yyyy"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -188,7 +195,7 @@ export default function TransactionsPage() {
             <div className="px-6 py-8 bg-red-50 text-red-700">{error}</div>
           ) : transactions.length === 0 ? (
             <div className="px-6 py-8 text-center text-gray-500">
-              No transactions found. <a href="/statements" className="text-blue-600 hover:text-blue-800">Upload a statement</a> to get started!
+              No transactions found. <Link href="/statements" className="text-blue-600 hover:text-blue-800">Upload a statement</Link> to get started!
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -206,7 +213,7 @@ export default function TransactionsPage() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {transactions.map((txn) => (
                     <tr key={txn.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(txn.date).toLocaleDateString()}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatDate(txn.date)}</td>
                       <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">{txn.description}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {editingTxnId === txn.id ? (
@@ -242,20 +249,20 @@ export default function TransactionsPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
-                        {txn.type === 'credit' ? '+' : '-'}₹{txn.amount.toFixed(2)}
+                        {txn.type === 'credit' ? '+' : '-'}₹{Number(txn.amount).toFixed(2)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         {editingTxnId === txn.id ? (
                           <div className="flex gap-2">
                             <button
                               onClick={() => handleUpdateCategory(txn.id, selectedCategory)}
-                              className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                              className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 cursor-pointer"
                             >
                               Save
                             </button>
                             <button
                               onClick={() => setEditingTxnId(null)}
-                              className="px-2 py-1 bg-gray-400 text-white text-xs rounded hover:bg-gray-500"
+                              className="px-2 py-1 bg-gray-400 text-white text-xs rounded hover:bg-gray-500 cursor-pointer"
                             >
                               Cancel
                             </button>
@@ -266,7 +273,7 @@ export default function TransactionsPage() {
                               setEditingTxnId(txn.id);
                               setSelectedCategory(txn.category_id || '');
                             }}
-                            className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                            className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 cursor-pointer"
                           >
                             Edit
                           </button>

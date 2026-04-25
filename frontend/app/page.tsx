@@ -65,12 +65,6 @@ export default function Home() {
               >
                 Get Started
               </Link>
-              <Link
-                href="/auth"
-                className="px-8 py-3 bg-white text-blue-600 rounded-lg hover:bg-gray-50 transition font-semibold border border-gray-300 dark:bg-gray-800 dark:text-blue-400 dark:border-gray-600"
-              >
-                Sign In
-              </Link>
             </div>
           </div>
 

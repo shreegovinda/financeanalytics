@@ -8,12 +8,12 @@ router.get('/pie', auth, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT
-        COALESCE(c.name, t.ai_suggested_category, 'Other') as name,
-        SUM(ABS(t.amount)) as value
+        COALESCE(c.name, NULLIF(t.ai_suggested_category, ''), 'Other') as name,
+        SUM(ABS(t.amount))::numeric as value
       FROM transactions t
-      LEFT JOIN categories c ON t.category_id = c.id
+      LEFT JOIN categories c ON t.category_id = c.id AND c.user_id = t.user_id
       WHERE t.user_id = $1 AND t.type = 'debit'
-      GROUP BY COALESCE(c.name, t.ai_suggested_category)
+      GROUP BY 1
       ORDER BY value DESC`,
       [req.user.id],
     );
@@ -29,7 +29,7 @@ router.get('/bar', auth, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT
-        TO_CHAR(DATE_TRUNC('month', date), 'Mon YYYY') as month,
+        TO_CHAR(DATE_TRUNC('month', date), 'DD/MM/YYYY') as month,
         SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END)::numeric as income,
         SUM(CASE WHEN type = 'debit' THEN ABS(amount) ELSE 0 END)::numeric as expenses
       FROM transactions
@@ -50,14 +50,14 @@ router.get('/trends', auth, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT
-        to_char(date, 'YYYY-MM') as month,
+        TO_CHAR(DATE_TRUNC('month', date), 'DD/MM/YYYY') as month,
         COALESCE(c.name, 'Other') as category,
         SUM(t.amount) as total
       FROM transactions t
       LEFT JOIN categories c ON t.category_id = c.id
       WHERE t.user_id = $1 AND t.type = 'debit'
-      GROUP BY to_char(date, 'YYYY-MM'), c.name
-      ORDER BY month DESC, total DESC`,
+      GROUP BY DATE_TRUNC('month', date), c.name
+      ORDER BY DATE_TRUNC('month', date) DESC, total DESC`,
       [req.user.id],
     );
 

@@ -20,7 +20,7 @@ const DEFAULT_CATEGORIES = [
 router.get('/', auth, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, name, color, is_default FROM categories WHERE user_id = $1 ORDER BY name',
+      'SELECT id, name, color, is_default, parent_id FROM categories WHERE user_id = $1 ORDER BY parent_id, name',
       [req.user.id],
     );
 
@@ -31,14 +31,14 @@ router.get('/', auth, async (req, res) => {
 
         for (const cat of DEFAULT_CATEGORIES) {
           await client.query(
-            'INSERT INTO categories (user_id, name, color, is_default) VALUES ($1, $2, $3, $4)',
+            'INSERT INTO categories (user_id, name, color, is_default, parent_id) VALUES ($1, $2, $3, $4, NULL)',
             [req.user.id, cat.name, cat.color, true],
           );
         }
 
         await client.query('COMMIT');
         const newResult = await pool.query(
-          'SELECT id, name, color, is_default FROM categories WHERE user_id = $1 ORDER BY name',
+          'SELECT id, name, color, is_default, parent_id FROM categories WHERE user_id = $1 ORDER BY parent_id, name',
           [req.user.id],
         );
         return res.json(newResult.rows);
@@ -59,19 +59,35 @@ router.get('/', auth, async (req, res) => {
 
 router.post('/', auth, async (req, res) => {
   try {
-    const { name, color } = req.body;
+    const { name, color, parent_id } = req.body;
+    const trimmedName = typeof name === 'string' ? name.trim() : '';
 
-    if (!name || !color) {
+    if (!trimmedName || !color) {
       return res.status(400).json({ error: 'Name and color are required' });
     }
 
+    // If parent_id is provided, verify it belongs to the user
+    if (parent_id) {
+      const parentCheck = await pool.query(
+        'SELECT id FROM categories WHERE id = $1 AND user_id = $2',
+        [parent_id, req.user.id],
+      );
+
+      if (parentCheck.rows.length === 0) {
+        return res.status(404).json({ error: 'Parent category not found' });
+      }
+    }
+
     const result = await pool.query(
-      'INSERT INTO categories (user_id, name, color, is_default) VALUES ($1, $2, $3, FALSE) RETURNING id, name, color, is_default',
-      [req.user.id, name, color],
+      'INSERT INTO categories (user_id, name, color, is_default, parent_id) VALUES ($1, $2, $3, FALSE, $4) RETURNING id, name, color, is_default, parent_id',
+      [req.user.id, trimmedName, color, parent_id || null],
     );
 
     res.json(result.rows[0]);
   } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'A category with this name already exists at this level' });
+    }
     console.error('Error creating category:', err);
     res.status(500).json({ error: 'Failed to create category' });
   }
@@ -81,8 +97,9 @@ router.put('/:id', auth, async (req, res) => {
   try {
     const { name, color } = req.body;
     const categoryId = req.params.id;
+    const trimmedName = typeof name === 'string' ? name.trim() : '';
 
-    const cat = await pool.query('SELECT is_default FROM categories WHERE id = $1 AND user_id = $2', [
+    const cat = await pool.query('SELECT id FROM categories WHERE id = $1 AND user_id = $2', [
       categoryId,
       req.user.id,
     ]);
@@ -91,18 +108,17 @@ router.put('/:id', auth, async (req, res) => {
       return res.status(404).json({ error: 'Category not found' });
     }
 
-    if (cat.rows[0].is_default) {
-      return res.status(400).json({ error: 'Cannot modify default categories' });
-    }
-
     let updateQuery = 'UPDATE categories SET ';
     const updates = [];
     const params = [];
     let paramIndex = 1;
 
     if (name !== undefined) {
+      if (!trimmedName) {
+        return res.status(400).json({ error: 'Name is required' });
+      }
       updates.push(`name = $${paramIndex}`);
-      params.push(name);
+      params.push(trimmedName);
       paramIndex++;
     }
 
@@ -116,14 +132,39 @@ router.put('/:id', auth, async (req, res) => {
       return res.status(400).json({ error: 'No fields to update' });
     }
 
-    updateQuery += updates.join(', ') + ` WHERE id = $${paramIndex} AND user_id = $${paramIndex + 1} RETURNING id, name, color, is_default`;
+    updateQuery += updates.join(', ') + ` WHERE id = $${paramIndex} AND user_id = $${paramIndex + 1} RETURNING id, name, color, is_default, parent_id`;
     params.push(categoryId, req.user.id);
 
     const result = await pool.query(updateQuery, params);
     res.json(result.rows[0]);
   } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'A category with this name already exists at this level' });
+    }
     console.error('Error updating category:', err);
     res.status(500).json({ error: 'Failed to update category' });
+  }
+});
+
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    const categoryId = req.params.id;
+
+    const cat = await pool.query('SELECT id FROM categories WHERE id = $1 AND user_id = $2', [
+      categoryId,
+      req.user.id,
+    ]);
+
+    if (cat.rows.length === 0) {
+      return res.status(404).json({ error: 'Category not found' });
+    }
+
+    await pool.query('DELETE FROM categories WHERE id = $1 AND user_id = $2', [categoryId, req.user.id]);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error deleting category:', err);
+    res.status(500).json({ error: 'Failed to delete category' });
   }
 });
 

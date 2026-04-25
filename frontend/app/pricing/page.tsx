@@ -18,20 +18,69 @@ interface RazorpayResponse {
   razorpay_signature: string;
 }
 
+interface RazorpayOptions {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  order_id: string;
+  handler: (response: RazorpayResponse) => void | Promise<void>;
+  prefill: {
+    name: string;
+    email: string;
+  };
+  theme: {
+    color: string;
+  };
+}
+
+interface RazorpayCheckout {
+  open: () => void;
+}
+
+declare global {
+  interface Window {
+    Razorpay: new (options: RazorpayOptions) => RazorpayCheckout;
+  }
+}
+
 export default function PricingPage() {
   const [pricing, setPricing] = useState<PricingData>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedFeature, setSelectedFeature] = useState<string | null>(null);
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [purchasedFeatures, setPurchasedFeatures] = useState<Set<string>>(new Set());
   const router = useRouter();
 
   // Fetch pricing on mount
   useEffect(() => {
-    const fetchPricing = async () => {
+    const fetchPricingAndStatus = async () => {
       try {
         const response = await axios.get('http://localhost:3001/api/payments/pricing');
         setPricing(response.data);
+
+        // Check purchase status for each feature
+        const token = localStorage.getItem('token');
+        if (token) {
+          const purchased = new Set<string>();
+          for (const featureId of Object.keys(response.data)) {
+            try {
+              const statusResponse = await axios.get(
+                `http://localhost:3001/api/payments/check/${featureId}`,
+                { headers: { Authorization: `Bearer ${token}` } },
+              );
+              if (statusResponse.data.purchased) {
+                purchased.add(featureId);
+              }
+            } catch (err) {
+              console.error(`Failed to check purchase status for ${featureId}:`, err);
+            }
+          }
+          setPurchasedFeatures(purchased);
+        }
+
         setLoading(false);
       } catch (err) {
         console.error('Error fetching pricing:', err);
@@ -40,7 +89,7 @@ export default function PricingPage() {
       }
     };
 
-    fetchPricing();
+    void fetchPricingAndStatus();
   }, []);
 
   // Handle payment button click
@@ -51,6 +100,7 @@ export default function PricingPage() {
       return;
     }
 
+    setSelectedFeature(featureId);
     setProcessingPayment(true);
     setError('');
 
@@ -94,8 +144,14 @@ export default function PricingPage() {
               );
 
               if (verifyResponse.data.success) {
-                alert('Payment successful! Thank you for your purchase.');
-                router.push('/dashboard');
+                // Add to purchased features
+                setPurchasedFeatures((prev) => new Set([...prev, featureId]));
+                setError('');
+                // Show success for 2 seconds then redirect
+                alert('Payment successful! Feature unlocked. Redirecting...');
+                setTimeout(() => {
+                  router.push('/dashboard');
+                }, 1500);
               }
             } catch (verifyError) {
               console.error('Payment verification failed:', verifyError);
@@ -115,14 +171,17 @@ export default function PricingPage() {
           },
         };
 
-        // @ts-ignore
         const razorpayCheckout = new window.Razorpay(options);
         razorpayCheckout.open();
       };
       document.body.appendChild(script);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error creating order:', err);
-      setError(err.response?.data?.error || 'Failed to create payment order');
+      setError(
+        axios.isAxiosError<{ error?: string }>(err)
+          ? err.response?.data?.error || 'Failed to create payment order'
+          : 'Failed to create payment order',
+      );
     } finally {
       setProcessingPayment(false);
     }
@@ -207,20 +266,33 @@ export default function PricingPage() {
                 </div>
 
                 {/* Buy Button */}
-                <button
-                  onClick={() => handlePayment(featureId)}
-                  disabled={processingPayment}
-                  className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold py-3 rounded-lg transition transform hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100"
-                >
-                  {processingPayment ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Processing...
-                    </div>
-                  ) : (
-                    `Buy for ₹${feature.amount}`
-                  )}
-                </button>
+                {purchasedFeatures.has(featureId) ? (
+                  <button
+                    disabled
+                    className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold py-3 rounded-lg transition flex items-center justify-center gap-2 opacity-75 cursor-not-allowed"
+                  >
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
+                    </svg>
+                    Unlocked
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handlePayment(featureId)}
+                    disabled={processingPayment}
+                    className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold py-3 rounded-lg transition transform hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100 cursor-pointer"
+                  >
+                    {processingPayment && selectedFeature === featureId ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Processing...
+                      </div>
+                    ) : (
+                      `Buy for ₹${feature.amount}`
+                    )}
+                  </button>
+                )}
+
               </div>
             ))}
           </div>
@@ -236,7 +308,7 @@ export default function PricingPage() {
           </p>
           <a
             href="mailto:support@finlytix.in"
-            className="inline-block px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition"
+            className="inline-block px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition cursor-pointer"
           >
             Contact Support
           </a>
