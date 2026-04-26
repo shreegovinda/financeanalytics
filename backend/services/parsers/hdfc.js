@@ -21,7 +21,9 @@ async function parseHDFC(filePath) {
         const depositMatch = amountStr.match(/\s(\d+\.?\d*)\s*$/);
 
         if (withdrawMatch || depositMatch) {
-          const amount = parseFloat(withdrawMatch ? withdrawMatch[1] : depositMatch ? depositMatch[1] : 0);
+          const amount = parseFloat(
+            withdrawMatch ? withdrawMatch[1] : depositMatch ? depositMatch[1] : 0,
+          );
           const type = withdrawMatch ? 'debit' : 'credit';
 
           transactions.push({
@@ -42,8 +44,18 @@ async function parseHDFC(filePath) {
 
 function parseDate(dateStr) {
   const monthMap = {
-    jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
-    jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+    jan: 0,
+    feb: 1,
+    mar: 2,
+    apr: 3,
+    may: 4,
+    jun: 5,
+    jul: 6,
+    aug: 7,
+    sep: 8,
+    oct: 9,
+    nov: 10,
+    dec: 11,
   };
 
   const match = String(dateStr).match(/(\d{2})-([A-Za-z]{3})-(\d{4})/);

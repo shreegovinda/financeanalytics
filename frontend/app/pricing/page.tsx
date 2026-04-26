@@ -3,6 +3,22 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
+import BackButton from '@/components/BackButton';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const RAZORPAY_SCRIPT_URL = 'https://checkout.razorpay.com/v1/checkout.js';
+const SUPPORT_EMAIL = 'admin@finlytix.in';
+const SUPPORT_EMAIL_SUBJECT = 'Premium feature support';
+const SUPPORT_EMAIL_BODY =
+  'Hello Finlytix Support,\n\nI need help with a premium feature.\n\nDetails:\n';
+const SUPPORT_COMPOSE_URL = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(
+  SUPPORT_EMAIL,
+)}&subject=${encodeURIComponent(SUPPORT_EMAIL_SUBJECT)}&body=${encodeURIComponent(
+  SUPPORT_EMAIL_BODY,
+)}`;
+const SUPPORT_MAILTO = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
+  SUPPORT_EMAIL_SUBJECT,
+)}&body=${encodeURIComponent(SUPPORT_EMAIL_BODY)}`;
 
 interface PricingData {
   [key: string]: {
@@ -16,6 +32,14 @@ interface RazorpayResponse {
   razorpay_payment_id: string;
   razorpay_order_id: string;
   razorpay_signature: string;
+}
+
+interface RazorpayFailureResponse {
+  error?: {
+    code?: string;
+    description?: string;
+    reason?: string;
+  };
 }
 
 interface RazorpayOptions {
@@ -33,15 +57,49 @@ interface RazorpayOptions {
   theme: {
     color: string;
   };
+  modal: {
+    ondismiss: () => void;
+  };
 }
 
 interface RazorpayCheckout {
   open: () => void;
+  on: (event: 'payment.failed', handler: (response: RazorpayFailureResponse) => void) => void;
 }
 
 declare global {
   interface Window {
     Razorpay: new (options: RazorpayOptions) => RazorpayCheckout;
+  }
+}
+
+function loadRazorpayScript(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (window.Razorpay) {
+      resolve();
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = RAZORPAY_SCRIPT_URL;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Unable to load Razorpay checkout'));
+    document.body.appendChild(script);
+  });
+}
+
+function getStoredUser(): { name?: string; email?: string } {
+  const storedUser = localStorage.getItem('user');
+  if (!storedUser) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(storedUser) as { name?: string; email?: string };
+  } catch (err) {
+    console.error('Failed to parse stored user:', err);
+    return {};
   }
 }
 
@@ -58,7 +116,7 @@ export default function PricingPage() {
   useEffect(() => {
     const fetchPricingAndStatus = async () => {
       try {
-        const response = await axios.get('http://localhost:3001/api/payments/pricing');
+        const response = await axios.get(`${API_BASE_URL}/api/payments/pricing`);
         setPricing(response.data);
 
         // Check purchase status for each feature
@@ -68,7 +126,7 @@ export default function PricingPage() {
           for (const featureId of Object.keys(response.data)) {
             try {
               const statusResponse = await axios.get(
-                `http://localhost:3001/api/payments/check/${featureId}`,
+                `${API_BASE_URL}/api/payments/check/${featureId}`,
                 { headers: { Authorization: `Bearer ${token}` } },
               );
               if (statusResponse.data.purchased) {
@@ -105,9 +163,8 @@ export default function PricingPage() {
     setError('');
 
     try {
-      // Create order
       const orderResponse = await axios.post(
-        'http://localhost:3001/api/payments/create-order',
+        `${API_BASE_URL}/api/payments/create-order`,
         { featureId },
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -116,79 +173,93 @@ export default function PricingPage() {
 
       const { orderId, amount, razorpayKeyId, featureName } = orderResponse.data;
 
-      // Load Razorpay script
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.async = true;
-      script.onload = () => {
-        const options = {
-          key: razorpayKeyId,
-          amount: amount,
-          currency: 'INR',
-          name: 'Finance Analytics',
-          description: `Purchase: ${featureName}`,
-          order_id: orderId,
-          handler: async (response: RazorpayResponse) => {
-            try {
-              // Verify payment
-              const verifyResponse = await axios.post(
-                'http://localhost:3001/api/payments/verify',
-                {
-                  orderId,
-                  paymentId: response.razorpay_payment_id,
-                  signature: response.razorpay_signature,
-                },
-                {
-                  headers: { Authorization: `Bearer ${token}` },
-                },
-              );
+      if (!razorpayKeyId) {
+        throw new Error('Payment gateway is not configured');
+      }
 
-              if (verifyResponse.data.success) {
-                // Add to purchased features
-                setPurchasedFeatures((prev) => new Set([...prev, featureId]));
-                setError('');
-                // Show success for 2 seconds then redirect
-                alert('Payment successful! Feature unlocked. Redirecting...');
-                setTimeout(() => {
-                  router.push('/dashboard');
-                }, 1500);
-              }
-            } catch (verifyError) {
-              console.error('Payment verification failed:', verifyError);
-              setError('Payment verification failed. Please contact support.');
+      await loadRazorpayScript();
+
+      const user = getStoredUser();
+      const options: RazorpayOptions = {
+        key: razorpayKeyId,
+        amount,
+        currency: 'INR',
+        name: 'Finance Analytics',
+        description: `Purchase: ${featureName}`,
+        order_id: orderId,
+        handler: async (response: RazorpayResponse) => {
+          try {
+            const verifyResponse = await axios.post(
+              `${API_BASE_URL}/api/payments/verify`,
+              {
+                orderId,
+                paymentId: response.razorpay_payment_id,
+                signature: response.razorpay_signature,
+              },
+              {
+                headers: { Authorization: `Bearer ${token}` },
+              },
+            );
+
+            if (verifyResponse.data.success) {
+              setPurchasedFeatures((prev) => new Set([...prev, featureId]));
+              setError('');
+              alert('Payment successful! Feature unlocked. Redirecting...');
+              setTimeout(() => {
+                router.push('/dashboard');
+              }, 1500);
             }
+          } catch (verifyError) {
+            console.error('Payment verification failed:', verifyError);
+            setError('Payment verification failed. Please contact support.');
+          } finally {
+            setProcessingPayment(false);
+          }
+        },
+        prefill: {
+          name: user.name || '',
+          email: user.email || '',
+        },
+        theme: {
+          color: '#667eea',
+        },
+        modal: {
+          ondismiss: () => {
+            setProcessingPayment(false);
+            setSelectedFeature(null);
           },
-          prefill: {
-            name: localStorage.getItem('user')
-              ? JSON.parse(localStorage.getItem('user') || '{}').name
-              : '',
-            email: localStorage.getItem('user')
-              ? JSON.parse(localStorage.getItem('user') || '{}').email
-              : '',
-          },
-          theme: {
-            color: '#667eea',
-          },
-        };
-
-        const razorpayCheckout = new window.Razorpay(options);
-        razorpayCheckout.open();
+        },
       };
-      document.body.appendChild(script);
+
+      const razorpayCheckout = new window.Razorpay(options);
+      razorpayCheckout.on('payment.failed', (response) => {
+        const message =
+          response.error?.description ||
+          response.error?.reason ||
+          'Payment failed. Please try again.';
+        setError(message);
+        setProcessingPayment(false);
+      });
+      razorpayCheckout.open();
     } catch (err: unknown) {
       console.error('Error creating order:', err);
       setError(
         axios.isAxiosError<{ error?: string }>(err)
           ? err.response?.data?.error || 'Failed to create payment order'
-          : 'Failed to create payment order',
+          : err instanceof Error
+            ? err.message
+            : 'Failed to create payment order',
       );
-    } finally {
       setProcessingPayment(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
+      <div className="max-w-6xl mx-auto px-4 pt-6">
+        <BackButton variant="dark" />
+      </div>
+
       {/* Header */}
       <div className="pt-12 pb-8 px-4 text-center">
         <h1 className="text-5xl font-bold text-white mb-4">Premium Features</h1>
@@ -232,33 +303,41 @@ export default function PricingPage() {
 
                 {/* Price */}
                 <div className="mb-4">
-                  <div className="text-4xl font-bold text-blue-400 mb-1">
-                    ₹{feature.amount}
-                  </div>
+                  <div className="text-4xl font-bold text-blue-400 mb-1">₹{feature.amount}</div>
                   <p className="text-sm text-gray-300">One-time purchase</p>
                 </div>
 
                 {/* Description */}
-                <p className="text-sm text-gray-300 mb-6 min-h-[48px]">
-                  {feature.description}
-                </p>
+                <p className="text-sm text-gray-300 mb-6 min-h-[48px]">{feature.description}</p>
 
                 {/* Features List */}
                 <div className="space-y-3 mb-6 pb-6 border-b border-white/10">
                   <div className="flex items-start gap-2 text-sm text-gray-300">
-                    <svg className="w-4 h-4 text-green-400 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 24 24">
+                    <svg
+                      className="w-4 h-4 text-green-400 flex-shrink-0 mt-1"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
                       <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
                     </svg>
                     <span>Instant access</span>
                   </div>
                   <div className="flex items-start gap-2 text-sm text-gray-300">
-                    <svg className="w-4 h-4 text-green-400 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 24 24">
+                    <svg
+                      className="w-4 h-4 text-green-400 flex-shrink-0 mt-1"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
                       <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
                     </svg>
                     <span>Secure payment</span>
                   </div>
                   <div className="flex items-start gap-2 text-sm text-gray-300">
-                    <svg className="w-4 h-4 text-green-400 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 24 24">
+                    <svg
+                      className="w-4 h-4 text-green-400 flex-shrink-0 mt-1"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
                       <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
                     </svg>
                     <span>24/7 support</span>
@@ -292,7 +371,6 @@ export default function PricingPage() {
                     )}
                   </button>
                 )}
-
               </div>
             ))}
           </div>
@@ -307,11 +385,19 @@ export default function PricingPage() {
             Contact our support team for any questions about premium features
           </p>
           <a
-            href="mailto:support@finlytix.in"
+            href={SUPPORT_COMPOSE_URL}
+            target="_blank"
+            rel="noreferrer"
             className="inline-block px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition cursor-pointer"
           >
-            Contact Support
+            Contact Support in Outlook
           </a>
+          <p className="text-sm text-blue-100/80 mt-4">
+            Or email us directly at{' '}
+            <a className="underline hover:text-white" href={SUPPORT_MAILTO}>
+              {SUPPORT_EMAIL}
+            </a>
+          </p>
         </div>
       </div>
     </div>

@@ -11,15 +11,8 @@ async function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function apiFetch(
-  url: string,
-  options: FetchOptions = {},
-): Promise<Response> {
-  const {
-    timeout = DEFAULT_TIMEOUT,
-    retries = DEFAULT_RETRIES,
-    ...fetchOptions
-  } = options;
+export async function apiFetch(url: string, options: FetchOptions = {}): Promise<Response> {
+  const { timeout = DEFAULT_TIMEOUT, retries = DEFAULT_RETRIES, ...fetchOptions } = options;
 
   let lastError: Error | null = null;
 
@@ -43,10 +36,7 @@ export async function apiFetch(
 
       return response;
     } catch (error) {
-      lastError =
-        error instanceof Error
-          ? error
-          : new Error('Unknown error occurred');
+      lastError = error instanceof Error ? error : new Error('Unknown error occurred');
 
       // Don't retry on client errors (4xx)
       if (attempt < retries) {
@@ -58,10 +48,7 @@ export async function apiFetch(
   throw lastError || new Error('Failed to fetch after retries');
 }
 
-export async function apiGet<T>(
-  url: string,
-  token?: string,
-): Promise<T> {
+export async function apiGet<T>(url: string, token?: string): Promise<T> {
   const response = await apiFetch(url, {
     method: 'GET',
     headers: {
@@ -87,11 +74,7 @@ export async function apiGet<T>(
   return response.json();
 }
 
-export async function apiPost<T>(
-  url: string,
-  data: unknown,
-  token?: string,
-): Promise<T> {
+export async function apiPost<T>(url: string, data: unknown, token?: string): Promise<T> {
   const response = await apiFetch(url, {
     method: 'POST',
     headers: {
@@ -119,11 +102,7 @@ export async function apiPost<T>(
   return response.json();
 }
 
-export async function apiPut<T>(
-  url: string,
-  data: unknown,
-  token?: string,
-): Promise<T> {
+export async function apiPut<T>(url: string, data: unknown, token?: string): Promise<T> {
   const response = await apiFetch(url, {
     method: 'PUT',
     headers: {
@@ -151,10 +130,7 @@ export async function apiPut<T>(
   return response.json();
 }
 
-export async function apiDelete(
-  url: string,
-  token?: string,
-): Promise<void> {
+export async function apiDelete(url: string, token?: string): Promise<void> {
   const response = await apiFetch(url, {
     method: 'DELETE',
     headers: {
@@ -183,7 +159,7 @@ export function getErrorMessage(error: unknown): string {
     return error.message;
   }
   if (typeof error === 'object' && error !== null && 'error' in error) {
-    return String((error as {error: unknown}).error);
+    return String((error as { error: unknown }).error);
   }
   return 'An unexpected error occurred';
 }
@@ -195,15 +171,21 @@ interface AuthResponse {
       id: string;
       email: string;
       name: string;
+      phone?: string | null;
     };
   };
 }
 
 export const authAPI = {
-  async register(email: string, password: string, name: string): Promise<AuthResponse> {
+  async register(
+    email: string,
+    password: string,
+    name: string,
+    phone?: string,
+  ): Promise<AuthResponse> {
     const response = await apiPost<AuthResponse['data']>(
       `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/auth/register`,
-      { email, password, name },
+      { email, password, name, phone },
     );
     return { data: response };
   },

@@ -1,6 +1,7 @@
 const { Pool } = require('pg');
+const path = require('path');
 const types = require('pg').types;
-require('dotenv').config({ path: '.env.local' });
+require('dotenv').config({ path: path.join(__dirname, '..', '.env.local') });
 
 // GLOBAL SIDE EFFECT: setTypeParser mutates the shared pg type registry for this
 // entire process — every pool/client will return NUMERIC columns as JS numbers.

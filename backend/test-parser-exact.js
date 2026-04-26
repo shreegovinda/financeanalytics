@@ -26,28 +26,28 @@ function parseDate(dateStr) {
 function parseICICILogic(text) {
   const transactions = [];
   const lines = text.split('\n');
-  
+
   for (const line of lines) {
     const dateMatch = line.match(/(\d{2}\/\d{2}\/\d{4})/);
-    
+
     if (dateMatch) {
       const dateStr = dateMatch[1];
       // Extract description (everything before date)
       const descEnd = line.indexOf(dateStr);
       const description = line.substring(0, descEnd).trim();
-      
+
       // Extract numbers after date
       const afterDate = line.substring(descEnd + dateStr.length).trim();
       const numbers = afterDate.match(/\d+\.?\d*/g) || [];
-      
+
       if (numbers.length >= 2) {
         const debit = parseFloat(numbers[0]);
         const credit = parseFloat(numbers[1]);
-        
+
         if (debit > 0 || credit > 0) {
           const amount = debit > 0 ? debit : credit;
           const type = debit > 0 ? 'debit' : 'credit';
-          
+
           transactions.push({
             date: parseDate(dateStr),
             description: description || 'Transaction',
@@ -58,7 +58,7 @@ function parseICICILogic(text) {
       }
     }
   }
-  
+
   return transactions;
 }
 
@@ -66,7 +66,9 @@ console.log('Testing ICICI parser with proper format:\n');
 const results = parseICICILogic(iciciText);
 console.log(`Extracted ${results.length} transactions:\n`);
 results.forEach((txn, i) => {
-  console.log(`${i + 1}. ${txn.date.toISOString().split('T')[0]} | ${txn.description.padEnd(25)} | ${txn.type} | ₹${txn.amount.toFixed(2)}`);
+  console.log(
+    `${i + 1}. ${txn.date.toISOString().split('T')[0]} | ${txn.description.padEnd(25)} | ${txn.type} | ₹${txn.amount.toFixed(2)}`,
+  );
 });
 
 if (results.length === 6) {

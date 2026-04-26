@@ -2,8 +2,13 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import AuthSessionGuard from '@/components/AuthSessionGuard';
+import BackButton from '@/components/BackButton';
 import { apiGet, getErrorMessage } from '@/lib/api';
 import { formatDate } from '@/lib/date';
+import StatementProcessingProgress, {
+  isStatementProcessing,
+} from '@/components/StatementProcessingProgress';
 
 interface Statement {
   id: string;
@@ -11,6 +16,10 @@ interface Statement {
   file_name: string;
   uploaded_at: string;
   status: string;
+  processing_stage?: string | null;
+  processing_progress?: number | null;
+  processing_error?: string | null;
+  processed_at?: string | null;
 }
 
 interface Transaction {
@@ -59,27 +68,48 @@ export default function StatementDetailsPage() {
     void Promise.resolve().then(fetchStatementDetails);
   }, [fetchStatementDetails, router]);
 
+  useEffect(() => {
+    if (!statement || !isStatementProcessing(statement)) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void fetchStatementDetails();
+    }, 3000);
+
+    return () => window.clearInterval(intervalId);
+  }, [fetchStatementDetails, statement]);
+
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
 
   if (error) {
-    return <div className="min-h-screen flex items-center justify-center text-red-600">{error}</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center text-red-600">{error}</div>
+    );
   }
 
   if (!statement) {
     return <div className="min-h-screen flex items-center justify-center">Statement not found</div>;
   }
 
-  const totalDebit = transactions.filter((t) => t.type === 'debit').reduce((sum, t) => sum + Number(t.amount), 0);
-  const totalCredit = transactions.filter((t) => t.type === 'credit').reduce((sum, t) => sum + Number(t.amount), 0);
+  const totalDebit = transactions
+    .filter((t) => t.type === 'debit')
+    .reduce((sum, t) => sum + Number(t.amount), 0);
+  const totalCredit = transactions
+    .filter((t) => t.type === 'credit')
+    .reduce((sum, t) => sum + Number(t.amount), 0);
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <AuthSessionGuard />
       <div className="max-w-6xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-        <button onClick={() => router.push('/statements')} className="text-blue-600 hover:text-blue-800 mb-6 flex items-center gap-2 cursor-pointer">
-          ← Back to Statements
-        </button>
+        <BackButton
+          fallbackHref="/statements"
+          label="Back to Statements"
+          className="mb-6 shadow-sm"
+        />
 
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">{statement.bank_name}</h1>
@@ -106,13 +136,21 @@ export default function StatementDetailsPage() {
             </div>
             <div>
               <p className="text-sm text-gray-600">Uploaded</p>
-              <p className="text-lg font-medium text-gray-900">{formatDate(statement.uploaded_at)}</p>
+              <p className="text-lg font-medium text-gray-900">
+                {formatDate(statement.uploaded_at)}
+              </p>
             </div>
             <div>
               <p className="text-sm text-gray-600">Transactions</p>
               <p className="text-lg font-medium text-gray-900">{transactions.length}</p>
             </div>
           </div>
+          {statement.status !== 'completed' && (
+            <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <p className="mb-3 text-sm font-medium text-gray-700">Processing Timeline</p>
+              <StatementProcessingProgress statement={statement} />
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -136,27 +174,45 @@ export default function StatementDetailsPage() {
           </div>
 
           {transactions.length === 0 ? (
-            <div className="px-6 py-8 text-center text-gray-500">No transactions found</div>
+            <div className="px-6 py-8 text-center text-gray-500">
+              {isStatementProcessing(statement)
+                ? 'Transactions will appear here after processing completes.'
+                : 'No transactions found'}
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Description</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Type</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">Amount</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                      Date
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                      Description
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                      Type
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">
+                      Amount
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {transactions.map((txn) => (
                     <tr key={txn.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatDate(txn.date)}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">{txn.description}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {formatDate(txn.date)}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">
+                        {txn.description}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
                           className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            txn.type === 'credit' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            txn.type === 'credit'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-red-100 text-red-800'
                           }`}
                         >
                           {txn.type.charAt(0).toUpperCase() + txn.type.slice(1)}

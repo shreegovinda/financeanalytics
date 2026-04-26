@@ -6,6 +6,7 @@ const pool = require('../config/db');
 const auth = require('../middleware/auth');
 const { parseStatement } = require('../services/parsers/generic');
 const { categorizeBatch } = require('../services/claude');
+const { getProviderFromRequest } = require('../services/ai');
 
 const router = express.Router();
 
@@ -26,6 +27,9 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024,
+  },
   fileFilter: (req, file, cb) => {
     const allowed = /\.(pdf|xlsx|xls)$/i;
     if (allowed.test(path.extname(file.originalname))) {
@@ -36,135 +40,237 @@ const upload = multer({
   },
 });
 
-router.post('/', auth, upload.single('file'), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No file uploaded' });
-  }
+async function updateStatementProgress(statementId, stage, progress, extra = {}) {
+  await pool.query(
+    `UPDATE statements
+     SET processing_stage = $1,
+         processing_progress = $2,
+         status = COALESCE($3, status),
+         processing_error = COALESCE($4, processing_error),
+         processed_at = COALESCE($5, processed_at),
+         upload_path = CASE
+           WHEN $6 THEN NULL
+           WHEN $7 IS NOT NULL THEN $7
+           ELSE upload_path
+         END
+     WHERE id = $8`,
+    [
+      stage,
+      progress,
+      extra.status || null,
+      extra.error || null,
+      extra.processedAt || null,
+      Boolean(extra.clearUploadPath),
+      extra.uploadPath || null,
+      statementId,
+    ],
+  );
+}
 
-  const { bankName } = req.body;
-  if (!bankName || bankName.trim().length === 0) {
-    fs.unlinkSync(req.file.path);
-    return res.status(400).json({ error: 'Bank name is required' });
-  }
+async function markStatementFailed(statementId, message) {
+  await updateStatementProgress(statementId, 'failed', 100, {
+    status: 'failed',
+    error: message,
+    processedAt: new Date(),
+    clearUploadPath: true,
+  });
+}
 
-  const filePath = req.file.path;
-  const userId = req.user.id;
-  const bankNameNormalized = bankName.trim().toUpperCase();
-  let statementId = null;
-
+async function processStatementInBackground({
+  statementId,
+  filePath,
+  originalName,
+  userId,
+  aiProvider,
+}) {
   try {
+    await updateStatementProgress(statementId, 'extracting_text', 20);
+
+    const parsedStatement = await parseStatement(filePath, aiProvider);
+    const bankName = (parsedStatement.bankName || 'Unknown Bank').slice(0, 50).toUpperCase();
+    const transactions = parsedStatement.transactions;
+
+    await updateStatementProgress(statementId, 'importing_transactions', 55);
+
     const client = await pool.connect();
-
-    const statementResult = await client.query(
-      'INSERT INTO statements (user_id, bank_name, file_name, status) VALUES ($1, $2, $3, $4) RETURNING id',
-      [userId, bankNameNormalized, req.file.originalname, 'processing'],
-    );
-
-    statementId = statementResult.rows[0].id;
-
-    client.release();
-
-    // Use generic parser for any bank statement format
-    let transactions = [];
-    try {
-      transactions = await parseStatement(filePath);
-    } catch (parseErr) {
-      console.error('Parse error:', parseErr);
-      throw new Error(`Failed to parse statement: ${parseErr.message}`);
-    }
-
-    const client2 = await pool.connect();
-    let client2Released = false;
+    let clientReleased = false;
+    const txnIds = [];
 
     try {
-      await client2.query('BEGIN');
+      await client.query('BEGIN');
+      await client.query(
+        'UPDATE statements SET bank_name = $1, processing_stage = $2, processing_progress = $3 WHERE id = $4 AND user_id = $5',
+        [bankName, 'importing_transactions', 65, statementId, userId],
+      );
 
-      const txnIds = [];
-      for (const txn of transactions) {
-        if (txn.date && txn.amount) {
-          const result = await client2.query(
-            'INSERT INTO transactions (user_id, statement_id, date, amount, description, type) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
-            [userId, statementId, txn.date, txn.amount, txn.description, txn.type],
-          );
-          txnIds.push(result.rows[0].id);
-        }
+      if (transactions.length > 0) {
+        const values = [];
+        const placeholders = transactions.map((txn, index) => {
+          const offset = index * 6;
+          values.push(userId, statementId, txn.date, txn.amount, txn.description, txn.type);
+          return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
+        });
+
+        const result = await client.query(
+          `INSERT INTO transactions (user_id, statement_id, date, amount, description, type)
+           VALUES ${placeholders.join(', ')}
+           RETURNING id`,
+          values,
+        );
+        txnIds.push(...result.rows.map((row) => row.id));
       }
 
-      await client2.query('UPDATE statements SET status = $1 WHERE id = $2', ['completed', statementId]);
-      await client2.query('COMMIT');
-
-      client2.release();
-      client2Released = true;
-
-      // Queue transactions for async categorization (don't block response)
-      if (txnIds.length > 0) {
-        categorizeBatch(transactions)
-          .then(async (results) => {
-            const updateClient = await pool.connect();
-            try {
-              for (const result of results) {
-                if (result.transactionIndex < txnIds.length) {
-                  await updateClient.query(
-                    'UPDATE transactions SET ai_suggested_category = $1 WHERE id = $2',
-                    [result.category, txnIds[result.transactionIndex]],
-                  );
-                }
-              }
-            } catch (err) {
-              console.error('Error updating categorizations:', err);
-            } finally {
-              updateClient.release();
-            }
-          })
-          .catch((err) => {
-            console.error('Batch categorization failed:', err);
-          });
-      }
+      await client.query('COMMIT');
+      client.release();
+      clientReleased = true;
     } catch (err) {
       try {
-        await client2.query('ROLLBACK');
+        await client.query('ROLLBACK');
       } catch (rollbackErr) {
         console.error('Rollback error:', rollbackErr);
       }
       throw err;
     } finally {
-      if (!client2Released) {
-        client2.release();
+      if (!clientReleased) {
+        client.release();
       }
     }
 
-    fs.unlinkSync(filePath);
+    await updateStatementProgress(statementId, 'categorizing_transactions', 80);
 
-    res.json({
+    if (txnIds.length > 0) {
+      const results = await categorizeBatch(transactions, aiProvider);
+      const updateClient = await pool.connect();
+      try {
+        for (const result of results) {
+          if (result.transactionIndex < txnIds.length) {
+            await updateClient.query(
+              'UPDATE transactions SET ai_suggested_category = $1 WHERE id = $2',
+              [result.category, txnIds[result.transactionIndex]],
+            );
+          }
+        }
+      } finally {
+        updateClient.release();
+      }
+    }
+
+    await updateStatementProgress(statementId, 'completed', 100, {
+      status: 'completed',
+      processedAt: new Date(),
+      clearUploadPath: true,
+    });
+
+    console.log(`✓ Completed background processing for ${originalName}`);
+  } catch (err) {
+    console.error('Background statement processing failed:', err);
+    await markStatementFailed(statementId, err.message).catch((updateErr) => {
+      console.error('Failed to record statement processing error:', updateErr);
+    });
+  } finally {
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  }
+}
+
+async function resumeProcessingStatements() {
+  try {
+    const result = await pool.query(
+      `SELECT id, user_id, file_name, upload_path, ai_provider
+       FROM statements
+       WHERE status = 'processing'`,
+    );
+
+    for (const statement of result.rows) {
+      if (!statement.upload_path || !fs.existsSync(statement.upload_path)) {
+        await markStatementFailed(
+          statement.id,
+          'Processing was interrupted and the uploaded file is no longer available. Please upload the statement again.',
+        );
+        continue;
+      }
+
+      setImmediate(() => {
+        void processStatementInBackground({
+          statementId: statement.id,
+          filePath: statement.upload_path,
+          originalName: statement.file_name,
+          userId: statement.user_id,
+          aiProvider: statement.ai_provider,
+        });
+      });
+    }
+  } catch (err) {
+    console.error('Failed to resume statement processing:', err);
+  }
+}
+
+router.post('/', auth, upload.single('file'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  const filePath = req.file.path;
+  const userId = req.user.id;
+  const aiProvider = getProviderFromRequest(req);
+
+  try {
+    const statementResult = await pool.query(
+      `INSERT INTO statements
+       (user_id, bank_name, file_name, status, processing_stage, processing_progress, upload_path, ai_provider)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING id, bank_name, file_name, uploaded_at, status, processing_stage, processing_progress`,
+      [
+        userId,
+        'DETECTING BANK',
+        req.file.originalname,
+        'processing',
+        'uploaded',
+        5,
+        filePath,
+        aiProvider,
+      ],
+    );
+
+    const statement = statementResult.rows[0];
+
+    setImmediate(() => {
+      void processStatementInBackground({
+        statementId: statement.id,
+        filePath,
+        originalName: req.file.originalname,
+        userId,
+        aiProvider,
+      });
+    });
+
+    res.status(202).json({
       success: true,
-      statementId,
-      transactionCount: transactions.length,
-      message: `${transactions.length} transactions imported from ${bankName}`,
+      statementId: statement.id,
+      statement,
+      transactionCount: 0,
+      message: 'Statement uploaded. Processing has started in the background.',
     });
   } catch (err) {
-    console.error('Upload processing failed:', err);
+    console.error('Upload failed:', err);
 
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
 
-    // Update statement status to failed if we have a statementId
-    if (statementId) {
-      try {
-        await pool.query('UPDATE statements SET status = $1 WHERE id = $2', ['failed', statementId]);
-      } catch (_) {
-        // Ignore error in cleanup
-      }
-    }
-
-    res.status(500).json({ error: `Failed to process statement: ${err.message}` });
+    res.status(500).json({ error: `Failed to upload statement: ${err.message}` });
   }
 });
 
 router.get('/', auth, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, bank_name, file_name, uploaded_at, status FROM statements WHERE user_id = $1 ORDER BY uploaded_at DESC',
+      `SELECT id, bank_name, file_name, uploaded_at, status, processing_stage,
+              processing_progress, processing_error, processed_at
+       FROM statements
+       WHERE user_id = $1
+       ORDER BY uploaded_at DESC`,
       [req.user.id],
     );
 
@@ -177,10 +283,10 @@ router.get('/', auth, async (req, res) => {
 
 router.get('/:statementId', auth, async (req, res) => {
   try {
-    const statement = await pool.query(
-      'SELECT * FROM statements WHERE id = $1 AND user_id = $2',
-      [req.params.statementId, req.user.id],
-    );
+    const statement = await pool.query('SELECT * FROM statements WHERE id = $1 AND user_id = $2', [
+      req.params.statementId,
+      req.user.id,
+    ]);
 
     if (statement.rows.length === 0) {
       return res.status(404).json({ error: 'Statement not found' });
@@ -200,5 +306,7 @@ router.get('/:statementId', auth, async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch statement details' });
   }
 });
+
+router.resumeProcessingStatements = resumeProcessingStatements;
 
 module.exports = router;
