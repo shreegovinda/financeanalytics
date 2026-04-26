@@ -12,7 +12,6 @@ interface UploadResponse {
   message: string;
 }
 
-
 export default function FileUploadForm({ onUploadSuccess }: { onUploadSuccess?: () => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
@@ -57,7 +56,11 @@ export default function FileUploadForm({ onUploadSuccess }: { onUploadSuccess?: 
       return `File is too large (${(file.size / 1024 / 1024).toFixed(2)}MB). Maximum size is 10MB`;
     }
 
-    const allowedTypes = ['application/pdf', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+    const allowedTypes = [
+      'application/pdf',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ];
     if (!allowedTypes.includes(file.type)) {
       return 'Invalid file type. Please upload a PDF or Excel file';
     }
@@ -113,11 +116,11 @@ export default function FileUploadForm({ onUploadSuccess }: { onUploadSuccess?: 
       }
 
       if (!response.ok) {
-        const errBody = await response.json().catch(() => ({})) as { error?: string };
+        const errBody = (await response.json().catch(() => ({}))) as { error?: string };
         throw new Error(errBody.error || `Upload failed (${response.status})`);
       }
 
-      const data = await response.json() as UploadResponse;
+      const data = (await response.json()) as UploadResponse;
 
       setSuccess(data.message);
       setFile(null);
@@ -137,7 +140,8 @@ export default function FileUploadForm({ onUploadSuccess }: { onUploadSuccess?: 
     <div className="w-full max-w-2xl mx-auto p-6">
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-          Upload your PDF or Excel statement. Gemini will detect the bank and extract posted transactions automatically.
+          Upload your PDF or Excel statement. Gemini will detect the bank and extract posted
+          transactions automatically.
         </div>
 
         <div

@@ -3,7 +3,11 @@
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { apiGet, getErrorMessage } from '@/lib/api';
-import { AI_PROVIDER_STORAGE_KEY, getSelectedAiProvider, setSelectedAiProvider } from '@/lib/aiProvider';
+import {
+  AI_PROVIDER_STORAGE_KEY,
+  getSelectedAiProvider,
+  setSelectedAiProvider,
+} from '@/lib/aiProvider';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -23,16 +27,12 @@ export default function AiProviderSelect() {
   const pathname = usePathname();
   const [providers, setProviders] = useState<AiProvider[]>([]);
   const [selectedProvider, setSelectedProviderState] = useState('');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const hasToken = typeof window !== 'undefined' && Boolean(localStorage.getItem('token'));
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    setIsAuthenticated(Boolean(token));
-
-    if (!token) {
-      setIsLoading(false);
+    if (!hasToken) {
       return;
     }
 
@@ -61,7 +61,7 @@ export default function AiProviderSelect() {
     }
 
     void fetchProviders();
-  }, [pathname]);
+  }, [hasToken, pathname]);
 
   useEffect(() => {
     function handleStorage(event: StorageEvent) {
@@ -74,7 +74,7 @@ export default function AiProviderSelect() {
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
-  if (!isAuthenticated || pathname === '/auth' || pathname === '/' || isLoading) {
+  if (!hasToken || pathname === '/auth' || pathname === '/' || isLoading) {
     return null;
   }
 
@@ -98,7 +98,8 @@ export default function AiProviderSelect() {
           ) : (
             providers.map((provider) => (
               <option key={provider.id} value={provider.id} disabled={!provider.configured}>
-                {provider.label}{provider.configured ? '' : ' (not configured)'}
+                {provider.label}
+                {provider.configured ? '' : ' (not configured)'}
               </option>
             ))
           )}

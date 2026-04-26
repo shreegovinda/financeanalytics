@@ -9,19 +9,16 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 const RAZORPAY_SCRIPT_URL = 'https://checkout.razorpay.com/v1/checkout.js';
 const SUPPORT_EMAIL = 'admin@finlytix.in';
 const SUPPORT_EMAIL_SUBJECT = 'Premium feature support';
-const SUPPORT_EMAIL_BODY = 'Hello Finlytix Support,\n\nI need help with a premium feature.\n\nDetails:\n';
+const SUPPORT_EMAIL_BODY =
+  'Hello Finlytix Support,\n\nI need help with a premium feature.\n\nDetails:\n';
 const SUPPORT_COMPOSE_URL = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(
   SUPPORT_EMAIL,
-)}&subject=${encodeURIComponent(
-  SUPPORT_EMAIL_SUBJECT,
-)}&body=${encodeURIComponent(
+)}&subject=${encodeURIComponent(SUPPORT_EMAIL_SUBJECT)}&body=${encodeURIComponent(
   SUPPORT_EMAIL_BODY,
 )}`;
 const SUPPORT_MAILTO = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
   SUPPORT_EMAIL_SUBJECT,
-)}&body=${encodeURIComponent(
-  SUPPORT_EMAIL_BODY,
-)}`;
+)}&body=${encodeURIComponent(SUPPORT_EMAIL_BODY)}`;
 
 interface PricingData {
   [key: string]: {
@@ -237,7 +234,9 @@ export default function PricingPage() {
       const razorpayCheckout = new window.Razorpay(options);
       razorpayCheckout.on('payment.failed', (response) => {
         const message =
-          response.error?.description || response.error?.reason || 'Payment failed. Please try again.';
+          response.error?.description ||
+          response.error?.reason ||
+          'Payment failed. Please try again.';
         setError(message);
         setProcessingPayment(false);
       });
@@ -249,7 +248,7 @@ export default function PricingPage() {
           ? err.response?.data?.error || 'Failed to create payment order'
           : err instanceof Error
             ? err.message
-          : 'Failed to create payment order',
+            : 'Failed to create payment order',
       );
       setProcessingPayment(false);
     }
@@ -304,33 +303,41 @@ export default function PricingPage() {
 
                 {/* Price */}
                 <div className="mb-4">
-                  <div className="text-4xl font-bold text-blue-400 mb-1">
-                    ₹{feature.amount}
-                  </div>
+                  <div className="text-4xl font-bold text-blue-400 mb-1">₹{feature.amount}</div>
                   <p className="text-sm text-gray-300">One-time purchase</p>
                 </div>
 
                 {/* Description */}
-                <p className="text-sm text-gray-300 mb-6 min-h-[48px]">
-                  {feature.description}
-                </p>
+                <p className="text-sm text-gray-300 mb-6 min-h-[48px]">{feature.description}</p>
 
                 {/* Features List */}
                 <div className="space-y-3 mb-6 pb-6 border-b border-white/10">
                   <div className="flex items-start gap-2 text-sm text-gray-300">
-                    <svg className="w-4 h-4 text-green-400 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 24 24">
+                    <svg
+                      className="w-4 h-4 text-green-400 flex-shrink-0 mt-1"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
                       <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
                     </svg>
                     <span>Instant access</span>
                   </div>
                   <div className="flex items-start gap-2 text-sm text-gray-300">
-                    <svg className="w-4 h-4 text-green-400 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 24 24">
+                    <svg
+                      className="w-4 h-4 text-green-400 flex-shrink-0 mt-1"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
                       <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
                     </svg>
                     <span>Secure payment</span>
                   </div>
                   <div className="flex items-start gap-2 text-sm text-gray-300">
-                    <svg className="w-4 h-4 text-green-400 flex-shrink-0 mt-1" fill="currentColor" viewBox="0 0 24 24">
+                    <svg
+                      className="w-4 h-4 text-green-400 flex-shrink-0 mt-1"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
                       <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
                     </svg>
                     <span>24/7 support</span>
@@ -364,7 +371,6 @@ export default function PricingPage() {
                     )}
                   </button>
                 )}
-
               </div>
             ))}
           </div>

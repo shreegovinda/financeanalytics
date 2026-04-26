@@ -49,11 +49,24 @@ async function updateStatementProgress(statementId, stage, progress, extra = {})
          processing_error = COALESCE($4, processing_error),
          processed_at = COALESCE($5, processed_at)
      WHERE id = $6`,
-    [stage, progress, extra.status || null, extra.error || null, extra.processedAt || null, statementId],
+    [
+      stage,
+      progress,
+      extra.status || null,
+      extra.error || null,
+      extra.processedAt || null,
+      statementId,
+    ],
   );
 }
 
-async function processStatementInBackground({ statementId, filePath, originalName, userId, aiProvider }) {
+async function processStatementInBackground({
+  statementId,
+  filePath,
+  originalName,
+  userId,
+  aiProvider,
+}) {
   try {
     await updateStatementProgress(statementId, 'extracting_text', 20);
 
@@ -106,10 +119,10 @@ async function processStatementInBackground({ statementId, filePath, originalNam
       try {
         for (const result of results) {
           if (result.transactionIndex < txnIds.length) {
-            await updateClient.query('UPDATE transactions SET ai_suggested_category = $1 WHERE id = $2', [
-              result.category,
-              txnIds[result.transactionIndex],
-            ]);
+            await updateClient.query(
+              'UPDATE transactions SET ai_suggested_category = $1 WHERE id = $2',
+              [result.category, txnIds[result.transactionIndex]],
+            );
           }
         }
       } finally {
@@ -207,10 +220,10 @@ router.get('/', auth, async (req, res) => {
 
 router.get('/:statementId', auth, async (req, res) => {
   try {
-    const statement = await pool.query(
-      'SELECT * FROM statements WHERE id = $1 AND user_id = $2',
-      [req.params.statementId, req.user.id],
-    );
+    const statement = await pool.query('SELECT * FROM statements WHERE id = $1 AND user_id = $2', [
+      req.params.statementId,
+      req.user.id,
+    ]);
 
     if (statement.rows.length === 0) {
       return res.status(404).json({ error: 'Statement not found' });

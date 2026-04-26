@@ -86,7 +86,9 @@ router.post('/', auth, async (req, res) => {
     res.json(result.rows[0]);
   } catch (err) {
     if (err.code === '23505') {
-      return res.status(409).json({ error: 'A category with this name already exists at this level' });
+      return res
+        .status(409)
+        .json({ error: 'A category with this name already exists at this level' });
     }
     console.error('Error creating category:', err);
     res.status(500).json({ error: 'Failed to create category' });
@@ -132,14 +134,18 @@ router.put('/:id', auth, async (req, res) => {
       return res.status(400).json({ error: 'No fields to update' });
     }
 
-    updateQuery += updates.join(', ') + ` WHERE id = $${paramIndex} AND user_id = $${paramIndex + 1} RETURNING id, name, color, is_default, parent_id`;
+    updateQuery +=
+      updates.join(', ') +
+      ` WHERE id = $${paramIndex} AND user_id = $${paramIndex + 1} RETURNING id, name, color, is_default, parent_id`;
     params.push(categoryId, req.user.id);
 
     const result = await pool.query(updateQuery, params);
     res.json(result.rows[0]);
   } catch (err) {
     if (err.code === '23505') {
-      return res.status(409).json({ error: 'A category with this name already exists at this level' });
+      return res
+        .status(409)
+        .json({ error: 'A category with this name already exists at this level' });
     }
     console.error('Error updating category:', err);
     res.status(500).json({ error: 'Failed to update category' });
@@ -159,7 +165,10 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(404).json({ error: 'Category not found' });
     }
 
-    await pool.query('DELETE FROM categories WHERE id = $1 AND user_id = $2', [categoryId, req.user.id]);
+    await pool.query('DELETE FROM categories WHERE id = $1 AND user_id = $2', [
+      categoryId,
+      req.user.id,
+    ]);
 
     res.json({ success: true });
   } catch (err) {
@@ -181,10 +190,10 @@ router.post('/bulk-reassign', auth, async (req, res) => {
     }
 
     // Verify category exists and belongs to user
-    const catCheck = await pool.query(
-      'SELECT id FROM categories WHERE id = $1 AND user_id = $2',
-      [categoryId, req.user.id],
-    );
+    const catCheck = await pool.query('SELECT id FROM categories WHERE id = $1 AND user_id = $2', [
+      categoryId,
+      req.user.id,
+    ]);
 
     if (catCheck.rows.length === 0) {
       return res.status(404).json({ error: 'Category not found' });

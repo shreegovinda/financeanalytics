@@ -20,9 +20,7 @@ export default function Home() {
       <header className="bg-white shadow-sm dark:bg-gray-800">
         <div className="max-w-7xl mx-auto px-4 py-6 flex items-center gap-4">
           <BackButton fallbackHref="/auth" className="shadow-sm" />
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            💰 Finance Analytics
-          </h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">💰 Finance Analytics</h1>
         </div>
       </header>
 
@@ -33,7 +31,8 @@ export default function Home() {
               Take Control of Your Finances
             </h2>
             <p className="text-xl text-gray-600 dark:text-gray-300 mb-8">
-              Upload your bank statements from ICICI, HDFC, and Axis banks. Our AI automatically categorizes your transactions and provides insights into your spending patterns.
+              Upload your bank statements from ICICI, HDFC, and Axis banks. Our AI automatically
+              categorizes your transactions and provides insights into your spending patterns.
             </p>
 
             <div className="space-y-4 mb-8">
@@ -41,21 +40,30 @@ export default function Home() {
                 <span className="text-2xl">📊</span>
                 <div>
                   <h3 className="font-semibold text-gray-900 dark:text-white">Smart Analytics</h3>
-                  <p className="text-gray-600 dark:text-gray-400">View your spending breakdown by category with interactive charts</p>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    View your spending breakdown by category with interactive charts
+                  </p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
                 <span className="text-2xl">🤖</span>
                 <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-white">AI-Powered Categorization</h3>
-                  <p className="text-gray-600 dark:text-gray-400">Choose Claude or Gemini to automatically categorize transactions with high accuracy</p>
+                  <h3 className="font-semibold text-gray-900 dark:text-white">
+                    AI-Powered Categorization
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    Choose Claude or Gemini to automatically categorize transactions with high
+                    accuracy
+                  </p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
                 <span className="text-2xl">📈</span>
                 <div>
                   <h3 className="font-semibold text-gray-900 dark:text-white">Monthly Trends</h3>
-                  <p className="text-gray-600 dark:text-gray-400">Track your income and expenses over time to identify patterns</p>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    Track your income and expenses over time to identify patterns
+                  </p>
                 </div>
               </div>
             </div>
@@ -84,7 +92,9 @@ export default function Home() {
                 </div>
                 <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
                   <div className="text-sm text-gray-600 dark:text-gray-400">Income</div>
-                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">₹1,00,000</div>
+                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                    ₹1,00,000
+                  </div>
                 </div>
               </div>
 

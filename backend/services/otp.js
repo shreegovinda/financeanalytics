@@ -88,10 +88,11 @@ async function storeOTP(email, otp) {
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
 
   try {
-    await pool.query(
-      'INSERT INTO otp_codes (email, code, expires_at) VALUES ($1, $2, $3)',
-      [email, otp, expiresAt]
-    );
+    await pool.query('INSERT INTO otp_codes (email, code, expires_at) VALUES ($1, $2, $3)', [
+      email,
+      otp,
+      expiresAt,
+    ]);
     console.log(`✅ OTP stored for ${email}, expires at ${expiresAt}`);
     return true;
   } catch (error) {
@@ -124,7 +125,7 @@ async function verifyOTP(email, otp) {
   try {
     const result = await pool.query(
       'SELECT * FROM otp_codes WHERE email = $1 AND code = $2 AND is_used = FALSE AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1',
-      [email, otp]
+      [email, otp],
     );
 
     if (result.rows.length === 0) {

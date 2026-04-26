@@ -26,7 +26,11 @@ export function isStatementProcessing(statement: StatementProgress): boolean {
   return statement.status === 'processing';
 }
 
-export default function StatementProcessingProgress({ statement }: { statement: StatementProgress }) {
+export default function StatementProcessingProgress({
+  statement,
+}: {
+  statement: StatementProgress;
+}) {
   const progress = getProgress(statement);
   const stage = statement.processing_stage || statement.status;
   const isFailed = statement.status === 'failed';

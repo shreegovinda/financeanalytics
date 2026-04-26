@@ -323,7 +323,9 @@ export default function UnifiedAuthPage() {
           {step === 'email' && (
             <form onSubmit={handleCheckEmail} className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-200 mb-2">Email Address</label>
+                <label className="block text-sm font-medium text-gray-200 mb-2">
+                  Email Address
+                </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                     <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
@@ -473,7 +475,9 @@ export default function UnifiedAuthPage() {
                   </button>
                 )}
                 {otpSent && (
-                  <p className="mt-3 text-xs text-blue-100">OTP has been sent to your email address.</p>
+                  <p className="mt-3 text-xs text-blue-100">
+                    OTP has been sent to your email address.
+                  </p>
                 )}
               </div>
 
@@ -536,7 +540,9 @@ export default function UnifiedAuthPage() {
                   </button>
                 )}
                 {resetOtpSent && (
-                  <p className="mt-3 text-xs text-blue-100">OTP has been sent to your email address.</p>
+                  <p className="mt-3 text-xs text-blue-100">
+                    OTP has been sent to your email address.
+                  </p>
                 )}
               </div>
 
@@ -545,7 +551,9 @@ export default function UnifiedAuthPage() {
                 <input
                   type="text"
                   value={resetOtpCode}
-                  onChange={(e) => setResetOtpCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                  onChange={(e) =>
+                    setResetOtpCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))
+                  }
                   maxLength={6}
                   required
                   className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition text-center text-2xl tracking-widest"
@@ -567,7 +575,9 @@ export default function UnifiedAuthPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-200 mb-2">Confirm New Password</label>
+                <label className="block text-sm font-medium text-gray-200 mb-2">
+                  Confirm New Password
+                </label>
                 <input
                   type="password"
                   value={resetConfirmPassword}
@@ -607,7 +617,8 @@ export default function UnifiedAuthPage() {
             <form onSubmit={handleSignup} className="space-y-5">
               <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 mb-4">
                 <p className="text-sm text-green-100">
-                  <span className="font-semibold">{email}</span> is new! Let&apos;s create your account.
+                  <span className="font-semibold">{email}</span> is new! Let&apos;s create your
+                  account.
                 </p>
               </div>
 
@@ -634,7 +645,9 @@ export default function UnifiedAuthPage() {
 
               {/* Email (prefilled, disabled) */}
               <div>
-                <label className="block text-sm font-medium text-gray-200 mb-2">Email Address</label>
+                <label className="block text-sm font-medium text-gray-200 mb-2">
+                  Email Address
+                </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                     <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
@@ -652,7 +665,9 @@ export default function UnifiedAuthPage() {
 
               {/* Phone (optional) */}
               <div>
-                <label className="block text-sm font-medium text-gray-200 mb-2">Phone (Optional)</label>
+                <label className="block text-sm font-medium text-gray-200 mb-2">
+                  Phone (Optional)
+                </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                     <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
@@ -706,11 +721,19 @@ export default function UnifiedAuthPage() {
                   <div className="space-y-2">
                     <div className="flex gap-1">
                       {[...Array(4)].map((_, i) => (
-                        <div key={i} className={`flex-1 h-1 rounded-full ${i < passwordStrength.score ? passwordStrength.color : 'bg-white/10'}`} />
+                        <div
+                          key={i}
+                          className={`flex-1 h-1 rounded-full ${i < passwordStrength.score ? passwordStrength.color : 'bg-white/10'}`}
+                        />
                       ))}
                     </div>
                     <p className="text-xs text-gray-400">
-                      Strength: <span className={`${passwordStrength.color.replace('bg-', 'text-')} font-medium`}>{passwordStrength.label}</span>
+                      Strength:{' '}
+                      <span
+                        className={`${passwordStrength.color.replace('bg-', 'text-')} font-medium`}
+                      >
+                        {passwordStrength.label}
+                      </span>
                     </p>
                   </div>
                 )}
@@ -718,7 +741,9 @@ export default function UnifiedAuthPage() {
 
               {/* Confirm Password Field */}
               <div>
-                <label className="block text-sm font-medium text-gray-200 mb-2">Confirm Password</label>
+                <label className="block text-sm font-medium text-gray-200 mb-2">
+                  Confirm Password
+                </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                     <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
@@ -731,7 +756,9 @@ export default function UnifiedAuthPage() {
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
                     className={`w-full pl-12 pr-12 py-3 bg-white/10 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-transparent transition ${
-                      confirmPassword && passwordsMatch ? 'border-green-500/50 focus:ring-2 focus:ring-green-400' : 'border-white/20 focus:ring-2 focus:ring-blue-400'
+                      confirmPassword && passwordsMatch
+                        ? 'border-green-500/50 focus:ring-2 focus:ring-green-400'
+                        : 'border-white/20 focus:ring-2 focus:ring-blue-400'
                     }`}
                     placeholder="Confirm your password"
                   />
@@ -794,7 +821,9 @@ export default function UnifiedAuthPage() {
           {step === 'email' && (
             <p className="mt-6 text-center text-sm text-gray-400">
               By signing in, you agree to our{' '}
-              <span className="text-blue-300 hover:text-blue-200 cursor-pointer transition">Terms of Service</span>
+              <span className="text-blue-300 hover:text-blue-200 cursor-pointer transition">
+                Terms of Service
+              </span>
             </p>
           )}
         </div>

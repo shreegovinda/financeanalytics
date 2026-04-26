@@ -1,7 +1,12 @@
 const fs = require('fs');
 const PDFParse = require('pdf-parse');
 const xlsx = require('xlsx');
-const { generateJsonObject, getProviderConfig, isProviderConfigured, normalizeProviderId } = require('../ai');
+const {
+  generateJsonObject,
+  getProviderConfig,
+  isProviderConfigured,
+  normalizeProviderId,
+} = require('../ai');
 
 const STATEMENT_PARSE_SCHEMA = {
   type: 'OBJECT',
@@ -161,7 +166,9 @@ async function parseStatement(filePath, providerId) {
       throw new Error('No valid transactions found in the uploaded statement');
     }
 
-    console.log(`✓ Successfully parsed ${parsed.transactions.length} transactions from ${parsed.bankName}`);
+    console.log(
+      `✓ Successfully parsed ${parsed.transactions.length} transactions from ${parsed.bankName}`,
+    );
     return parsed;
   } catch (err) {
     throw new Error(`Statement parsing failed: ${err.message}`);

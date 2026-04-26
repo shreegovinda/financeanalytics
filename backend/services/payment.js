@@ -7,7 +7,9 @@ let razorpayClient;
 
 function getRazorpayClient() {
   if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-    throw new Error('Razorpay is not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.');
+    throw new Error(
+      'Razorpay is not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.',
+    );
   }
 
   if (!razorpayClient) {

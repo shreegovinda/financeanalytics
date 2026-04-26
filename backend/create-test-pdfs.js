@@ -42,7 +42,7 @@ trailer
 startxref
 ${412 + content.length}
 %%EOF`;
-  
+
   fs.writeFileSync(filename, pdf);
   console.log(`✓ Created ${filename}`);
 }

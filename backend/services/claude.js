@@ -1,4 +1,9 @@
-const { generateJsonArray, getProviderConfig, isProviderConfigured, normalizeProviderId } = require('./ai');
+const {
+  generateJsonArray,
+  getProviderConfig,
+  isProviderConfigured,
+  normalizeProviderId,
+} = require('./ai');
 
 const CATEGORIES = [
   'Income',
@@ -46,11 +51,16 @@ Respond with a JSON array where each element has:
 Respond ONLY with valid JSON array, no other text.`;
 
     if (!isProviderConfigured(provider)) {
-      console.warn(`${getProviderConfig(provider).label} is not configured. Skipping AI categorization.`);
+      console.warn(
+        `${getProviderConfig(provider).label} is not configured. Skipping AI categorization.`,
+      );
       return [];
     }
 
-    const categorizations = await generateJsonArray(prompt, { providerId: provider, maxTokens: 1024 });
+    const categorizations = await generateJsonArray(prompt, {
+      providerId: provider,
+      maxTokens: 1024,
+    });
 
     const results = categorizations.map((cat) => ({
       transactionIndex: cat.index - 1,

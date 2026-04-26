@@ -57,7 +57,11 @@ function normalizeProviderId(providerId) {
 
 function getProviderFromRequest(req) {
   const requestedProvider = req.get('x-ai-provider');
-  if (requestedProvider && PROVIDERS[requestedProvider] && isProviderConfigured(requestedProvider)) {
+  if (
+    requestedProvider &&
+    PROVIDERS[requestedProvider] &&
+    isProviderConfigured(requestedProvider)
+  ) {
     return requestedProvider;
   }
 
@@ -143,21 +147,21 @@ function cleanJsonText(responseText) {
 }
 
 function repairCommonJsonIssues(jsonText) {
-  return jsonText
-    // Gemini can occasionally emit adjacent objects inside arrays without a comma.
-    .replace(/}\s*{/g, '},{')
-    .replace(/]\s*{/g, '],{')
-    .replace(/}\s*"/g, '},"')
-    .replace(/"\s*{/g, '",{');
+  return (
+    jsonText
+      // Gemini can occasionally emit adjacent objects inside arrays without a comma.
+      .replace(/}\s*{/g, '},{')
+      .replace(/]\s*{/g, '],{')
+      .replace(/}\s*"/g, '},"')
+      .replace(/"\s*{/g, '",{')
+  );
 }
 
 function parseJsonResponse(responseText, expectedType, providerLabel) {
   const cleaned = cleanJsonText(responseText);
   const candidates = [cleaned];
   const match =
-    expectedType === 'array'
-      ? cleaned.match(/\[[\s\S]*\]/)
-      : cleaned.match(/\{[\s\S]*\}/);
+    expectedType === 'array' ? cleaned.match(/\[[\s\S]*\]/) : cleaned.match(/\{[\s\S]*\}/);
 
   if (match && match[0] !== cleaned) {
     candidates.push(match[0]);

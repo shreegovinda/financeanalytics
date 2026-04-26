@@ -8,7 +8,9 @@ import FileUploadForm from '@/components/FileUploadForm';
 import { apiGet, getErrorMessage } from '@/lib/api';
 import { formatDate } from '@/lib/date';
 import { TableSkeletonLoader } from '@/components/Skeleton';
-import StatementProcessingProgress, { isStatementProcessing } from '@/components/StatementProcessingProgress';
+import StatementProcessingProgress, {
+  isStatementProcessing,
+} from '@/components/StatementProcessingProgress';
 
 interface Statement {
   id: string;
@@ -96,50 +98,70 @@ export default function StatementsPage() {
             </div>
 
             {error ? (
-            <div className="px-6 py-8 bg-red-50 text-red-700">{error}</div>
-          ) : statements.length === 0 ? (
-            <div className="px-6 py-8 text-center text-gray-500">No statements uploaded yet. Upload your first statement above!</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Bank</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">File Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Progress</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Uploaded</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {statements.map((statement) => (
-                    <tr key={statement.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/statements/${statement.id}`)}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{statement.bank_name}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{statement.file_name}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            statement.status === 'completed'
-                              ? 'bg-green-100 text-green-800'
-                              : statement.status === 'processing'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-red-100 text-red-800'
-                          }`}
-                        >
-                          {statement.status.charAt(0).toUpperCase() + statement.status.slice(1)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 min-w-72">
-                        <StatementProcessingProgress statement={statement} />
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {formatDate(statement.uploaded_at)}
-                      </td>
+              <div className="px-6 py-8 bg-red-50 text-red-700">{error}</div>
+            ) : statements.length === 0 ? (
+              <div className="px-6 py-8 text-center text-gray-500">
+                No statements uploaded yet. Upload your first statement above!
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                        Bank
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                        File Name
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                        Progress
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                        Uploaded
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {statements.map((statement) => (
+                      <tr
+                        key={statement.id}
+                        className="hover:bg-gray-50 cursor-pointer"
+                        onClick={() => router.push(`/statements/${statement.id}`)}
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {statement.bank_name}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                          {statement.file_name}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-medium ${
+                              statement.status === 'completed'
+                                ? 'bg-green-100 text-green-800'
+                                : statement.status === 'processing'
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : 'bg-red-100 text-red-800'
+                            }`}
+                          >
+                            {statement.status.charAt(0).toUpperCase() + statement.status.slice(1)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 min-w-72">
+                          <StatementProcessingProgress statement={statement} />
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                          {formatDate(statement.uploaded_at)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         )}

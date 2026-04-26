@@ -103,7 +103,9 @@ router.put('/:id', auth, async (req, res) => {
       return res.status(400).json({ error: 'No fields to update' });
     }
 
-    updateQuery += updates.join(', ') + ` WHERE id = $${paramIndex} AND user_id = $${paramIndex + 1} RETURNING *`;
+    updateQuery +=
+      updates.join(', ') +
+      ` WHERE id = $${paramIndex} AND user_id = $${paramIndex + 1} RETURNING *`;
     params.push(req.params.id, req.user.id);
 
     const result = await pool.query(updateQuery, params);

@@ -11,7 +11,8 @@ function parseAxis(filePath) {
 
     for (const row of rows) {
       const dateStr = row['Date'] || row['date'] || row['DATE'];
-      const description = row['Description'] || row['description'] || row['DESCRIPTION'] || row['Narration'];
+      const description =
+        row['Description'] || row['description'] || row['DESCRIPTION'] || row['Narration'];
       const debit = parseFloat(row['Debit'] || row['debit'] || row['DEBIT'] || 0);
       const credit = parseFloat(row['Credit'] || row['credit'] || row['CREDIT'] || 0);
 
@@ -42,15 +43,25 @@ function parseDate(dateStr) {
     date = new Date((dateStr - 25569) * 86400 * 1000);
   } else {
     const formats = [
-      /(\d{2})\/(\d{2})\/(\d{4})/,     // DD/MM/YYYY
-      /(\d{4})-(\d{2})-(\d{2})/,       // YYYY-MM-DD
+      /(\d{2})\/(\d{2})\/(\d{4})/, // DD/MM/YYYY
+      /(\d{4})-(\d{2})-(\d{2})/, // YYYY-MM-DD
       /(\d{2})-([A-Za-z]{3})-(\d{4})/, // DD-MMM-YYYY
     ];
 
     const dateString = String(dateStr);
     const monthMap = {
-      jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
-      jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+      jan: 0,
+      feb: 1,
+      mar: 2,
+      apr: 3,
+      may: 4,
+      jun: 5,
+      jul: 6,
+      aug: 7,
+      sep: 8,
+      oct: 9,
+      nov: 10,
+      dec: 11,
     };
 
     for (const format of formats) {
