@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { apiGet, getErrorMessage } from '@/lib/api';
+import { formatDate } from '@/lib/date';
 
 interface Statement {
   id: string;
@@ -15,7 +16,7 @@ interface Statement {
 interface Transaction {
   id: string;
   date: string;
-  amount: number;
+  amount: number | string;
   description: string;
   type: string;
   category_id?: string;
@@ -29,22 +30,12 @@ export default function StatementDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      router.push('/login');
-      return;
-    }
-
-    fetchStatementDetails();
-  }, [params.id, router]);
-
-  const fetchStatementDetails = async () => {
+  const fetchStatementDetails = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const data = await apiGet<{ statement: Statement; transactions: Transaction[] }>(
         `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/upload/${params.id}`,
-        token,
+        token ?? undefined,
       );
 
       setStatement(data.statement);
@@ -56,7 +47,17 @@ export default function StatementDetailsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.push('/auth');
+      return;
+    }
+
+    void Promise.resolve().then(fetchStatementDetails);
+  }, [fetchStatementDetails, router]);
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
@@ -70,13 +71,13 @@ export default function StatementDetailsPage() {
     return <div className="min-h-screen flex items-center justify-center">Statement not found</div>;
   }
 
-  const totalDebit = transactions.filter((t) => t.type === 'debit').reduce((sum, t) => sum + t.amount, 0);
-  const totalCredit = transactions.filter((t) => t.type === 'credit').reduce((sum, t) => sum + t.amount, 0);
+  const totalDebit = transactions.filter((t) => t.type === 'debit').reduce((sum, t) => sum + Number(t.amount), 0);
+  const totalCredit = transactions.filter((t) => t.type === 'credit').reduce((sum, t) => sum + Number(t.amount), 0);
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-        <button onClick={() => router.push('/statements')} className="text-blue-600 hover:text-blue-800 mb-6 flex items-center gap-2">
+        <button onClick={() => router.push('/statements')} className="text-blue-600 hover:text-blue-800 mb-6 flex items-center gap-2 cursor-pointer">
           ← Back to Statements
         </button>
 
@@ -105,7 +106,7 @@ export default function StatementDetailsPage() {
             </div>
             <div>
               <p className="text-sm text-gray-600">Uploaded</p>
-              <p className="text-lg font-medium text-gray-900">{new Date(statement.uploaded_at).toLocaleDateString()}</p>
+              <p className="text-lg font-medium text-gray-900">{formatDate(statement.uploaded_at)}</p>
             </div>
             <div>
               <p className="text-sm text-gray-600">Transactions</p>
@@ -150,7 +151,7 @@ export default function StatementDetailsPage() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {transactions.map((txn) => (
                     <tr key={txn.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(txn.date).toLocaleDateString()}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatDate(txn.date)}</td>
                       <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">{txn.description}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
@@ -162,7 +163,7 @@ export default function StatementDetailsPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
-                        {txn.type === 'credit' ? '+' : '-'}₹{txn.amount.toFixed(2)}
+                        {txn.type === 'credit' ? '+' : '-'}₹{Number(txn.amount).toFixed(2)}
                       </td>
                     </tr>
                   ))}

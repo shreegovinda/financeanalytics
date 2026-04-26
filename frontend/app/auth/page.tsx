@@ -27,7 +27,6 @@ export default function UnifiedAuthPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [userExists, setUserExists] = useState(false);
   const [existingUserName, setExistingUserName] = useState('');
   const [useOTP, setUseOTP] = useState(false);
   const [otpCode, setOtpCode] = useState('');
@@ -60,11 +59,9 @@ export default function UnifiedAuthPage() {
     try {
       const response = await axios.post('http://localhost:3001/api/auth/check-email', { email });
       if (response.data.exists) {
-        setUserExists(true);
         setExistingUserName(response.data.user.name);
         setStep('login');
       } else {
-        setUserExists(false);
         setStep('signup');
       }
     } catch (err: unknown) {
@@ -106,7 +103,7 @@ export default function UnifiedAuthPage() {
     setSuccess('');
 
     try {
-      const response = await axios.post('http://localhost:3001/api/auth/send-otp', { email });
+      await axios.post('http://localhost:3001/api/auth/send-otp', { email });
       setOtpSent(true);
       setSuccess(`OTP sent to ${email}. Check your inbox!`);
     } catch (err: unknown) {
@@ -432,7 +429,7 @@ export default function UnifiedAuthPage() {
             <form onSubmit={handleSignup} className="space-y-5">
               <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 mb-4">
                 <p className="text-sm text-green-100">
-                  <span className="font-semibold">{email}</span> is new! Let's create your account.
+                  <span className="font-semibold">{email}</span> is new! Let&apos;s create your account.
                 </p>
               </div>
 

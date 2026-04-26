@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import FileUploadForm from '@/components/FileUploadForm';
 import { apiGet, getErrorMessage } from '@/lib/api';
+import { formatDate } from '@/lib/date';
 import { TableSkeletonLoader } from '@/components/Skeleton';
 
 interface Statement {
@@ -20,22 +21,12 @@ export default function StatementsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      router.push('/login');
-      return;
-    }
-
-    fetchStatements();
-  }, [router]);
-
-  const fetchStatements = async () => {
+  async function fetchStatements() {
     try {
       const token = localStorage.getItem('token');
       const data = await apiGet<Statement[]>(
         `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/upload`,
-        token,
+        token ?? undefined,
       );
       setStatements(data);
       setError('');
@@ -45,7 +36,17 @@ export default function StatementsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.push('/auth');
+      return;
+    }
+
+    void Promise.resolve().then(fetchStatements);
+  }, [router]);
 
   const handleUploadSuccess = () => {
     fetchStatements();
@@ -106,7 +107,7 @@ export default function StatementsPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {new Date(statement.uploaded_at).toLocaleDateString()}
+                        {formatDate(statement.uploaded_at)}
                       </td>
                     </tr>
                   ))}

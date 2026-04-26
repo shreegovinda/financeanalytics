@@ -15,9 +15,17 @@ CREATE TABLE IF NOT EXISTS categories (
   name VARCHAR(100) NOT NULL,
   color VARCHAR(7) DEFAULT '#000000',
   is_default BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(user_id, name)
+  parent_id UUID REFERENCES categories(id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS categories_user_root_name_unique
+  ON categories(user_id, LOWER(name))
+  WHERE parent_id IS NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS categories_user_child_name_unique
+  ON categories(user_id, parent_id, LOWER(name))
+  WHERE parent_id IS NOT NULL;
 
 -- Statements table (audit trail)
 CREATE TABLE IF NOT EXISTS statements (
@@ -37,7 +45,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   date DATE NOT NULL,
   amount DECIMAL(12, 2) NOT NULL,
   description VARCHAR(255),
-  category_id UUID REFERENCES categories(id),
+  category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
   ai_suggested_category VARCHAR(100),
   type VARCHAR(10) DEFAULT 'debit',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

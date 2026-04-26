@@ -69,6 +69,16 @@ export async function apiGet<T>(
     },
   });
 
+  if (response.status === 401) {
+    // Token expired or invalid - clear session
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/auth';
+    }
+    throw new Error('Session expired. Redirecting to login...');
+  }
+
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
     throw new Error(error.error || `API error: ${response.status}`);
@@ -90,6 +100,16 @@ export async function apiPost<T>(
     },
     body: JSON.stringify(data),
   });
+
+  if (response.status === 401) {
+    // Token expired or invalid - clear session
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/auth';
+    }
+    throw new Error('Session expired. Redirecting to login...');
+  }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
@@ -113,6 +133,16 @@ export async function apiPut<T>(
     body: JSON.stringify(data),
   });
 
+  if (response.status === 401) {
+    // Token expired or invalid - clear session
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/auth';
+    }
+    throw new Error('Session expired. Redirecting to login...');
+  }
+
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
     throw new Error(error.error || `API error: ${response.status}`);
@@ -131,6 +161,16 @@ export async function apiDelete(
       ...(token && { Authorization: `Bearer ${token}` }),
     },
   });
+
+  if (response.status === 401) {
+    // Token expired or invalid - clear session
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/auth';
+    }
+    throw new Error('Session expired. Redirecting to login...');
+  }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));

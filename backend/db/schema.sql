@@ -15,9 +15,26 @@ CREATE TABLE IF NOT EXISTS categories (
   name VARCHAR(100) NOT NULL,
   color VARCHAR(7) DEFAULT '#000000',
   is_default BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(user_id, name)
+  parent_id UUID REFERENCES categories(id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Migration: add parent_id column if missing (idempotent)
+ALTER TABLE categories ADD COLUMN IF NOT EXISTS parent_id UUID REFERENCES categories(id) ON DELETE CASCADE;
+
+-- Migration: replace old unique constraint to allow same name under different parents
+ALTER TABLE categories DROP CONSTRAINT IF EXISTS categories_user_id_name_key;
+ALTER TABLE categories DROP CONSTRAINT IF EXISTS categories_user_name_parent_unique;
+
+CREATE UNIQUE INDEX IF NOT EXISTS categories_user_root_name_unique
+  ON categories(user_id, LOWER(name))
+  WHERE parent_id IS NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS categories_user_child_name_unique
+  ON categories(user_id, parent_id, LOWER(name))
+  WHERE parent_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_categories_parent ON categories(parent_id);
 
 -- Create statements table (audit trail)
 CREATE TABLE IF NOT EXISTS statements (
@@ -38,11 +55,16 @@ CREATE TABLE IF NOT EXISTS transactions (
   date DATE NOT NULL,
   amount DECIMAL(12, 2) NOT NULL,
   description VARCHAR(255),
-  category_id UUID REFERENCES categories(id),
+  category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
   ai_suggested_category VARCHAR(100),
   type VARCHAR(10) DEFAULT 'debit',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_category_id_fkey;
+ALTER TABLE transactions
+  ADD CONSTRAINT transactions_category_id_fkey
+  FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL;
 
 -- Create OTP codes table
 CREATE TABLE IF NOT EXISTS otp_codes (

@@ -1,5 +1,9 @@
 const { Pool } = require('pg');
+const types = require('pg').types;
 require('dotenv').config({ path: '.env.local' });
+
+// Parse numeric/decimal types to JavaScript numbers instead of strings
+types.setTypeParser(1700, (val) => parseFloat(val));
 
 const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',

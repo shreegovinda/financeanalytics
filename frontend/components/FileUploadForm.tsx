@@ -75,6 +75,12 @@ export default function FileUploadForm({ onUploadSuccess }: { onUploadSuccess?: 
       return;
     }
 
+    const selectedFile = file;
+    if (!selectedFile) {
+      setError('Please select a file');
+      return;
+    }
+
     if (!bankName) {
       setError('Please select a bank');
       return;
@@ -84,22 +90,23 @@ export default function FileUploadForm({ onUploadSuccess }: { onUploadSuccess?: 
 
     try {
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', selectedFile);
       formData.append('bankName', bankName);
 
       const token = localStorage.getItem('token');
-      const response = await apiFetch<UploadResponse>(
+      const response = await apiFetch(
         `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/upload`,
         {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${token}`,
+            ...(token && { Authorization: `Bearer ${token}` }),
           },
           body: formData,
         },
       );
+      const data = await response.json() as UploadResponse;
 
-      setSuccess(response.message);
+      setSuccess(data.message);
       setFile(null);
       setBankName('ICICI');
 

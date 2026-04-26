@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { apiGet, getErrorMessage } from '@/lib/api';
-import { CardGridSkeleton, ChartSkeleton, DashboardSkeleton } from '@/components/Skeleton';
+import { DashboardSkeleton } from '@/components/Skeleton';
 
 interface User {
   id: string;
@@ -32,7 +32,7 @@ interface SummaryStats {
 
 const COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#06b6d4'];
 
-export default function DashboardPage(): JSX.Element {
+export default function DashboardPage() {
   const router = useRouter();
 
   const getInitialUser = (): User | null => {
@@ -52,44 +52,55 @@ export default function DashboardPage(): JSX.Element {
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
 
   const fetchAnalytics = async (token: string) => {
-    try {
-      const [statsData, categoryChartData, monthlyChartData] = await Promise.all([
-        apiGet<SummaryStats>('http://localhost:3001/api/transactions/stats/summary', token),
-        apiGet<CategoryData[]>('http://localhost:3001/api/analytics/pie', token),
-        apiGet<MonthlyData[]>('http://localhost:3001/api/analytics/bar', token),
-      ]);
+    const results = await Promise.allSettled([
+      apiGet<SummaryStats>('http://localhost:3001/api/transactions/stats/summary', token),
+      apiGet<CategoryData[]>('http://localhost:3001/api/analytics/pie', token),
+      apiGet<MonthlyData[]>('http://localhost:3001/api/analytics/bar', token),
+    ]);
 
-      setStats(statsData);
-      setCategoryData(categoryChartData);
-      setMonthlyData(monthlyChartData);
-    } catch (err) {
-      console.error('Error fetching analytics:', getErrorMessage(err));
-    }
+    if (results[0].status === 'fulfilled') setStats(results[0].value);
+    if (results[1].status === 'fulfilled') setCategoryData(results[1].value);
+    if (results[2].status === 'fulfilled') setMonthlyData(results[2].value);
+
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        const endpoints = ['stats', 'pie chart', 'bar chart'];
+        console.error(`Error fetching ${endpoints[index]}:`, getErrorMessage(result.reason));
+      }
+    });
   };
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const checkAuth = async () => {
+      const token = localStorage.getItem('token');
 
-    if (!token) {
-      void router.push('/login');
-      return;
-    }
+      if (!token) {
+        await router.replace('/auth');
+        return;
+      }
 
-    const userData = getInitialUser();
-    if (!userData) {
-      void router.push('/login');
-      return;
-    }
+      const userData = getInitialUser();
+      if (!userData) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        await router.replace('/auth');
+        return;
+      }
 
-    setUser(userData);
-    void fetchAnalytics(token);
-    setIsLoading(false);
+      setUser(userData);
+      await fetchAnalytics(token);
+      setIsLoading(false);
+    };
+
+    void checkAuth();
   }, [router]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    router.push('/login');
+    setUser(null);
+    setIsLoading(true);
+    await router.replace('/auth');
   };
 
   if (isLoading || !user) {
@@ -105,15 +116,15 @@ export default function DashboardPage(): JSX.Element {
           <h1 className="text-2xl font-bold text-gray-800">Finance Analytics</h1>
           <div className="flex items-center gap-4">
             <span className="text-gray-700">Welcome, {user.name}</span>
-            <Link href="/pricing" className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition font-semibold">
+            <Link href="/pricing" className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition font-semibold cursor-pointer">
               ✨ Upgrade
             </Link>
-            <Link href="/settings" className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition">
+            <Link href="/settings" className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition cursor-pointer">
               Settings
             </Link>
             <button
               onClick={handleLogout}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition cursor-pointer"
             >
               Logout
             </button>
@@ -125,16 +136,16 @@ export default function DashboardPage(): JSX.Element {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <div className="bg-white p-6 rounded-lg shadow">
             <h3 className="text-gray-600 text-sm font-medium">Total Income</h3>
-            <p className="text-3xl font-bold text-green-600 mt-2">₹{stats.total_income.toFixed(2)}</p>
+            <p className="text-3xl font-bold text-green-600 mt-2">₹{Number(stats.total_income || 0).toFixed(2)}</p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
             <h3 className="text-gray-600 text-sm font-medium">Total Expenses</h3>
-            <p className="text-3xl font-bold text-red-600 mt-2">₹{stats.total_expenses.toFixed(2)}</p>
+            <p className="text-3xl font-bold text-red-600 mt-2">₹{Number(stats.total_expenses || 0).toFixed(2)}</p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
             <h3 className="text-gray-600 text-sm font-medium">Net Balance</h3>
             <p className={`text-3xl font-bold mt-2 ${netBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              ₹{netBalance.toFixed(2)}
+              ₹{Number(netBalance || 0).toFixed(2)}
             </p>
           </div>
         </div>
@@ -144,21 +155,21 @@ export default function DashboardPage(): JSX.Element {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Link
               href="/statements"
-              className="p-4 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition"
+              className="p-4 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition cursor-pointer"
             >
               <h3 className="font-semibold text-indigo-600">📤 Upload Statement</h3>
               <p className="text-sm text-gray-600">Upload bank statement PDF/Excel</p>
             </Link>
             <Link
               href="/transactions"
-              className="p-4 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition"
+              className="p-4 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition cursor-pointer"
             >
               <h3 className="font-semibold text-indigo-600">📋 View Transactions</h3>
               <p className="text-sm text-gray-600">View and manage transactions</p>
             </Link>
             <Link
               href="/pricing"
-              className="p-4 border border-blue-400 rounded-lg hover:bg-blue-50 transition bg-blue-50/50"
+              className="p-4 border border-blue-400 rounded-lg hover:bg-blue-50 transition bg-blue-50/50 cursor-pointer"
             >
               <h3 className="font-semibold text-blue-600">✨ Premium Features</h3>
               <p className="text-sm text-gray-600">Unlock advanced analytics & AI insights</p>
