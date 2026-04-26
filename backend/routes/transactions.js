@@ -78,8 +78,17 @@ router.put('/:id', auth, async (req, res) => {
     let paramIndex = 1;
 
     if (categoryId !== undefined) {
+      if (categoryId !== null && categoryId !== '') {
+        const catCheck = await pool.query(
+          'SELECT id FROM categories WHERE id = $1 AND user_id = $2',
+          [categoryId, req.user.id],
+        );
+        if (catCheck.rows.length === 0) {
+          return res.status(404).json({ error: 'Category not found' });
+        }
+      }
       updates.push(`category_id = $${paramIndex}`);
-      params.push(categoryId);
+      params.push(categoryId || null);
       paramIndex++;
     }
 

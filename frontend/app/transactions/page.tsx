@@ -39,6 +39,8 @@ export default function TransactionsPage() {
   const [error, setError] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [appliedStartDate, setAppliedStartDate] = useState('');
+  const [appliedEndDate, setAppliedEndDate] = useState('');
   const [editingTxnId, setEditingTxnId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
 
@@ -47,8 +49,8 @@ export default function TransactionsPage() {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
       const query = new URLSearchParams({ limit: '1000' });
-      const startDateParam = parseDisplayDateToIso(startDate);
-      const endDateParam = parseDisplayDateToIso(endDate);
+      const startDateParam = parseDisplayDateToIso(appliedStartDate);
+      const endDateParam = parseDisplayDateToIso(appliedEndDate);
 
       if (startDateParam) query.set('startDate', startDateParam);
       if (endDateParam) query.set('endDate', endDateParam);
@@ -69,7 +71,7 @@ export default function TransactionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [endDate, startDate]);
+  }, [appliedEndDate, appliedStartDate]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -157,7 +159,7 @@ export default function TransactionsPage() {
 
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Filters</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
               <input
@@ -180,6 +182,28 @@ export default function TransactionsPage() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               />
             </div>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                setAppliedStartDate(startDate);
+                setAppliedEndDate(endDate);
+              }}
+              className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition cursor-pointer"
+            >
+              Apply Filters
+            </button>
+            <button
+              onClick={() => {
+                setStartDate('');
+                setEndDate('');
+                setAppliedStartDate('');
+                setAppliedEndDate('');
+              }}
+              className="px-4 py-2 bg-gray-200 text-gray-700 text-sm rounded-lg hover:bg-gray-300 transition cursor-pointer"
+            >
+              Clear
+            </button>
           </div>
         </div>
 

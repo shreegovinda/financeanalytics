@@ -2,7 +2,12 @@ const { Pool } = require('pg');
 const types = require('pg').types;
 require('dotenv').config({ path: '.env.local' });
 
-// Parse numeric/decimal types to JavaScript numbers instead of strings
+// GLOBAL SIDE EFFECT: setTypeParser mutates the shared pg type registry for this
+// entire process — every pool/client will return NUMERIC columns as JS numbers.
+// Consequence 1: precision loss for very large SUM(amount)::numeric (> 2^53).
+// Consequence 2: trailing zeros are dropped ("10.50" → 10.5); callers must use
+//   .toFixed(2) when formatting monetary values for display.
+// If you need per-query control, prefer explicit SQL casts (::float8) instead.
 types.setTypeParser(1700, (val) => parseFloat(val));
 
 const pool = new Pool({

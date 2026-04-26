@@ -56,11 +56,13 @@ CREATE DATABASE financeanalytics;
 \c financeanalytics
 ```
 
-Then load the schema:
+Then load the schema (includes idempotent migrations safe for both fresh and existing databases):
 
 ```bash
 psql -U postgres -d financeanalytics -f backend/config/schema.sql
 ```
+
+> **Note:** `backend/config/schema.sql` is the canonical schema file and includes all migration steps. Alternatively, run `node backend/db/init.js` from the backend directory after `npm install` to apply the same schema programmatically.
 
 ### 3. Backend Setup
 

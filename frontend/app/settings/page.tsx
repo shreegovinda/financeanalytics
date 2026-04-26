@@ -158,7 +158,24 @@ export default function SettingsPage() {
     try {
       const token = localStorage.getItem('token');
       await apiDelete(`http://localhost:3001/api/categories/${deleteConfirm.id}`, token ?? undefined);
-      setCategories(categories.filter((c) => c.id !== deleteConfirm.id));
+      // Also remove all descendants that were cascade-deleted server-side
+      const deletedId = deleteConfirm.id;
+      setCategories((prev) => {
+        const removedIds = new Set<string>();
+        removedIds.add(deletedId);
+        // Collect all transitive children (handles arbitrary nesting depth)
+        let changed = true;
+        while (changed) {
+          changed = false;
+          for (const c of prev) {
+            if (!removedIds.has(c.id) && c.parent_id != null && removedIds.has(c.parent_id)) {
+              removedIds.add(c.id);
+              changed = true;
+            }
+          }
+        }
+        return prev.filter((c) => !removedIds.has(c.id));
+      });
       setError(null);
       setDeleteConfirm(null);
     } catch (err) {
@@ -473,30 +490,48 @@ export default function SettingsPage() {
         </div>
       </main>
 
-      {deleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm mx-4">
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Delete Category</h3>
-            <p className="text-slate-600 mb-6">
-              Are you sure you want to delete <span className="font-medium">&quot;{deleteConfirm.name}&quot;</span>? This action cannot be undone.
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setDeleteConfirm(null)}
-                className="px-4 py-2 text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDelete}
-                className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition cursor-pointer"
-              >
-                Delete
-              </button>
+      {deleteConfirm && (() => {
+        const childCount = categories.filter((c) => c.parent_id === deleteConfirm.id).length;
+        return (
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            onClick={(e) => { if (e.target === e.currentTarget) setDeleteConfirm(null); }}
+            onKeyDown={(e) => { if (e.key === 'Escape') setDeleteConfirm(null); }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="delete-dialog-title"
+              className="bg-white rounded-xl shadow-2xl p-6 max-w-sm mx-4"
+            >
+              <h3 id="delete-dialog-title" className="text-lg font-semibold text-slate-900 mb-2">Delete Category</h3>
+              <p className="text-slate-600 mb-3">
+                Are you sure you want to delete <span className="font-medium">&quot;{deleteConfirm.name}&quot;</span>? This action cannot be undone.
+              </p>
+              {childCount > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-4 text-sm text-amber-800">
+                  <strong>Warning:</strong> This will also permanently delete {childCount} subcategor{childCount === 1 ? 'y' : 'ies'} and clear the category from any associated transactions.
+                </div>
+              )}
+              <div className="flex gap-3 justify-end">
+                <button
+                  autoFocus
+                  onClick={() => setDeleteConfirm(null)}
+                  className="px-4 py-2 text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition cursor-pointer"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
