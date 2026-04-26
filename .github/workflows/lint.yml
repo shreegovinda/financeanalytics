@@ -27,26 +27,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install backend dependencies
-        run: cd backend && npm ci
-
-      - name: Install frontend dependencies
-        run: cd frontend && npm ci
-
-      - name: Lint backend
-        run: npm run lint --workspace=backend
+      - name: Lint
+        run: npm run lint
         continue-on-error: false
 
-      - name: Lint frontend
-        run: npm run lint --workspace=frontend
-        continue-on-error: false
-
-      - name: Check formatting (backend)
-        run: cd backend && npm run format:check
-        continue-on-error: false
-
-      - name: Check formatting (frontend)
-        run: cd frontend && npm run format:check
+      - name: Check formatting
+        run: npm run format:check
         continue-on-error: false
 
       - name: SonarCloud Scan
