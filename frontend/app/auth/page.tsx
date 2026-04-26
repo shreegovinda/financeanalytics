@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { authAPI } from '@/lib/api';
 import axios from 'axios';
@@ -13,7 +13,9 @@ interface APIError {
   };
 }
 
-type AuthStep = 'email' | 'login' | 'signup';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+type AuthStep = 'email' | 'login' | 'signup' | 'forgotPassword';
 
 export default function UnifiedAuthPage() {
   const [step, setStep] = useState<AuthStep>('email');
@@ -31,7 +33,17 @@ export default function UnifiedAuthPage() {
   const [useOTP, setUseOTP] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [otpSent, setOtpSent] = useState(false);
+  const [resetOtpCode, setResetOtpCode] = useState('');
+  const [resetOtpSent, setResetOtpSent] = useState(false);
+  const [resetPassword, setResetPassword] = useState('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('');
   const router = useRouter();
+
+  useEffect(() => {
+    if (localStorage.getItem('token')) {
+      router.replace('/dashboard');
+    }
+  }, [router]);
 
   // Password strength calculator
   const getPasswordStrength = (pwd: string): { score: number; label: string; color: string } => {
@@ -57,7 +69,7 @@ export default function UnifiedAuthPage() {
     setError('');
 
     try {
-      const response = await axios.post('http://localhost:3001/api/auth/check-email', { email });
+      const response = await axios.post(`${API_BASE_URL}/api/auth/check-email`, { email });
       if (response.data.exists) {
         setExistingUserName(response.data.user.name);
         setStep('login');
@@ -85,7 +97,7 @@ export default function UnifiedAuthPage() {
       localStorage.setItem('user', JSON.stringify(response.data.user));
       setSuccess('Login successful! Redirecting...');
       setTimeout(() => {
-        void router.push('/dashboard');
+        void router.replace('/dashboard');
       }, 500);
     } catch (err: unknown) {
       const apiError = err as APIError;
@@ -103,7 +115,7 @@ export default function UnifiedAuthPage() {
     setSuccess('');
 
     try {
-      await axios.post('http://localhost:3001/api/auth/send-otp', { email });
+      await axios.post(`${API_BASE_URL}/api/auth/send-otp`, { email });
       setOtpSent(true);
       setSuccess(`OTP sent to ${email}. Check your inbox!`);
     } catch (err: unknown) {
@@ -121,7 +133,7 @@ export default function UnifiedAuthPage() {
     setSuccess('');
 
     try {
-      const response = await axios.post('http://localhost:3001/api/auth/verify-otp', {
+      const response = await axios.post(`${API_BASE_URL}/api/auth/verify-otp`, {
         email,
         otp: otpCode,
       });
@@ -130,7 +142,7 @@ export default function UnifiedAuthPage() {
       localStorage.setItem('user', JSON.stringify(response.data.user));
       setSuccess('OTP verified! Logging in...');
       setTimeout(() => {
-        void router.push('/dashboard');
+        void router.replace('/dashboard');
       }, 500);
     } catch (err: unknown) {
       const apiError = err as APIError;
@@ -159,12 +171,12 @@ export default function UnifiedAuthPage() {
     setLoading(true);
 
     try {
-      const response = await authAPI.register(email, password, name);
+      const response = await authAPI.register(email, password, name, phone);
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
       setSuccess('Account created successfully! Redirecting...');
       setTimeout(() => {
-        void router.push('/dashboard');
+        void router.replace('/dashboard');
       }, 500);
     } catch (err: unknown) {
       const apiError = err as APIError;
@@ -175,7 +187,7 @@ export default function UnifiedAuthPage() {
   };
 
   const handleBack = () => {
-    if (step === 'login' || step === 'signup') {
+    if (step === 'login' || step === 'signup' || step === 'forgotPassword') {
       setStep('email');
       setPassword('');
       setConfirmPassword('');
@@ -184,7 +196,80 @@ export default function UnifiedAuthPage() {
       setUseOTP(false);
       setOtpCode('');
       setOtpSent(false);
+      setResetOtpCode('');
+      setResetOtpSent(false);
+      setResetPassword('');
+      setResetConfirmPassword('');
       setError('');
+      setSuccess('');
+    }
+  };
+
+  const startForgotPassword = (): void => {
+    setStep('forgotPassword');
+    setPassword('');
+    setConfirmPassword('');
+    setResetOtpCode('');
+    setResetOtpSent(false);
+    setResetPassword('');
+    setResetConfirmPassword('');
+    setError('');
+    setSuccess('');
+  };
+
+  const handleForgotPasswordOTPSend = async (): Promise<void> => {
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await axios.post(`${API_BASE_URL}/api/auth/forgot-password/send-otp`, { email });
+      setResetOtpSent(true);
+      setSuccess(`Password reset OTP sent to ${email}.`);
+    } catch (err: unknown) {
+      const apiError = err as APIError;
+      setError(apiError.response?.data?.error || 'Failed to send password reset OTP');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPasswordReset = async (e: React.FormEvent): Promise<void> => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    if (resetPassword !== resetConfirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    if (resetPassword.length < 8) {
+      setError('Password must be at least 8 characters long');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await axios.post(`${API_BASE_URL}/api/auth/forgot-password/reset`, {
+        email,
+        otp: resetOtpCode,
+        newPassword: resetPassword,
+      });
+      setSuccess('Password reset successfully. Please sign in with your new password.');
+      setStep('login');
+      setUseOTP(false);
+      setPassword('');
+      setResetOtpCode('');
+      setResetOtpSent(false);
+      setResetPassword('');
+      setResetConfirmPassword('');
+    } catch (err: unknown) {
+      const apiError = err as APIError;
+      setError(apiError.response?.data?.error || 'Failed to reset password');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -210,6 +295,7 @@ export default function UnifiedAuthPage() {
               {step === 'email' && 'Enter your email to get started'}
               {step === 'login' && `Welcome back, ${existingUserName || 'User'}!`}
               {step === 'signup' && 'Create your account'}
+              {step === 'forgotPassword' && 'Reset your password with an email OTP'}
             </p>
           </div>
 
@@ -342,6 +428,14 @@ export default function UnifiedAuthPage() {
                 )}
               </button>
 
+              <button
+                type="button"
+                onClick={startForgotPassword}
+                className="w-full text-sm text-blue-200 hover:text-white transition"
+              >
+                Forgot password?
+              </button>
+
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -420,6 +514,90 @@ export default function UnifiedAuthPage() {
                 className="w-full bg-white/10 hover:bg-white/20 border border-white/20 text-blue-100 font-semibold py-3 rounded-lg transition"
               >
                 Use Password Instead
+              </button>
+            </form>
+          )}
+
+          {/* STEP 2C: Forgot Password */}
+          {step === 'forgotPassword' && (
+            <form onSubmit={handleForgotPasswordReset} className="space-y-5">
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 mb-4">
+                <p className="text-sm text-blue-100">
+                  We&apos;ll send a reset OTP to <span className="font-semibold">{email}</span>.
+                </p>
+                {!resetOtpSent && (
+                  <button
+                    type="button"
+                    onClick={() => void handleForgotPasswordOTPSend()}
+                    disabled={loading}
+                    className="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition disabled:opacity-70"
+                  >
+                    {loading ? 'Sending...' : 'Send Reset OTP'}
+                  </button>
+                )}
+                {resetOtpSent && (
+                  <p className="mt-3 text-xs text-blue-100">OTP has been sent to your email address.</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-200 mb-2">Reset OTP</label>
+                <input
+                  type="text"
+                  value={resetOtpCode}
+                  onChange={(e) => setResetOtpCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                  maxLength={6}
+                  required
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition text-center text-2xl tracking-widest"
+                  placeholder="000000"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-200 mb-2">New Password</label>
+                <input
+                  type="password"
+                  value={resetPassword}
+                  onChange={(e) => setResetPassword(e.target.value)}
+                  required
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition"
+                  placeholder="Create a new password"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-200 mb-2">Confirm New Password</label>
+                <input
+                  type="password"
+                  value={resetConfirmPassword}
+                  onChange={(e) => setResetConfirmPassword(e.target.value)}
+                  required
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition"
+                  placeholder="Confirm new password"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={
+                  loading ||
+                  !resetOtpSent ||
+                  resetOtpCode.length !== 6 ||
+                  !resetPassword ||
+                  !resetConfirmPassword
+                }
+                className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold py-3 rounded-lg hover:from-blue-600 hover:to-indigo-700 transition disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {loading ? 'Resetting...' : 'Reset Password'}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleBack}
+                className="w-full bg-white/10 hover:bg-white/20 border border-white/20 text-blue-100 font-semibold py-3 rounded-lg transition"
+              >
+                Back
               </button>
             </form>
           )}

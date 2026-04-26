@@ -8,10 +8,12 @@ import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
 import type { ColDef, GridApi, ICellRendererParams } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-quartz.css';
-
-ModuleRegistry.registerModules([AllCommunityModule]);
+import AuthSessionGuard from '@/components/AuthSessionGuard';
+import BackButton from '@/components/BackButton';
 import { apiGet, apiPut, getErrorMessage } from '@/lib/api';
 import { formatDate } from '@/lib/date';
+
+ModuleRegistry.registerModules([AllCommunityModule]);
 
 interface Transaction {
   id: string;
@@ -426,10 +428,14 @@ export default function TransactionsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <AuthSessionGuard />
       {/* ── Header ── */}
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-bold text-gray-900">Transactions</h1>
+          <div className="flex items-center gap-3">
+            <BackButton className="shadow-sm" />
+            <h1 className="text-xl font-bold text-gray-900">Transactions</h1>
+          </div>
           <div className="flex gap-2">
             <Link href="/settings" className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition cursor-pointer">Categories</Link>
             <Link href="/dashboard" className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition cursor-pointer">Dashboard</Link>
@@ -591,6 +597,7 @@ export default function TransactionsPage() {
                 floatingFiltersHeight={38}
                 suppressRowClickSelection
                 enableCellTextSelection
+                theme="legacy"
                 tooltipShowDelay={300}
               />
             </div>

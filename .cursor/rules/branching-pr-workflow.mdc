@@ -1,0 +1,14 @@
+---
+description: Branching, PR, and CI workflow expectations
+alwaysApply: true
+---
+
+# Branching And PR Workflow
+
+- After a PR is merged and new work starts, create a fresh feature branch before editing.
+- When asked to create a PR, push, or merge, first inspect the current branch, remote tracking status, and recent branch history.
+- Do not merge directly into the base branch. Create or use a feature branch, push it, and raise a PR.
+- If the correct branch, base branch, or merge strategy is unclear, ask the user before acting.
+- When raising a PR, ensure GitHub Actions CI is present or add it if missing so lint/tests run on PRs and failed checks block merging where repository settings allow it.
+- Do not run lint/test checks during normal edits unless the user explicitly asks.
+- Run the relevant lint and test checks only after opening or updating a PR, and report any failures clearly.

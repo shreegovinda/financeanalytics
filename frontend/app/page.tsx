@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import BackButton from '@/components/BackButton';
 
 export default function Home() {
   const router = useRouter();
@@ -17,7 +18,8 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       <header className="bg-white shadow-sm dark:bg-gray-800">
-        <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="max-w-7xl mx-auto px-4 py-6 flex items-center gap-4">
+          <BackButton fallbackHref="/auth" className="shadow-sm" />
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
             💰 Finance Analytics
           </h1>
@@ -46,7 +48,7 @@ export default function Home() {
                 <span className="text-2xl">🤖</span>
                 <div>
                   <h3 className="font-semibold text-gray-900 dark:text-white">AI-Powered Categorization</h3>
-                  <p className="text-gray-600 dark:text-gray-400">Claude AI automatically categorizes transactions with high accuracy</p>
+                  <p className="text-gray-600 dark:text-gray-400">Choose Claude or Gemini to automatically categorize transactions with high accuracy</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">

@@ -5,8 +5,11 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash VARCHAR(255),
   google_id VARCHAR(255),
   name VARCHAR(255),
+  phone VARCHAR(50),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
 
 -- Categories table
 CREATE TABLE IF NOT EXISTS categories (
@@ -42,8 +45,17 @@ CREATE TABLE IF NOT EXISTS statements (
   bank_name VARCHAR(50),
   file_name VARCHAR(255),
   uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  status VARCHAR(20) DEFAULT 'processing'
+  status VARCHAR(20) DEFAULT 'processing',
+  processing_stage VARCHAR(50) DEFAULT 'uploaded',
+  processing_progress INTEGER DEFAULT 0,
+  processing_error TEXT,
+  processed_at TIMESTAMP
 );
+
+ALTER TABLE statements ADD COLUMN IF NOT EXISTS processing_stage VARCHAR(50) DEFAULT 'uploaded';
+ALTER TABLE statements ADD COLUMN IF NOT EXISTS processing_progress INTEGER DEFAULT 0;
+ALTER TABLE statements ADD COLUMN IF NOT EXISTS processing_error TEXT;
+ALTER TABLE statements ADD COLUMN IF NOT EXISTS processed_at TIMESTAMP;
 
 -- Transactions table
 CREATE TABLE IF NOT EXISTS transactions (

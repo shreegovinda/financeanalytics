@@ -19,6 +19,10 @@ const transporter = nodemailer.createTransport({
 
 // Send OTP via email
 async function sendOTPEmail(email, otp, name = 'User') {
+  if (!process.env.SENDGRID_API_KEY) {
+    throw new Error('Email service is not configured');
+  }
+
   try {
     const mailOptions = {
       from: process.env.SENDGRID_FROM_EMAIL || 'admin@finlytix.in',
@@ -66,6 +70,15 @@ async function sendOTPEmail(email, otp, name = 'User') {
     return true;
   } catch (error) {
     console.error('❌ Failed to send OTP email:', error);
+
+    if (
+      error.responseCode === 550 &&
+      typeof error.response === 'string' &&
+      error.response.includes('verified Sender Identity')
+    ) {
+      throw new Error('SendGrid sender identity is not verified');
+    }
+
     throw new Error('Failed to send OTP email');
   }
 }

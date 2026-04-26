@@ -1,12 +1,30 @@
-const Razorpay = require('razorpay');
 const crypto = require('crypto');
+
+const Razorpay = require('razorpay');
 const pool = require('../config/db');
 
-// Initialize Razorpay
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+let razorpayClient;
+
+function getRazorpayClient() {
+  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+    throw new Error('Razorpay is not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.');
+  }
+
+  if (!razorpayClient) {
+    razorpayClient = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    });
+  }
+
+  return razorpayClient;
+}
+
+function createReceiptId(userId) {
+  const compactUserId = String(userId).replace(/-/g, '').slice(0, 12);
+  const timestamp = Date.now().toString(36);
+  return `rcpt_${compactUserId}_${timestamp}`;
+}
 
 // Premium features and their prices (in paisa, so 99900 = ₹999)
 const PREMIUM_FEATURES = {
@@ -48,10 +66,10 @@ async function createOrder(userId, featureId) {
     const feature = PREMIUM_FEATURES[featureId];
 
     // Create Razorpay order
-    const order = await razorpay.orders.create({
+    const order = await getRazorpayClient().orders.create({
       amount: feature.amount,
       currency: 'INR',
-      receipt: `receipt_${userId}_${Date.now()}`,
+      receipt: createReceiptId(userId),
       description: feature.description,
       notes: {
         userId,
@@ -91,6 +109,10 @@ async function createOrder(userId, featureId) {
  */
 function verifyPaymentSignature(orderId, paymentId, signature) {
   try {
+    if (!process.env.RAZORPAY_KEY_SECRET) {
+      throw new Error('Razorpay key secret is not configured');
+    }
+
     const expectedSignature = crypto
       .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
       .update(`${orderId}|${paymentId}`)
@@ -121,7 +143,15 @@ async function verifyPayment(orderId, paymentId, signature, userId) {
     }
 
     // Fetch payment details from Razorpay
-    const payment = await razorpay.payments.fetch(paymentId);
+    const payment = await getRazorpayClient().payments.fetch(paymentId);
+
+    if (payment.order_id !== orderId) {
+      throw new Error('Payment does not match order');
+    }
+
+    if (!['authorized', 'captured'].includes(payment.status)) {
+      throw new Error(`Payment is ${payment.status}`);
+    }
 
     // Update payment in database
     const result = await pool.query(

@@ -195,15 +195,21 @@ interface AuthResponse {
       id: string;
       email: string;
       name: string;
+      phone?: string | null;
     };
   };
 }
 
 export const authAPI = {
-  async register(email: string, password: string, name: string): Promise<AuthResponse> {
+  async register(
+    email: string,
+    password: string,
+    name: string,
+    phone?: string,
+  ): Promise<AuthResponse> {
     const response = await apiPost<AuthResponse['data']>(
       `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/auth/register`,
-      { email, password, name },
+      { email, password, name, phone },
     );
     return { data: response };
   },

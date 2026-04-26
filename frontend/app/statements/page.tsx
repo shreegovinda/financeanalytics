@@ -2,10 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import AuthSessionGuard from '@/components/AuthSessionGuard';
+import BackButton from '@/components/BackButton';
 import FileUploadForm from '@/components/FileUploadForm';
 import { apiGet, getErrorMessage } from '@/lib/api';
 import { formatDate } from '@/lib/date';
 import { TableSkeletonLoader } from '@/components/Skeleton';
+import StatementProcessingProgress, { isStatementProcessing } from '@/components/StatementProcessingProgress';
 
 interface Statement {
   id: string;
@@ -13,6 +16,10 @@ interface Statement {
   file_name: string;
   uploaded_at: string;
   status: string;
+  processing_stage?: string | null;
+  processing_progress?: number | null;
+  processing_error?: string | null;
+  processed_at?: string | null;
 }
 
 export default function StatementsPage() {
@@ -48,13 +55,28 @@ export default function StatementsPage() {
     void Promise.resolve().then(fetchStatements);
   }, [router]);
 
+  useEffect(() => {
+    if (!statements.some(isStatementProcessing)) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void fetchStatements();
+    }, 3000);
+
+    return () => window.clearInterval(intervalId);
+  }, [statements]);
+
   const handleUploadSuccess = () => {
-    fetchStatements();
+    void fetchStatements();
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <AuthSessionGuard />
       <div className="max-w-6xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+        <BackButton className="mb-6 shadow-sm" />
+
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Bank Statements</h1>
           <p className="text-gray-600">Upload and manage your bank statements</p>
@@ -85,6 +107,7 @@ export default function StatementsPage() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Bank</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">File Name</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Progress</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Uploaded</th>
                   </tr>
                 </thead>
@@ -105,6 +128,9 @@ export default function StatementsPage() {
                         >
                           {statement.status.charAt(0).toUpperCase() + statement.status.slice(1)}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 min-w-72">
+                        <StatementProcessingProgress statement={statement} />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                         {formatDate(statement.uploaded_at)}

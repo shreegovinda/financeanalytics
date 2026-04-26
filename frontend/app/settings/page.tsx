@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import AuthSessionGuard from '@/components/AuthSessionGuard';
+import BackButton from '@/components/BackButton';
 import { apiGet, apiPost, apiPut, apiDelete, getErrorMessage } from '@/lib/api';
 
 interface Category {
@@ -227,10 +229,14 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <AuthSessionGuard />
       {/* Header */}
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-gray-900">Categories</h1>
+          <div className="flex items-center gap-3">
+            <BackButton className="shadow-sm" />
+            <h1 className="text-lg font-semibold text-gray-900">Categories</h1>
+          </div>
           <Link
             href="/dashboard"
             className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 cursor-pointer"

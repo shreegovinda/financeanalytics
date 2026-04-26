@@ -2,18 +2,19 @@
 
 import { useState } from 'react';
 import { apiFetch, getErrorMessage } from '@/lib/api';
+import { getAiProviderHeaders } from '@/lib/aiProvider';
 
 interface UploadResponse {
   success: boolean;
   statementId: string;
   transactionCount: number;
+  bankName?: string;
   message: string;
 }
 
 
 export default function FileUploadForm({ onUploadSuccess }: { onUploadSuccess?: () => void }) {
   const [file, setFile] = useState<File | null>(null);
-  const [bankName, setBankName] = useState('ICICI');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -81,25 +82,22 @@ export default function FileUploadForm({ onUploadSuccess }: { onUploadSuccess?: 
       return;
     }
 
-    if (!bankName) {
-      setError('Please select a bank');
-      return;
-    }
-
     setLoading(true);
 
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
-      formData.append('bankName', bankName);
 
       const token = localStorage.getItem('token');
       const response = await apiFetch(
         `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/upload`,
         {
           method: 'POST',
+          timeout: 120000,
+          retries: 0,
           headers: {
             ...(token && { Authorization: `Bearer ${token}` }),
+            ...getAiProviderHeaders(),
           },
           body: formData,
         },
@@ -123,7 +121,6 @@ export default function FileUploadForm({ onUploadSuccess }: { onUploadSuccess?: 
 
       setSuccess(data.message);
       setFile(null);
-      setBankName('ICICI');
 
       if (onUploadSuccess) {
         onUploadSuccess();
@@ -139,20 +136,8 @@ export default function FileUploadForm({ onUploadSuccess }: { onUploadSuccess?: 
   return (
     <div className="w-full max-w-2xl mx-auto p-6">
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Bank</label>
-            <select
-              value={bankName}
-              onChange={(e) => setBankName(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              disabled={loading}
-            >
-              <option value="ICICI">ICICI Bank</option>
-              <option value="HDFC">HDFC Bank</option>
-              <option value="Axis">Axis Bank</option>
-            </select>
-          </div>
+        <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          Upload your PDF or Excel statement. Gemini will detect the bank and extract posted transactions automatically.
         </div>
 
         <div

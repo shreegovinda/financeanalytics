@@ -155,7 +155,10 @@ DB_PASSWORD=postgres
 DB_NAME=financeanalytics
 PORT=3001
 JWT_SECRET=super_secret_key
-CLAUDE_API_KEY=sk-...
+AI_PROVIDER=gemini
+ANTHROPIC_API_KEY=sk-ant-...
+GEMINI_API_KEY=...
+GEMINI_MODEL=gemini-2.5-flash
 FRONTEND_URL=http://localhost:3000
 ```
 

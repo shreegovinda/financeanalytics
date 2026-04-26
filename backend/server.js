@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
-require('dotenv').config({ path: '.env.local' });
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env.local') });
 
 const { initializeDatabase } = require('./db/init');
 const authRoutes = require('./routes/auth');
@@ -9,6 +10,7 @@ const transactionRoutes = require('./routes/transactions');
 const categoryRoutes = require('./routes/categories');
 const analyticsRoutes = require('./routes/analytics');
 const paymentRoutes = require('./routes/payments');
+const aiRoutes = require('./routes/ai');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -28,6 +30,7 @@ app.use('/api/transactions', transactionRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/ai', aiRoutes);
 
 async function startServer() {
   await initializeDatabase();

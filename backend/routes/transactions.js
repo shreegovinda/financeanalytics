@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../config/db');
 const auth = require('../middleware/auth');
 const { categorizeBatch } = require('../services/claude');
+const { getProviderFromRequest } = require('../services/ai');
 
 const router = express.Router();
 
@@ -155,7 +156,7 @@ router.post('/categorize', auth, async (req, res) => {
       type: row.type,
     }));
 
-    const categorizations = await categorizeBatch(txns);
+    const categorizations = await categorizeBatch(txns, getProviderFromRequest(req));
 
     const updatePromises = categorizations.map((cat) => {
       const txnIndex = cat.transactionIndex;

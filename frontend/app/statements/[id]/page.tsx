@@ -2,8 +2,11 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import AuthSessionGuard from '@/components/AuthSessionGuard';
+import BackButton from '@/components/BackButton';
 import { apiGet, getErrorMessage } from '@/lib/api';
 import { formatDate } from '@/lib/date';
+import StatementProcessingProgress, { isStatementProcessing } from '@/components/StatementProcessingProgress';
 
 interface Statement {
   id: string;
@@ -11,6 +14,10 @@ interface Statement {
   file_name: string;
   uploaded_at: string;
   status: string;
+  processing_stage?: string | null;
+  processing_progress?: number | null;
+  processing_error?: string | null;
+  processed_at?: string | null;
 }
 
 interface Transaction {
@@ -59,6 +66,18 @@ export default function StatementDetailsPage() {
     void Promise.resolve().then(fetchStatementDetails);
   }, [fetchStatementDetails, router]);
 
+  useEffect(() => {
+    if (!statement || !isStatementProcessing(statement)) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void fetchStatementDetails();
+    }, 3000);
+
+    return () => window.clearInterval(intervalId);
+  }, [fetchStatementDetails, statement]);
+
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
@@ -76,10 +95,9 @@ export default function StatementDetailsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <AuthSessionGuard />
       <div className="max-w-6xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-        <button onClick={() => router.push('/statements')} className="text-blue-600 hover:text-blue-800 mb-6 flex items-center gap-2 cursor-pointer">
-          ← Back to Statements
-        </button>
+        <BackButton fallbackHref="/statements" label="Back to Statements" className="mb-6 shadow-sm" />
 
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">{statement.bank_name}</h1>
@@ -113,6 +131,12 @@ export default function StatementDetailsPage() {
               <p className="text-lg font-medium text-gray-900">{transactions.length}</p>
             </div>
           </div>
+          {statement.status !== 'completed' && (
+            <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <p className="mb-3 text-sm font-medium text-gray-700">Processing Timeline</p>
+              <StatementProcessingProgress statement={statement} />
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -136,7 +160,9 @@ export default function StatementDetailsPage() {
           </div>
 
           {transactions.length === 0 ? (
-            <div className="px-6 py-8 text-center text-gray-500">No transactions found</div>
+            <div className="px-6 py-8 text-center text-gray-500">
+              {isStatementProcessing(statement) ? 'Transactions will appear here after processing completes.' : 'No transactions found'}
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
