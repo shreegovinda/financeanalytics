@@ -6,6 +6,36 @@ const authenticateToken = require('../middleware/auth');
 const { sendOTP, verifyOTP } = require('../services/otp');
 
 const router = express.Router();
+const resetOtpAttempts = new Map();
+const RESET_OTP_MAX_ATTEMPTS = 5;
+const RESET_OTP_WINDOW_MS = 15 * 60 * 1000;
+
+function getResetOtpKey(req, email) {
+  return `${email.toLowerCase()}:${req.ip}`;
+}
+
+function checkResetOtpRateLimit(req, email) {
+  const key = getResetOtpKey(req, email);
+  const now = Date.now();
+  const current = resetOtpAttempts.get(key);
+
+  if (!current || current.resetAt <= now) {
+    resetOtpAttempts.set(key, { count: 1, resetAt: now + RESET_OTP_WINDOW_MS });
+    return true;
+  }
+
+  current.count += 1;
+  if (current.count > RESET_OTP_MAX_ATTEMPTS) {
+    return false;
+  }
+
+  resetOtpAttempts.set(key, current);
+  return true;
+}
+
+function clearResetOtpRateLimit(req, email) {
+  resetOtpAttempts.delete(getResetOtpKey(req, email));
+}
 
 // Register
 router.post('/register', async (req, res) => {
@@ -137,6 +167,12 @@ router.post('/forgot-password/reset', async (req, res) => {
   }
 
   try {
+    if (!checkResetOtpRateLimit(req, email)) {
+      return res
+        .status(429)
+        .json({ error: 'Too many invalid OTP attempts. Please try again later.' });
+    }
+
     const otpResult = await verifyOTP(email, otp);
     if (!otpResult.success) {
       return res.status(401).json({ error: otpResult.message });
@@ -152,6 +188,7 @@ router.post('/forgot-password/reset', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    clearResetOtpRateLimit(req, email);
     res.json({ success: true, message: 'Password reset successfully' });
   } catch (err) {
     console.error('Error resetting password:', err);

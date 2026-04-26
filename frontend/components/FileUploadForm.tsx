@@ -140,7 +140,7 @@ export default function FileUploadForm({ onUploadSuccess }: { onUploadSuccess?: 
     <div className="w-full max-w-2xl mx-auto p-6">
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-          Upload your PDF or Excel statement. Gemini will detect the bank and extract posted
+          Upload your PDF or Excel statement. AI will detect the bank and extract posted
           transactions automatically.
         </div>
 

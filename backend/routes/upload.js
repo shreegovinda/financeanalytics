@@ -47,17 +47,33 @@ async function updateStatementProgress(statementId, stage, progress, extra = {})
          processing_progress = $2,
          status = COALESCE($3, status),
          processing_error = COALESCE($4, processing_error),
-         processed_at = COALESCE($5, processed_at)
-     WHERE id = $6`,
+         processed_at = COALESCE($5, processed_at),
+         upload_path = CASE
+           WHEN $6 THEN NULL
+           WHEN $7 IS NOT NULL THEN $7
+           ELSE upload_path
+         END
+     WHERE id = $8`,
     [
       stage,
       progress,
       extra.status || null,
       extra.error || null,
       extra.processedAt || null,
+      Boolean(extra.clearUploadPath),
+      extra.uploadPath || null,
       statementId,
     ],
   );
+}
+
+async function markStatementFailed(statementId, message) {
+  await updateStatementProgress(statementId, 'failed', 100, {
+    status: 'failed',
+    error: message,
+    processedAt: new Date(),
+    clearUploadPath: true,
+  });
 }
 
 async function processStatementInBackground({
@@ -87,12 +103,21 @@ async function processStatementInBackground({
         [bankName, 'importing_transactions', 65, statementId, userId],
       );
 
-      for (const txn of transactions) {
+      if (transactions.length > 0) {
+        const values = [];
+        const placeholders = transactions.map((txn, index) => {
+          const offset = index * 6;
+          values.push(userId, statementId, txn.date, txn.amount, txn.description, txn.type);
+          return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
+        });
+
         const result = await client.query(
-          'INSERT INTO transactions (user_id, statement_id, date, amount, description, type) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
-          [userId, statementId, txn.date, txn.amount, txn.description, txn.type],
+          `INSERT INTO transactions (user_id, statement_id, date, amount, description, type)
+           VALUES ${placeholders.join(', ')}
+           RETURNING id`,
+          values,
         );
-        txnIds.push(result.rows[0].id);
+        txnIds.push(...result.rows.map((row) => row.id));
       }
 
       await client.query('COMMIT');
@@ -133,22 +158,51 @@ async function processStatementInBackground({
     await updateStatementProgress(statementId, 'completed', 100, {
       status: 'completed',
       processedAt: new Date(),
+      clearUploadPath: true,
     });
 
     console.log(`✓ Completed background processing for ${originalName}`);
   } catch (err) {
     console.error('Background statement processing failed:', err);
-    await updateStatementProgress(statementId, 'failed', 100, {
-      status: 'failed',
-      error: err.message,
-      processedAt: new Date(),
-    }).catch((updateErr) => {
+    await markStatementFailed(statementId, err.message).catch((updateErr) => {
       console.error('Failed to record statement processing error:', updateErr);
     });
   } finally {
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
+  }
+}
+
+async function resumeProcessingStatements() {
+  try {
+    const result = await pool.query(
+      `SELECT id, user_id, file_name, upload_path, ai_provider
+       FROM statements
+       WHERE status = 'processing'`,
+    );
+
+    for (const statement of result.rows) {
+      if (!statement.upload_path || !fs.existsSync(statement.upload_path)) {
+        await markStatementFailed(
+          statement.id,
+          'Processing was interrupted and the uploaded file is no longer available. Please upload the statement again.',
+        );
+        continue;
+      }
+
+      setImmediate(() => {
+        void processStatementInBackground({
+          statementId: statement.id,
+          filePath: statement.upload_path,
+          originalName: statement.file_name,
+          userId: statement.user_id,
+          aiProvider: statement.ai_provider,
+        });
+      });
+    }
+  } catch (err) {
+    console.error('Failed to resume statement processing:', err);
   }
 }
 
@@ -164,10 +218,19 @@ router.post('/', auth, upload.single('file'), async (req, res) => {
   try {
     const statementResult = await pool.query(
       `INSERT INTO statements
-       (user_id, bank_name, file_name, status, processing_stage, processing_progress)
-       VALUES ($1, $2, $3, $4, $5, $6)
+       (user_id, bank_name, file_name, status, processing_stage, processing_progress, upload_path, ai_provider)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING id, bank_name, file_name, uploaded_at, status, processing_stage, processing_progress`,
-      [userId, 'DETECTING BANK', req.file.originalname, 'processing', 'uploaded', 5],
+      [
+        userId,
+        'DETECTING BANK',
+        req.file.originalname,
+        'processing',
+        'uploaded',
+        5,
+        filePath,
+        aiProvider,
+      ],
     );
 
     const statement = statementResult.rows[0];
@@ -243,5 +306,7 @@ router.get('/:statementId', auth, async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch statement details' });
   }
 });
+
+router.resumeProcessingStatements = resumeProcessingStatements;
 
 module.exports = router;

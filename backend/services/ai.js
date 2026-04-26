@@ -100,6 +100,9 @@ async function generateWithAnthropic(prompt, maxTokens) {
 async function generateWithGemini(prompt, maxTokens, responseSchema) {
   const model = getProviderModel('gemini');
   const apiKey = process.env.GEMINI_API_KEY;
+  const controller = new AbortController();
+  const timeoutMs = Number(process.env.GEMINI_TIMEOUT_MS || 120000);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   const generationConfig = {
     maxOutputTokens: maxTokens,
     temperature: 0,
@@ -110,24 +113,35 @@ async function generateWithGemini(prompt, maxTokens, responseSchema) {
     generationConfig.responseSchema = responseSchema;
   }
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+  let response;
+  try {
+    response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: prompt }],
+            },
+          ],
+          generationConfig,
+        }),
       },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: prompt }],
-          },
-        ],
-        generationConfig,
-      }),
-    },
-  );
+    );
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error(`Gemini request timed out after ${timeoutMs}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     const body = await response.text().catch(() => '');
@@ -146,15 +160,17 @@ function cleanJsonText(responseText) {
     .trim();
 }
 
-function repairCommonJsonIssues(jsonText) {
-  return (
-    jsonText
-      // Gemini can occasionally emit adjacent objects inside arrays without a comma.
-      .replace(/}\s*{/g, '},{')
-      .replace(/]\s*{/g, '],{')
-      .replace(/}\s*"/g, '},"')
-      .replace(/"\s*{/g, '",{')
-  );
+function isExpectedJsonType(value, expectedType) {
+  if (expectedType === 'array') {
+    return Array.isArray(value);
+  }
+
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function parseCandidate(candidate, expectedType) {
+  const value = JSON.parse(candidate);
+  return isExpectedJsonType(value, expectedType) ? value : null;
 }
 
 function parseJsonResponse(responseText, expectedType, providerLabel) {
@@ -169,25 +185,23 @@ function parseJsonResponse(responseText, expectedType, providerLabel) {
 
   for (const candidate of candidates) {
     try {
-      return JSON.parse(candidate);
+      const parsed = parseCandidate(candidate, expectedType);
+      if (parsed) {
+        return parsed;
+      }
     } catch (_) {
       try {
-        return JSON.parse(repairCommonJsonIssues(candidate));
-      } catch (_) {
-        try {
-          return JSON.parse(jsonrepair(candidate));
-        } catch (_) {
-          try {
-            return JSON.parse(jsonrepair(repairCommonJsonIssues(candidate)));
-          } catch (_) {
-            // Try the next candidate before surfacing a safe error.
-          }
+        const parsed = parseCandidate(jsonrepair(candidate), expectedType);
+        if (parsed) {
+          return parsed;
         }
+      } catch (_) {
+        // Try the next candidate before surfacing a safe error.
       }
     }
   }
 
-  throw new Error(`Invalid JSON response from ${providerLabel}`);
+  throw new Error(`Unexpected JSON type from ${providerLabel}`);
 }
 
 async function generateJsonArray(prompt, { providerId, maxTokens }) {

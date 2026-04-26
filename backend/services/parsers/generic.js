@@ -111,8 +111,6 @@ function normalizeBankName(bankName) {
 }
 
 function normalizeTransactions(transactions) {
-  const seen = new Set();
-
   return transactions
     .map((transaction) => {
       const date = new Date(transaction.date);
@@ -139,12 +137,6 @@ function normalizeTransactions(transactions) {
         amount,
         type,
       };
-      const fingerprint = `${normalized.date.toISOString().slice(0, 10)}|${normalized.amount}|${normalized.type}|${normalized.description.toLowerCase()}`;
-      if (seen.has(fingerprint)) {
-        return null;
-      }
-
-      seen.add(fingerprint);
       return normalized;
     })
     .filter(Boolean);

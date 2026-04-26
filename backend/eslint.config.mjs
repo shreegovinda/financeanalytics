@@ -13,7 +13,9 @@ export default [
       sourceType: 'commonjs',
       globals: {
         Buffer: 'readonly',
+        AbortController: 'readonly',
         __dirname: 'readonly',
+        clearTimeout: 'readonly',
         console: 'readonly',
         fetch: 'readonly',
         module: 'readonly',

@@ -50,6 +50,8 @@ CREATE TABLE IF NOT EXISTS statements (
   processing_stage VARCHAR(50) DEFAULT 'uploaded',
   processing_progress INTEGER DEFAULT 0,
   processing_error TEXT,
+  upload_path TEXT,
+  ai_provider VARCHAR(50),
   processed_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -57,6 +59,8 @@ CREATE TABLE IF NOT EXISTS statements (
 ALTER TABLE statements ADD COLUMN IF NOT EXISTS processing_stage VARCHAR(50) DEFAULT 'uploaded';
 ALTER TABLE statements ADD COLUMN IF NOT EXISTS processing_progress INTEGER DEFAULT 0;
 ALTER TABLE statements ADD COLUMN IF NOT EXISTS processing_error TEXT;
+ALTER TABLE statements ADD COLUMN IF NOT EXISTS upload_path TEXT;
+ALTER TABLE statements ADD COLUMN IF NOT EXISTS ai_provider VARCHAR(50);
 ALTER TABLE statements ADD COLUMN IF NOT EXISTS processed_at TIMESTAMP;
 
 -- Create transactions table

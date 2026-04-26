@@ -10,12 +10,16 @@ export default function AuthSessionGuard(): null {
       }
     };
 
+    ensureAuthenticated();
+
     window.addEventListener('pageshow', ensureAuthenticated);
     window.addEventListener('focus', ensureAuthenticated);
+    window.addEventListener('storage', ensureAuthenticated);
 
     return () => {
       window.removeEventListener('pageshow', ensureAuthenticated);
       window.removeEventListener('focus', ensureAuthenticated);
+      window.removeEventListener('storage', ensureAuthenticated);
     };
   }, []);
 

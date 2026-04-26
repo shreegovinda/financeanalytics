@@ -34,6 +34,7 @@ app.use('/api/ai', aiRoutes);
 
 async function startServer() {
   await initializeDatabase();
+  await uploadRoutes.resumeProcessingStatements?.();
   app.listen(PORT, () => {
     console.log(`Backend running on http://localhost:${PORT}`);
   });
