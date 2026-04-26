@@ -120,7 +120,7 @@ export default function DashboardPage() {
               ✨ Upgrade
             </Link>
             <Link href="/settings" className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition cursor-pointer">
-              Settings
+              Categories
             </Link>
             <button
               onClick={handleLogout}
