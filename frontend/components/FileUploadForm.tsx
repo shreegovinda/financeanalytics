@@ -104,6 +104,21 @@ export default function FileUploadForm({ onUploadSuccess }: { onUploadSuccess?: 
           body: formData,
         },
       );
+
+      if (response.status === 401) {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          window.location.href = '/auth';
+        }
+        throw new Error('Session expired. Redirecting to login...');
+      }
+
+      if (!response.ok) {
+        const errBody = await response.json().catch(() => ({})) as { error?: string };
+        throw new Error(errBody.error || `Upload failed (${response.status})`);
+      }
+
       const data = await response.json() as UploadResponse;
 
       setSuccess(data.message);
@@ -114,7 +129,7 @@ export default function FileUploadForm({ onUploadSuccess }: { onUploadSuccess?: 
         onUploadSuccess();
       }
     } catch (err) {
-      setError('Upload failed');
+      setError(getErrorMessage(err));
       console.error(getErrorMessage(err));
     } finally {
       setLoading(false);

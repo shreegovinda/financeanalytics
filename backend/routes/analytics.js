@@ -54,7 +54,7 @@ router.get('/trends', auth, async (req, res) => {
         COALESCE(c.name, 'Other') as category,
         SUM(t.amount) as total
       FROM transactions t
-      LEFT JOIN categories c ON t.category_id = c.id
+      LEFT JOIN categories c ON t.category_id = c.id AND c.user_id = t.user_id
       WHERE t.user_id = $1 AND t.type = 'debit'
       GROUP BY DATE_TRUNC('month', date), c.name
       ORDER BY DATE_TRUNC('month', date) DESC, total DESC`,
