@@ -1,9 +1,10 @@
 const pool = require('../config/db');
 const nodemailer = require('nodemailer');
+const crypto = require('crypto');
 
 // Generate a random 6-digit OTP
 function generateOTP() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return crypto.randomInt(100000, 1000000).toString();
 }
 
 // Create Nodemailer transporter using SendGrid SMTP
