@@ -98,10 +98,31 @@ async function processStatementInBackground({
 
     try {
       await client.query('BEGIN');
+      const statementLock = await client.query(
+        'SELECT status FROM statements WHERE id = $1 AND user_id = $2 FOR UPDATE',
+        [statementId, userId],
+      );
+
+      if (statementLock.rows.length === 0) {
+        throw new Error('Statement not found');
+      }
+
+      if (statementLock.rows[0].status !== 'processing') {
+        await client.query('COMMIT');
+        client.release();
+        clientReleased = true;
+        return;
+      }
+
       await client.query(
         'UPDATE statements SET bank_name = $1, processing_stage = $2, processing_progress = $3 WHERE id = $4 AND user_id = $5',
         [bankName, 'importing_transactions', 65, statementId, userId],
       );
+
+      await client.query('DELETE FROM transactions WHERE statement_id = $1 AND user_id = $2', [
+        statementId,
+        userId,
+      ]);
 
       if (transactions.length > 0) {
         const values = [];
@@ -143,7 +164,11 @@ async function processStatementInBackground({
       const updateClient = await pool.connect();
       try {
         for (const result of results) {
-          if (result.transactionIndex < txnIds.length) {
+          if (
+            Number.isInteger(result.transactionIndex) &&
+            result.transactionIndex >= 0 &&
+            result.transactionIndex < txnIds.length
+          ) {
             await updateClient.query(
               'UPDATE transactions SET ai_suggested_category = $1 WHERE id = $2',
               [result.category, txnIds[result.transactionIndex]],

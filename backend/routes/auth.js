@@ -9,6 +9,9 @@ const router = express.Router();
 const resetOtpAttempts = new Map();
 const RESET_OTP_MAX_ATTEMPTS = 5;
 const RESET_OTP_WINDOW_MS = 15 * 60 * 1000;
+const loginOtpAttempts = new Map();
+const LOGIN_OTP_MAX_ATTEMPTS = 5;
+const LOGIN_OTP_WINDOW_MS = 15 * 60 * 1000;
 
 function getResetOtpKey(req, email) {
   return `${email.toLowerCase()}:${req.ip}`;
@@ -35,6 +38,33 @@ function checkResetOtpRateLimit(req, email) {
 
 function clearResetOtpRateLimit(req, email) {
   resetOtpAttempts.delete(getResetOtpKey(req, email));
+}
+
+function getLoginOtpKey(req, email) {
+  return `${email.toLowerCase()}:${req.ip}`;
+}
+
+function checkLoginOtpRateLimit(req, email) {
+  const key = getLoginOtpKey(req, email);
+  const now = Date.now();
+  const current = loginOtpAttempts.get(key);
+
+  if (!current || current.resetAt <= now) {
+    loginOtpAttempts.set(key, { count: 1, resetAt: now + LOGIN_OTP_WINDOW_MS });
+    return true;
+  }
+
+  current.count += 1;
+  if (current.count > LOGIN_OTP_MAX_ATTEMPTS) {
+    return false;
+  }
+
+  loginOtpAttempts.set(key, current);
+  return true;
+}
+
+function clearLoginOtpRateLimit(req, email) {
+  loginOtpAttempts.delete(getLoginOtpKey(req, email));
 }
 
 // Register
@@ -234,6 +264,12 @@ router.post('/verify-otp', async (req, res) => {
   }
 
   try {
+    if (!checkLoginOtpRateLimit(req, email)) {
+      return res
+        .status(429)
+        .json({ error: 'Too many invalid OTP attempts. Please try again later.' });
+    }
+
     // Verify OTP
     const otpResult = await verifyOTP(email, otp);
     if (!otpResult.success) {
@@ -259,6 +295,7 @@ router.post('/verify-otp', async (req, res) => {
       user: { id: user.id, email: user.email, name: user.name, phone: user.phone },
       message: 'OTP verified successfully',
     });
+    clearLoginOtpRateLimit(req, email);
   } catch (err) {
     console.error('Error verifying OTP:', err);
     res.status(500).json({ error: 'Failed to verify OTP' });
