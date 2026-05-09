@@ -22,6 +22,8 @@ const COLORS = [
   { hex: '#1f2937', label: 'Black' },
 ];
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 function ColorPicker({ value, onChange }: { value: string; onChange: (hex: string) => void }) {
   return (
     <div className="flex gap-1.5">
@@ -67,7 +69,7 @@ export default function SettingsPage() {
 
   async function fetchCategories(token: string) {
     try {
-      const data = await apiGet<Category[]>('http://localhost:3001/api/categories', token);
+      const data = await apiGet<Category[]>(`${API_BASE_URL}/api/categories`, token);
       setCategories(data);
       setIsLoading(false);
     } catch (err) {
@@ -110,7 +112,7 @@ export default function SettingsPage() {
     try {
       const token = localStorage.getItem('token');
       const created = await apiPost<Category>(
-        'http://localhost:3001/api/categories',
+        `${API_BASE_URL}/api/categories`,
         { name, color, parent_id: parentId },
         token ?? undefined,
       );
@@ -157,7 +159,7 @@ export default function SettingsPage() {
     try {
       const token = localStorage.getItem('token');
       const updated = await apiPut<Category>(
-        `http://localhost:3001/api/categories/${id}`,
+        `${API_BASE_URL}/api/categories/${id}`,
         { name: editName, color: editColor },
         token ?? undefined,
       );
@@ -173,10 +175,7 @@ export default function SettingsPage() {
     if (!deleteConfirm) return;
     try {
       const token = localStorage.getItem('token');
-      await apiDelete(
-        `http://localhost:3001/api/categories/${deleteConfirm.id}`,
-        token ?? undefined,
-      );
+      await apiDelete(`${API_BASE_URL}/api/categories/${deleteConfirm.id}`, token ?? undefined);
       const deletedId = deleteConfirm.id;
       setCategories((prev) => {
         const removed = new Set<string>([deletedId]);
