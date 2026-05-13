@@ -143,7 +143,10 @@ router.post('/categorize', auth, async (req, res) => {
     }
 
     const result = await pool.query(
-      'SELECT id, date, amount, description, type FROM transactions WHERE user_id = $1 AND id = ANY($2)',
+      `SELECT id, date, amount, description, type
+       FROM transactions
+       WHERE user_id = $1 AND id = ANY($2::uuid[])
+       ORDER BY array_position($2::uuid[], id)`,
       [req.user.id, transactionIds],
     );
 
@@ -162,11 +165,11 @@ router.post('/categorize', auth, async (req, res) => {
 
     const updatePromises = categorizations.map((cat) => {
       const txnIndex = cat.transactionIndex;
-      if (txnIndex < result.rows.length) {
-        return pool.query('UPDATE transactions SET ai_suggested_category = $1 WHERE id = $2', [
-          cat.category,
-          result.rows[txnIndex].id,
-        ]);
+      if (Number.isInteger(txnIndex) && txnIndex >= 0 && txnIndex < result.rows.length) {
+        return pool.query(
+          'UPDATE transactions SET ai_suggested_category = $1 WHERE id = $2 AND user_id = $3',
+          [cat.category, result.rows[txnIndex].id, req.user.id],
+        );
       }
     });
 
