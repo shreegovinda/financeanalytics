@@ -25,7 +25,7 @@ async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function categorizeWithRetry(transactions, providerId, attempt = 0) {
+async function categorizeWithRetry(transactions, providerId, startIndex = 0, attempt = 0) {
   const provider = normalizeProviderId(providerId);
   try {
     const prompt = `You are a financial transaction categorizer. Categorize each transaction into one of these categories: ${CATEGORIES.join(', ')}.
@@ -62,17 +62,29 @@ Respond ONLY with valid JSON array, no other text.`;
       maxTokens: 1024,
     });
 
-    const results = categorizations.map((cat) => ({
-      transactionIndex: cat.index - 1,
-      category: CATEGORIES.includes(cat.category) ? cat.category : 'Other',
-      confidence: Math.min(Math.max(cat.confidence, 0), 1),
-    }));
+    const results = categorizations
+      .map((cat) => {
+        const batchIndex = Number(cat.index) - 1;
+
+        if (!Number.isInteger(batchIndex) || batchIndex < 0 || batchIndex >= transactions.length) {
+          return null;
+        }
+
+        const confidence = Number(cat.confidence);
+
+        return {
+          transactionIndex: startIndex + batchIndex,
+          category: CATEGORIES.includes(cat.category) ? cat.category : 'Other',
+          confidence: Number.isFinite(confidence) ? Math.min(Math.max(confidence, 0), 1) : 0,
+        };
+      })
+      .filter(Boolean);
 
     return results;
   } catch (err) {
     if (attempt < MAX_RETRIES - 1) {
       await sleep(RETRY_DELAY * (attempt + 1));
-      return categorizeWithRetry(transactions, provider, attempt + 1);
+      return categorizeWithRetry(transactions, provider, startIndex, attempt + 1);
     }
     throw err;
   }
@@ -89,7 +101,7 @@ async function categorizeBatch(transactions, providerId) {
 
   for (let i = 0; i < transactions.length; i += BATCH_SIZE) {
     const batch = transactions.slice(i, i + BATCH_SIZE);
-    const batchResults = await categorizeWithRetry(batch, provider);
+    const batchResults = await categorizeWithRetry(batch, provider, i);
     results.push(...batchResults);
   }
 
