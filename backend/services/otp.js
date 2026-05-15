@@ -124,7 +124,22 @@ async function sendOTP(email, name = 'User') {
 async function verifyOTP(email, otp) {
   try {
     const result = await pool.query(
-      'SELECT * FROM otp_codes WHERE email = $1 AND code = $2 AND is_used = FALSE AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1',
+      `WITH candidate AS (
+         SELECT id
+         FROM otp_codes
+         WHERE email = $1
+           AND code = $2
+           AND is_used = FALSE
+           AND expires_at > NOW()
+         ORDER BY created_at DESC
+         LIMIT 1
+         FOR UPDATE SKIP LOCKED
+       )
+       UPDATE otp_codes
+       SET is_used = TRUE
+       FROM candidate
+       WHERE otp_codes.id = candidate.id
+       RETURNING otp_codes.id`,
       [email, otp],
     );
 
@@ -132,9 +147,6 @@ async function verifyOTP(email, otp) {
       console.log(`❌ OTP verification failed for ${email}`);
       return { success: false, message: 'Invalid or expired OTP' };
     }
-
-    // Mark OTP as used
-    await pool.query('UPDATE otp_codes SET is_used = TRUE WHERE id = $1', [result.rows[0].id]);
 
     console.log(`✅ OTP verified for ${email}`);
     return { success: true, message: 'OTP verified successfully' };

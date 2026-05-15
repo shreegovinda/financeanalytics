@@ -174,8 +174,8 @@ async function verifyPayment(orderId, paymentId, signature, userId) {
     // Update payment status as failed
     try {
       await pool.query(
-        'UPDATE payments SET status = $1, error_message = $2, updated_at = NOW() WHERE razorpay_order_id = $3 RETURNING *',
-        ['failed', error.message, orderId],
+        'UPDATE payments SET status = $1, error_message = $2, updated_at = NOW() WHERE razorpay_order_id = $3 AND user_id = $4 RETURNING *',
+        ['failed', error.message, orderId, userId],
       );
     } catch (updateError) {
       console.error('Failed to update payment status:', updateError);
