@@ -76,6 +76,25 @@ async function markStatementFailed(statementId, message) {
   });
 }
 
+function buildTransactionImportQuery(userId, statementId, transactions) {
+  const values = [];
+  const placeholders = transactions.map((txn, index) => {
+    const offset = index * 7;
+    values.push(userId, statementId, index, txn.date, txn.amount, txn.description, txn.type);
+    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7})`;
+  });
+
+  return {
+    text: `INSERT INTO transactions (user_id, statement_id, statement_row_index, date, amount, description, type)
+           VALUES ${placeholders.join(', ')}
+           ON CONFLICT (statement_id, statement_row_index)
+           WHERE statement_row_index IS NOT NULL
+           DO UPDATE SET statement_row_index = EXCLUDED.statement_row_index
+           RETURNING id, statement_row_index`,
+    values,
+  };
+}
+
 async function processStatementInBackground({
   statementId,
   filePath,
@@ -83,7 +102,37 @@ async function processStatementInBackground({
   userId,
   aiProvider,
 }) {
+  let lockClient;
+  let lockAcquired = false;
+  let removeUploadFile = false;
+
   try {
+    lockClient = await pool.connect();
+    const lockResult = await lockClient.query(
+      "SELECT pg_try_advisory_lock(hashtext('statement-processing'), hashtext($1)) AS acquired",
+      [statementId],
+    );
+    lockAcquired = lockResult.rows[0]?.acquired === true;
+
+    if (!lockAcquired) {
+      console.log(`Skipping duplicate background processing for ${originalName}`);
+      return;
+    }
+
+    const statementStatus = await pool.query(
+      'SELECT status FROM statements WHERE id = $1 AND user_id = $2',
+      [statementId, userId],
+    );
+
+    if (statementStatus.rows[0]?.status !== 'processing') {
+      console.log(
+        `Skipping background processing for ${originalName}; statement is no longer processing`,
+      );
+      return;
+    }
+
+    removeUploadFile = true;
+
     await updateStatementProgress(statementId, 'extracting_text', 20);
 
     const parsedStatement = await parseStatement(filePath, aiProvider);
@@ -104,20 +153,15 @@ async function processStatementInBackground({
       );
 
       if (transactions.length > 0) {
-        const values = [];
-        const placeholders = transactions.map((txn, index) => {
-          const offset = index * 6;
-          values.push(userId, statementId, txn.date, txn.amount, txn.description, txn.type);
-          return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
-        });
-
-        const result = await client.query(
-          `INSERT INTO transactions (user_id, statement_id, date, amount, description, type)
-           VALUES ${placeholders.join(', ')}
-           RETURNING id`,
-          values,
+        await client.query(
+          'DELETE FROM transactions WHERE statement_id = $1 AND statement_row_index IS NULL',
+          [statementId],
         );
-        txnIds.push(...result.rows.map((row) => row.id));
+        const importQuery = buildTransactionImportQuery(userId, statementId, transactions);
+        const result = await client.query(importQuery.text, importQuery.values);
+        for (const row of result.rows) {
+          txnIds[row.statement_row_index] = row.id;
+        }
       }
 
       await client.query('COMMIT');
@@ -168,7 +212,21 @@ async function processStatementInBackground({
       console.error('Failed to record statement processing error:', updateErr);
     });
   } finally {
-    if (fs.existsSync(filePath)) {
+    if (lockAcquired && lockClient) {
+      await lockClient
+        .query("SELECT pg_advisory_unlock(hashtext('statement-processing'), hashtext($1))", [
+          statementId,
+        ])
+        .catch((unlockErr) => {
+          console.error('Failed to release statement processing lock:', unlockErr);
+        });
+    }
+
+    if (lockClient) {
+      lockClient.release();
+    }
+
+    if (removeUploadFile && fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
   }
@@ -308,5 +366,6 @@ router.get('/:statementId', auth, async (req, res) => {
 });
 
 router.resumeProcessingStatements = resumeProcessingStatements;
+router.buildTransactionImportQuery = buildTransactionImportQuery;
 
 module.exports = router;
