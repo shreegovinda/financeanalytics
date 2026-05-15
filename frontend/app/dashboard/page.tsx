@@ -96,9 +96,9 @@ export default function DashboardPage() {
 
   const fetchAnalytics = async (token: string) => {
     const results = await Promise.allSettled([
-      apiGet<SummaryStats>('http://localhost:3001/api/transactions/stats/summary', token),
-      apiGet<CategoryData[]>('http://localhost:3001/api/analytics/pie', token),
-      apiGet<MonthlyData[]>('http://localhost:3001/api/analytics/bar', token),
+      apiGet<SummaryStats>(`${API_BASE_URL}/api/transactions/stats/summary`, token),
+      apiGet<CategoryData[]>(`${API_BASE_URL}/api/analytics/pie`, token),
+      apiGet<MonthlyData[]>(`${API_BASE_URL}/api/analytics/bar`, token),
     ]);
 
     if (results[0].status === 'fulfilled') setStats(results[0].value);
