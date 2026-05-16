@@ -62,11 +62,22 @@ Respond ONLY with valid JSON array, no other text.`;
       maxTokens: 1024,
     });
 
-    const results = categorizations.map((cat) => ({
-      transactionIndex: cat.index - 1,
-      category: CATEGORIES.includes(cat.category) ? cat.category : 'Other',
-      confidence: Math.min(Math.max(cat.confidence, 0), 1),
-    }));
+    const results = categorizations
+      .map((cat) => {
+        const index = Number(cat.index);
+        if (!Number.isInteger(index) || index < 1 || index > transactions.length) {
+          return null;
+        }
+
+        const confidence = Number(cat.confidence);
+
+        return {
+          transactionIndex: index - 1,
+          category: CATEGORIES.includes(cat.category) ? cat.category : 'Other',
+          confidence: Number.isFinite(confidence) ? Math.min(Math.max(confidence, 0), 1) : 0,
+        };
+      })
+      .filter(Boolean);
 
     return results;
   } catch (err) {
@@ -90,7 +101,12 @@ async function categorizeBatch(transactions, providerId) {
   for (let i = 0; i < transactions.length; i += BATCH_SIZE) {
     const batch = transactions.slice(i, i + BATCH_SIZE);
     const batchResults = await categorizeWithRetry(batch, provider);
-    results.push(...batchResults);
+    results.push(
+      ...batchResults.map((result) => ({
+        ...result,
+        transactionIndex: result.transactionIndex + i,
+      })),
+    );
   }
 
   return results;

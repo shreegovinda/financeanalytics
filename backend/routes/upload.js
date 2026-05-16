@@ -106,18 +106,27 @@ async function processStatementInBackground({
       if (transactions.length > 0) {
         const values = [];
         const placeholders = transactions.map((txn, index) => {
-          const offset = index * 6;
-          values.push(userId, statementId, txn.date, txn.amount, txn.description, txn.type);
-          return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
+          const offset = index * 7;
+          values.push(userId, statementId, index, txn.date, txn.amount, txn.description, txn.type);
+          return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7})`;
         });
 
         const result = await client.query(
-          `INSERT INTO transactions (user_id, statement_id, date, amount, description, type)
+          `INSERT INTO transactions
+             (user_id, statement_id, statement_row_index, date, amount, description, type)
            VALUES ${placeholders.join(', ')}
-           RETURNING id`,
+           ON CONFLICT (statement_id, statement_row_index) DO UPDATE
+             SET user_id = EXCLUDED.user_id,
+                 date = EXCLUDED.date,
+                 amount = EXCLUDED.amount,
+                 description = EXCLUDED.description,
+                 type = EXCLUDED.type
+           RETURNING id, statement_row_index`,
           values,
         );
-        txnIds.push(...result.rows.map((row) => row.id));
+        for (const row of result.rows) {
+          txnIds[row.statement_row_index] = row.id;
+        }
       }
 
       await client.query('COMMIT');
@@ -143,7 +152,7 @@ async function processStatementInBackground({
       const updateClient = await pool.connect();
       try {
         for (const result of results) {
-          if (result.transactionIndex < txnIds.length) {
+          if (result.transactionIndex >= 0 && txnIds[result.transactionIndex]) {
             await updateClient.query(
               'UPDATE transactions SET ai_suggested_category = $1 WHERE id = $2',
               [result.category, txnIds[result.transactionIndex]],

@@ -68,6 +68,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   statement_id UUID NOT NULL REFERENCES statements(id) ON DELETE CASCADE,
+  statement_row_index INTEGER,
   date DATE NOT NULL,
   amount DECIMAL(12, 2) NOT NULL,
   description VARCHAR(255),
@@ -76,6 +77,8 @@ CREATE TABLE IF NOT EXISTS transactions (
   type VARCHAR(10) DEFAULT 'debit',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS statement_row_index INTEGER;
 
 ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_category_id_fkey;
 ALTER TABLE transactions
@@ -116,6 +119,8 @@ CREATE TABLE IF NOT EXISTS payments (
 CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON transactions(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_statement ON transactions(statement_id);
+CREATE UNIQUE INDEX IF NOT EXISTS transactions_statement_row_index_unique
+  ON transactions(statement_id, statement_row_index);
 CREATE INDEX IF NOT EXISTS idx_statements_user ON statements(user_id);
 CREATE INDEX IF NOT EXISTS idx_categories_user ON categories(user_id);
 CREATE INDEX IF NOT EXISTS idx_otp_codes_email_expires ON otp_codes(email, expires_at);
