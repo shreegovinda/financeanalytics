@@ -7,6 +7,7 @@ const auth = require('../middleware/auth');
 const { parseStatement } = require('../services/parsers/generic');
 const { categorizeBatch } = require('../services/claude');
 const { getProviderFromRequest } = require('../services/ai');
+const { upsertStatementTransactions } = require('../services/statementImport');
 
 const router = express.Router();
 
@@ -103,22 +104,12 @@ async function processStatementInBackground({
         [bankName, 'importing_transactions', 65, statementId, userId],
       );
 
-      if (transactions.length > 0) {
-        const values = [];
-        const placeholders = transactions.map((txn, index) => {
-          const offset = index * 6;
-          values.push(userId, statementId, txn.date, txn.amount, txn.description, txn.type);
-          return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
-        });
-
-        const result = await client.query(
-          `INSERT INTO transactions (user_id, statement_id, date, amount, description, type)
-           VALUES ${placeholders.join(', ')}
-           RETURNING id`,
-          values,
-        );
-        txnIds.push(...result.rows.map((row) => row.id));
-      }
+      const importedTxnIds = await upsertStatementTransactions(client, {
+        userId,
+        statementId,
+        transactions,
+      });
+      txnIds.push(...importedTxnIds);
 
       await client.query('COMMIT');
       client.release();
@@ -143,10 +134,11 @@ async function processStatementInBackground({
       const updateClient = await pool.connect();
       try {
         for (const result of results) {
-          if (result.transactionIndex < txnIds.length) {
+          const txnId = txnIds[result.transactionIndex];
+          if (result.transactionIndex >= 0 && txnId) {
             await updateClient.query(
               'UPDATE transactions SET ai_suggested_category = $1 WHERE id = $2',
-              [result.category, txnIds[result.transactionIndex]],
+              [result.category, txnId],
             );
           }
         }
