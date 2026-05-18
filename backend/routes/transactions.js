@@ -143,7 +143,11 @@ router.post('/categorize', auth, async (req, res) => {
     }
 
     const result = await pool.query(
-      'SELECT id, date, amount, description, type FROM transactions WHERE user_id = $1 AND id = ANY($2)',
+      `SELECT t.id, t.date, t.amount, t.description, t.type
+       FROM unnest($2::uuid[]) WITH ORDINALITY AS requested(id, ord)
+       JOIN transactions t ON t.id = requested.id
+       WHERE t.user_id = $1
+       ORDER BY requested.ord`,
       [req.user.id, transactionIds],
     );
 
@@ -160,15 +164,17 @@ router.post('/categorize', auth, async (req, res) => {
 
     const categorizations = await categorizeBatch(txns, getProviderFromRequest(req));
 
-    const updatePromises = categorizations.map((cat) => {
-      const txnIndex = cat.transactionIndex;
-      if (txnIndex < result.rows.length) {
-        return pool.query('UPDATE transactions SET ai_suggested_category = $1 WHERE id = $2', [
+    const updatePromises = categorizations
+      .filter((cat) => {
+        const txnIndex = cat.transactionIndex;
+        return Number.isInteger(txnIndex) && txnIndex >= 0 && txnIndex < result.rows.length;
+      })
+      .map((cat) =>
+        pool.query('UPDATE transactions SET ai_suggested_category = $1 WHERE id = $2', [
           cat.category,
-          result.rows[txnIndex].id,
-        ]);
-      }
-    });
+          result.rows[cat.transactionIndex].id,
+        ]),
+      );
 
     await Promise.all(updatePromises);
 
