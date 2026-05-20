@@ -105,7 +105,10 @@ test('background import is replay-safe and completes when categorization fails',
 
   const statusUpdates = updates.filter((update) => update.sql.includes('UPDATE statements'));
   assert.ok(statusUpdates.some((update) => update.params.includes('completed')));
-  assert.equal(statusUpdates.some((update) => update.params.includes('failed')), false);
+  assert.equal(
+    statusUpdates.some((update) => update.params.includes('failed')),
+    false,
+  );
   assert.equal(fs.existsSync(tempFile), false);
 });
 
