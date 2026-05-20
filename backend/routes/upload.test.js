@@ -120,7 +120,7 @@ test('background import maps categorization updates by statement row index', asy
   installModuleStub(require.resolve('../config/db'), {
     query: async () => ({ rows: [] }),
     connect: async () => ({
-      query: async (sql) => {
+      query: async (sql, params) => {
         if (sql.includes('INSERT INTO transactions')) {
           return {
             rows: [
