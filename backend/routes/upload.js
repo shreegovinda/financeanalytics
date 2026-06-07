@@ -7,6 +7,7 @@ const auth = require('../middleware/auth');
 const { parseStatement } = require('../services/parsers/generic');
 const { categorizeBatch } = require('../services/claude');
 const { getProviderFromRequest } = require('../services/ai');
+const { buildTransactionImportQuery } = require('../services/statementImport');
 
 const router = express.Router();
 
@@ -76,6 +77,38 @@ async function markStatementFailed(statementId, message) {
   });
 }
 
+async function categorizeImportedTransactions({ txnIds, transactions, aiProvider }) {
+  if (txnIds.length === 0) {
+    return null;
+  }
+
+  try {
+    const results = await categorizeBatch(transactions, aiProvider);
+    const updateClient = await pool.connect();
+    try {
+      for (const result of results) {
+        if (
+          Number.isInteger(result.transactionIndex) &&
+          result.transactionIndex >= 0 &&
+          result.transactionIndex < txnIds.length
+        ) {
+          await updateClient.query(
+            'UPDATE transactions SET ai_suggested_category = $1 WHERE id = $2',
+            [result.category, txnIds[result.transactionIndex]],
+          );
+        }
+      }
+    } finally {
+      updateClient.release();
+    }
+  } catch (err) {
+    console.error('AI categorization failed after transaction import:', err);
+    return err;
+  }
+
+  return null;
+}
+
 async function processStatementInBackground({
   statementId,
   filePath,
@@ -104,19 +137,8 @@ async function processStatementInBackground({
       );
 
       if (transactions.length > 0) {
-        const values = [];
-        const placeholders = transactions.map((txn, index) => {
-          const offset = index * 6;
-          values.push(userId, statementId, txn.date, txn.amount, txn.description, txn.type);
-          return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
-        });
-
-        const result = await client.query(
-          `INSERT INTO transactions (user_id, statement_id, date, amount, description, type)
-           VALUES ${placeholders.join(', ')}
-           RETURNING id`,
-          values,
-        );
+        const importQuery = buildTransactionImportQuery(transactions, { statementId, userId });
+        const result = await client.query(importQuery.text, importQuery.values);
         txnIds.push(...result.rows.map((row) => row.id));
       }
 
@@ -138,25 +160,17 @@ async function processStatementInBackground({
 
     await updateStatementProgress(statementId, 'categorizing_transactions', 80);
 
-    if (txnIds.length > 0) {
-      const results = await categorizeBatch(transactions, aiProvider);
-      const updateClient = await pool.connect();
-      try {
-        for (const result of results) {
-          if (result.transactionIndex < txnIds.length) {
-            await updateClient.query(
-              'UPDATE transactions SET ai_suggested_category = $1 WHERE id = $2',
-              [result.category, txnIds[result.transactionIndex]],
-            );
-          }
-        }
-      } finally {
-        updateClient.release();
-      }
-    }
+    const categorizationError = await categorizeImportedTransactions({
+      txnIds,
+      transactions,
+      aiProvider,
+    });
 
     await updateStatementProgress(statementId, 'completed', 100, {
       status: 'completed',
+      error: categorizationError
+        ? `Transactions imported, but AI categorization failed: ${categorizationError.message}`
+        : null,
       processedAt: new Date(),
       clearUploadPath: true,
     });
