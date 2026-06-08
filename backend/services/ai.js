@@ -94,6 +94,10 @@ async function generateWithAnthropic(prompt, maxTokens) {
     ],
   });
 
+  if (message.stop_reason === 'max_tokens') {
+    throw new Error(`${getProviderConfig('anthropic').label} response hit the max token limit`);
+  }
+
   return message.content[0].type === 'text' ? message.content[0].text : '';
 }
 
@@ -149,7 +153,12 @@ async function generateWithGemini(prompt, maxTokens, responseSchema) {
   }
 
   const data = await response.json();
-  return data.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('') || '';
+  const candidate = data.candidates?.[0];
+  if (candidate?.finishReason === 'MAX_TOKENS') {
+    throw new Error(`${getProviderConfig('gemini').label} response hit the max output token limit`);
+  }
+
+  return candidate?.content?.parts?.map((part) => part.text || '').join('') || '';
 }
 
 function cleanJsonText(responseText) {

@@ -76,6 +76,120 @@ async function markStatementFailed(statementId, message) {
   });
 }
 
+async function acquireStatementLock(statementId) {
+  const lockClient = await pool.connect();
+  let lockAcquired = false;
+
+  try {
+    const result = await lockClient.query(
+      'SELECT pg_try_advisory_lock(hashtext($1)) AS acquired',
+      [statementId],
+    );
+    lockAcquired = Boolean(result.rows[0]?.acquired);
+
+    if (!lockAcquired) {
+      lockClient.release();
+      return null;
+    }
+
+    return lockClient;
+  } catch (err) {
+    if (!lockAcquired) {
+      lockClient.release();
+    }
+    throw err;
+  }
+}
+
+async function releaseStatementLock(lockClient, statementId) {
+  if (!lockClient) {
+    return;
+  }
+
+  try {
+    await lockClient.query('SELECT pg_advisory_unlock(hashtext($1))', [statementId]);
+  } finally {
+    lockClient.release();
+  }
+}
+
+async function backfillLegacyTransactionRowIndexes(client, statementId, expectedCount) {
+  const existing = await client.query(
+    `SELECT id, statement_row_index
+     FROM transactions
+     WHERE statement_id = $1
+     FOR UPDATE`,
+    [statementId],
+  );
+
+  if (existing.rows.length === 0) {
+    return;
+  }
+
+  const indexedRows = existing.rows.filter((row) => row.statement_row_index !== null);
+  const legacyRows = existing.rows.filter((row) => row.statement_row_index === null);
+
+  if (legacyRows.length === 0) {
+    return;
+  }
+
+  if (indexedRows.length > 0 || legacyRows.length !== expectedCount) {
+    throw new Error('Statement already has transactions and cannot be safely resumed');
+  }
+
+  const orderedLegacyRows = await client.query(
+    `SELECT id
+     FROM transactions
+     WHERE statement_id = $1 AND statement_row_index IS NULL
+     ORDER BY ctid
+     FOR UPDATE`,
+    [statementId],
+  );
+
+  for (let index = 0; index < orderedLegacyRows.rows.length; index++) {
+    await client.query('UPDATE transactions SET statement_row_index = $1 WHERE id = $2', [
+      index,
+      orderedLegacyRows.rows[index].id,
+    ]);
+  }
+}
+
+async function importTransactionsForStatement(client, { statementId, userId, transactions }) {
+  if (transactions.length === 0) {
+    return [];
+  }
+
+  await backfillLegacyTransactionRowIndexes(client, statementId, transactions.length);
+
+  const values = [];
+  const placeholders = transactions.map((txn, index) => {
+    const offset = index * 7;
+    values.push(userId, statementId, index, txn.date, txn.amount, txn.description, txn.type);
+    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7})`;
+  });
+
+  const result = await client.query(
+    `INSERT INTO transactions
+       (user_id, statement_id, statement_row_index, date, amount, description, type)
+     VALUES ${placeholders.join(', ')}
+     ON CONFLICT (statement_id, statement_row_index)
+     DO UPDATE SET
+       date = EXCLUDED.date,
+       amount = EXCLUDED.amount,
+       description = EXCLUDED.description,
+       type = EXCLUDED.type
+     RETURNING id, statement_row_index`,
+    values,
+  );
+
+  const txnIds = [];
+  for (const row of result.rows) {
+    txnIds[row.statement_row_index] = row.id;
+  }
+
+  return txnIds;
+}
+
 async function processStatementInBackground({
   statementId,
   filePath,
@@ -83,7 +197,16 @@ async function processStatementInBackground({
   userId,
   aiProvider,
 }) {
+  let lockClient = null;
+  let importCommitted = false;
+
   try {
+    lockClient = await acquireStatementLock(statementId);
+    if (!lockClient) {
+      console.warn(`Statement ${statementId} is already being processed by another worker`);
+      return;
+    }
+
     await updateStatementProgress(statementId, 'extracting_text', 20);
 
     const parsedStatement = await parseStatement(filePath, aiProvider);
@@ -103,24 +226,15 @@ async function processStatementInBackground({
         [bankName, 'importing_transactions', 65, statementId, userId],
       );
 
-      if (transactions.length > 0) {
-        const values = [];
-        const placeholders = transactions.map((txn, index) => {
-          const offset = index * 6;
-          values.push(userId, statementId, txn.date, txn.amount, txn.description, txn.type);
-          return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
-        });
-
-        const result = await client.query(
-          `INSERT INTO transactions (user_id, statement_id, date, amount, description, type)
-           VALUES ${placeholders.join(', ')}
-           RETURNING id`,
-          values,
-        );
-        txnIds.push(...result.rows.map((row) => row.id));
-      }
+      const importedTxnIds = await importTransactionsForStatement(client, {
+        statementId,
+        userId,
+        transactions,
+      });
+      txnIds.push(...importedTxnIds);
 
       await client.query('COMMIT');
+      importCommitted = txnIds.length > 0;
       client.release();
       clientReleased = true;
     } catch (err) {
@@ -139,19 +253,23 @@ async function processStatementInBackground({
     await updateStatementProgress(statementId, 'categorizing_transactions', 80);
 
     if (txnIds.length > 0) {
-      const results = await categorizeBatch(transactions, aiProvider);
-      const updateClient = await pool.connect();
       try {
-        for (const result of results) {
-          if (result.transactionIndex < txnIds.length) {
-            await updateClient.query(
-              'UPDATE transactions SET ai_suggested_category = $1 WHERE id = $2',
-              [result.category, txnIds[result.transactionIndex]],
-            );
+        const results = await categorizeBatch(transactions, aiProvider);
+        const updateClient = await pool.connect();
+        try {
+          for (const result of results) {
+            if (result.transactionIndex >= 0 && result.transactionIndex < txnIds.length) {
+              await updateClient.query(
+                'UPDATE transactions SET ai_suggested_category = $1 WHERE id = $2',
+                [result.category, txnIds[result.transactionIndex]],
+              );
+            }
           }
+        } finally {
+          updateClient.release();
         }
-      } finally {
-        updateClient.release();
+      } catch (categorizeErr) {
+        console.error('AI categorization failed after import:', categorizeErr);
       }
     }
 
@@ -164,14 +282,43 @@ async function processStatementInBackground({
     console.log(`✓ Completed background processing for ${originalName}`);
   } catch (err) {
     console.error('Background statement processing failed:', err);
-    await markStatementFailed(statementId, err.message).catch((updateErr) => {
-      console.error('Failed to record statement processing error:', updateErr);
-    });
+    if (importCommitted) {
+      await updateStatementProgress(statementId, 'completed', 100, {
+        status: 'completed',
+        processedAt: new Date(),
+        clearUploadPath: true,
+      }).catch((updateErr) => {
+        console.error('Failed to mark imported statement completed:', updateErr);
+      });
+    } else {
+      await markStatementFailed(statementId, err.message).catch((updateErr) => {
+        console.error('Failed to record statement processing error:', updateErr);
+      });
+    }
   } finally {
+    await releaseStatementLock(lockClient, statementId).catch((unlockErr) => {
+      console.error('Failed to release statement processing lock:', unlockErr);
+    });
+
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
   }
+}
+
+async function completeImportedStatement(statementId) {
+  await updateStatementProgress(statementId, 'completed', 100, {
+    status: 'completed',
+    processedAt: new Date(),
+    clearUploadPath: true,
+  });
+}
+
+async function hasImportedTransactions(statementId) {
+  const result = await pool.query('SELECT 1 FROM transactions WHERE statement_id = $1 LIMIT 1', [
+    statementId,
+  ]);
+  return result.rows.length > 0;
 }
 
 async function resumeProcessingStatements() {
@@ -184,6 +331,11 @@ async function resumeProcessingStatements() {
 
     for (const statement of result.rows) {
       if (!statement.upload_path || !fs.existsSync(statement.upload_path)) {
+        if (await hasImportedTransactions(statement.id)) {
+          await completeImportedStatement(statement.id);
+          continue;
+        }
+
         await markStatementFailed(
           statement.id,
           'Processing was interrupted and the uploaded file is no longer available. Please upload the statement again.',
@@ -308,5 +460,7 @@ router.get('/:statementId', auth, async (req, res) => {
 });
 
 router.resumeProcessingStatements = resumeProcessingStatements;
+router.processStatementInBackground = processStatementInBackground;
+router.importTransactionsForStatement = importTransactionsForStatement;
 
 module.exports = router;
