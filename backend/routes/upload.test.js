@@ -1,6 +1,10 @@
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const test = require('node:test');
 
+const pool = require('../config/db');
 const uploadRoutes = require('./upload');
 
 test('importTransactionsForStatement upserts by stable statement row index', async () => {
@@ -70,4 +74,31 @@ test('importTransactionsForStatement upserts by stable statement row index', asy
     'Second transaction',
     'credit',
   ]);
+});
+
+test('processStatementInBackground does not delete file when another worker owns the lock', async () => {
+  const originalConnect = pool.connect;
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'upload-lock-'));
+  const filePath = path.join(tempDir, 'statement.pdf');
+  fs.writeFileSync(filePath, 'placeholder');
+
+  pool.connect = async () => ({
+    query: async () => ({ rows: [{ acquired: false }] }),
+    release: () => {},
+  });
+
+  try {
+    await uploadRoutes.processStatementInBackground({
+      statementId: 'statement-id',
+      filePath,
+      originalName: 'statement.pdf',
+      userId: 'user-id',
+      aiProvider: 'gemini',
+    });
+
+    assert.equal(fs.existsSync(filePath), true);
+  } finally {
+    pool.connect = originalConnect;
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
 });

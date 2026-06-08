@@ -300,7 +300,7 @@ async function processStatementInBackground({
       console.error('Failed to release statement processing lock:', unlockErr);
     });
 
-    if (fs.existsSync(filePath)) {
+    if (lockClient && fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
   }
