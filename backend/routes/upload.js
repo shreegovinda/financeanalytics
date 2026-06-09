@@ -76,6 +76,14 @@ async function markStatementFailed(statementId, message) {
   });
 }
 
+async function hasImportedTransactions(statementId, userId) {
+  const result = await pool.query(
+    'SELECT COUNT(*)::int AS transaction_count FROM transactions WHERE statement_id = $1 AND user_id = $2',
+    [statementId, userId],
+  );
+  return Number(result.rows[0]?.transaction_count || 0) > 0;
+}
+
 async function processStatementInBackground({
   statementId,
   filePath,
@@ -85,6 +93,16 @@ async function processStatementInBackground({
 }) {
   try {
     await updateStatementProgress(statementId, 'extracting_text', 20);
+
+    if (await hasImportedTransactions(statementId, userId)) {
+      await updateStatementProgress(statementId, 'completed', 100, {
+        status: 'completed',
+        processedAt: new Date(),
+        clearUploadPath: true,
+      });
+      console.log(`✓ Completed interrupted processing for ${originalName} using existing transactions`);
+      return;
+    }
 
     const parsedStatement = await parseStatement(filePath, aiProvider);
     const bankName = (parsedStatement.bankName || 'Unknown Bank').slice(0, 50).toUpperCase();
@@ -98,12 +116,28 @@ async function processStatementInBackground({
 
     try {
       await client.query('BEGIN');
+      const statementLock = await client.query(
+        'SELECT id FROM statements WHERE id = $1 AND user_id = $2 FOR UPDATE',
+        [statementId, userId],
+      );
+
+      if (statementLock.rows.length === 0) {
+        throw new Error('Statement not found');
+      }
+
       await client.query(
         'UPDATE statements SET bank_name = $1, processing_stage = $2, processing_progress = $3 WHERE id = $4 AND user_id = $5',
         [bankName, 'importing_transactions', 65, statementId, userId],
       );
 
-      if (transactions.length > 0) {
+      const existingTransactions = await client.query(
+        'SELECT id FROM transactions WHERE statement_id = $1 AND user_id = $2 ORDER BY created_at, id',
+        [statementId, userId],
+      );
+
+      if (existingTransactions.rows.length > 0) {
+        txnIds.push(...existingTransactions.rows.map((row) => row.id));
+      } else if (transactions.length > 0) {
         const values = [];
         const placeholders = transactions.map((txn, index) => {
           const offset = index * 6;
@@ -139,19 +173,23 @@ async function processStatementInBackground({
     await updateStatementProgress(statementId, 'categorizing_transactions', 80);
 
     if (txnIds.length > 0) {
-      const results = await categorizeBatch(transactions, aiProvider);
-      const updateClient = await pool.connect();
       try {
-        for (const result of results) {
-          if (result.transactionIndex < txnIds.length) {
-            await updateClient.query(
-              'UPDATE transactions SET ai_suggested_category = $1 WHERE id = $2',
-              [result.category, txnIds[result.transactionIndex]],
-            );
+        const results = await categorizeBatch(transactions, aiProvider);
+        const updateClient = await pool.connect();
+        try {
+          for (const result of results) {
+            if (result.transactionIndex < txnIds.length) {
+              await updateClient.query(
+                'UPDATE transactions SET ai_suggested_category = $1 WHERE id = $2',
+                [result.category, txnIds[result.transactionIndex]],
+              );
+            }
           }
+        } finally {
+          updateClient.release();
         }
-      } finally {
-        updateClient.release();
+      } catch (categorizationErr) {
+        console.error('AI categorization failed after import:', categorizationErr);
       }
     }
 
@@ -283,10 +321,13 @@ router.get('/', auth, async (req, res) => {
 
 router.get('/:statementId', auth, async (req, res) => {
   try {
-    const statement = await pool.query('SELECT * FROM statements WHERE id = $1 AND user_id = $2', [
-      req.params.statementId,
-      req.user.id,
-    ]);
+    const statement = await pool.query(
+      `SELECT id, user_id, bank_name, file_name, uploaded_at, status, processing_stage,
+              processing_progress, processing_error, ai_provider, processed_at, created_at
+       FROM statements
+       WHERE id = $1 AND user_id = $2`,
+      [req.params.statementId, req.user.id],
+    );
 
     if (statement.rows.length === 0) {
       return res.status(404).json({ error: 'Statement not found' });
@@ -308,5 +349,9 @@ router.get('/:statementId', auth, async (req, res) => {
 });
 
 router.resumeProcessingStatements = resumeProcessingStatements;
+router._internal = {
+  processStatementInBackground,
+  hasImportedTransactions,
+};
 
 module.exports = router;
