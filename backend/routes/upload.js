@@ -100,7 +100,9 @@ async function processStatementInBackground({
         processedAt: new Date(),
         clearUploadPath: true,
       });
-      console.log(`✓ Completed interrupted processing for ${originalName} using existing transactions`);
+      console.log(
+        `✓ Completed interrupted processing for ${originalName} using existing transactions`,
+      );
       return;
     }
 

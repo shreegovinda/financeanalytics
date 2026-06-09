@@ -75,7 +75,10 @@ test('resumed processing completes statements that already imported transactions
   });
 
   assert.equal(parseCalled, false);
-  assert.equal(poolCalls.some(({ sql }) => sql.includes('INSERT INTO transactions')), false);
+  assert.equal(
+    poolCalls.some(({ sql }) => sql.includes('INSERT INTO transactions')),
+    false,
+  );
   assert.ok(
     poolCalls.some(
       ({ sql, params }) =>
@@ -158,5 +161,8 @@ test('categorization failures after import do not mark committed statements fail
         params[5] === true,
     ),
   );
-  assert.equal(poolCalls.some(({ params }) => params?.[0] === 'failed'), false);
+  assert.equal(
+    poolCalls.some(({ params }) => params?.[0] === 'failed'),
+    false,
+  );
 });
