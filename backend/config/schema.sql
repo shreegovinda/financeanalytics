@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   statement_id UUID REFERENCES statements(id) ON DELETE CASCADE,
+  statement_row_index INTEGER,
   date DATE NOT NULL,
   amount DECIMAL(12, 2) NOT NULL,
   description VARCHAR(255),
@@ -81,9 +82,14 @@ ALTER TABLE transactions
   ADD CONSTRAINT transactions_category_id_fkey
   FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL;
 
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS statement_row_index INTEGER;
+
 -- Create indices
 CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON transactions(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category_id);
+CREATE UNIQUE INDEX IF NOT EXISTS transactions_statement_row_unique
+  ON transactions(statement_id, statement_row_index)
+  WHERE statement_row_index IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_statements_user ON statements(user_id);
 CREATE INDEX IF NOT EXISTS idx_categories_user ON categories(user_id);
 

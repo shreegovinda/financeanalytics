@@ -40,6 +40,36 @@ const upload = multer({
   },
 });
 
+async function acquireStatementProcessingLock(statementId) {
+  const client = await pool.connect();
+  const lockKey = `statement:${statementId}`;
+
+  try {
+    const result = await client.query(
+      'SELECT pg_try_advisory_lock(hashtext($1)::bigint) AS acquired',
+      [lockKey],
+    );
+
+    if (!result.rows[0].acquired) {
+      client.release();
+      return null;
+    }
+
+    return { client, lockKey };
+  } catch (err) {
+    client.release();
+    throw err;
+  }
+}
+
+async function releaseStatementProcessingLock(lock) {
+  try {
+    await lock.client.query('SELECT pg_advisory_unlock(hashtext($1)::bigint)', [lock.lockKey]);
+  } finally {
+    lock.client.release();
+  }
+}
+
 async function updateStatementProgress(statementId, stage, progress, extra = {}) {
   await pool.query(
     `UPDATE statements
@@ -83,7 +113,15 @@ async function processStatementInBackground({
   userId,
   aiProvider,
 }) {
+  let processingLock = null;
+
   try {
+    processingLock = await acquireStatementProcessingLock(statementId);
+    if (!processingLock) {
+      console.log(`Skipping statement ${statementId}; processing is already active`);
+      return;
+    }
+
     await updateStatementProgress(statementId, 'extracting_text', 20);
 
     const parsedStatement = await parseStatement(filePath, aiProvider);
@@ -102,22 +140,37 @@ async function processStatementInBackground({
         'UPDATE statements SET bank_name = $1, processing_stage = $2, processing_progress = $3 WHERE id = $4 AND user_id = $5',
         [bankName, 'importing_transactions', 65, statementId, userId],
       );
+      await client.query(
+        'DELETE FROM transactions WHERE statement_id = $1 AND statement_row_index IS NULL',
+        [statementId],
+      );
 
       if (transactions.length > 0) {
         const values = [];
         const placeholders = transactions.map((txn, index) => {
-          const offset = index * 6;
-          values.push(userId, statementId, txn.date, txn.amount, txn.description, txn.type);
-          return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
+          const offset = index * 7;
+          values.push(userId, statementId, index, txn.date, txn.amount, txn.description, txn.type);
+          return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7})`;
         });
 
         const result = await client.query(
-          `INSERT INTO transactions (user_id, statement_id, date, amount, description, type)
+          `INSERT INTO transactions
+             (user_id, statement_id, statement_row_index, date, amount, description, type)
            VALUES ${placeholders.join(', ')}
-           RETURNING id`,
+           ON CONFLICT (statement_id, statement_row_index)
+           WHERE statement_row_index IS NOT NULL
+           DO UPDATE SET
+             user_id = EXCLUDED.user_id,
+             date = EXCLUDED.date,
+             amount = EXCLUDED.amount,
+             description = EXCLUDED.description,
+             type = EXCLUDED.type
+           RETURNING id, statement_row_index`,
           values,
         );
-        txnIds.push(...result.rows.map((row) => row.id));
+        for (const row of result.rows) {
+          txnIds[row.statement_row_index] = row.id;
+        }
       }
 
       await client.query('COMMIT');
@@ -168,7 +221,13 @@ async function processStatementInBackground({
       console.error('Failed to record statement processing error:', updateErr);
     });
   } finally {
-    if (fs.existsSync(filePath)) {
+    if (processingLock) {
+      await releaseStatementProcessingLock(processingLock).catch((unlockErr) => {
+        console.error('Failed to release statement processing lock:', unlockErr);
+      });
+    }
+
+    if (processingLock && fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
   }

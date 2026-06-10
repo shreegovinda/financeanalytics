@@ -84,15 +84,14 @@ async function sendOTPEmail(email, otp, name = 'User') {
 }
 
 // Store OTP in database
-async function storeOTP(email, otp) {
+async function storeOTP(email, otp, purpose = 'login') {
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
 
   try {
-    await pool.query('INSERT INTO otp_codes (email, code, expires_at) VALUES ($1, $2, $3)', [
-      email,
-      otp,
-      expiresAt,
-    ]);
+    await pool.query(
+      'INSERT INTO otp_codes (email, code, purpose, expires_at) VALUES ($1, $2, $3, $4)',
+      [email, otp, purpose, expiresAt],
+    );
     console.log(`✅ OTP stored for ${email}, expires at ${expiresAt}`);
     return true;
   } catch (error) {
@@ -102,13 +101,13 @@ async function storeOTP(email, otp) {
 }
 
 // Send OTP (generate, store, and send email)
-async function sendOTP(email, name = 'User') {
+async function sendOTP(email, name = 'User', purpose = 'login') {
   try {
     const otp = generateOTP();
     console.log(`📧 Sending OTP to ${email}...`);
 
     // Store OTP in database
-    await storeOTP(email, otp);
+    await storeOTP(email, otp, purpose);
 
     // Send OTP via email
     await sendOTPEmail(email, otp, name);
@@ -121,11 +120,19 @@ async function sendOTP(email, name = 'User') {
 }
 
 // Verify OTP
-async function verifyOTP(email, otp) {
+async function verifyOTP(email, otp, purpose = 'login') {
   try {
     const result = await pool.query(
-      'SELECT * FROM otp_codes WHERE email = $1 AND code = $2 AND is_used = FALSE AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1',
-      [email, otp],
+      `SELECT *
+       FROM otp_codes
+       WHERE email = $1
+         AND code = $2
+         AND purpose = $3
+         AND is_used = FALSE
+         AND expires_at > NOW()
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [email, otp, purpose],
     );
 
     if (result.rows.length === 0) {

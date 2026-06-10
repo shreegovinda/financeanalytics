@@ -6,35 +6,35 @@ const authenticateToken = require('../middleware/auth');
 const { sendOTP, verifyOTP } = require('../services/otp');
 
 const router = express.Router();
-const resetOtpAttempts = new Map();
-const RESET_OTP_MAX_ATTEMPTS = 5;
-const RESET_OTP_WINDOW_MS = 15 * 60 * 1000;
+const otpAttempts = new Map();
+const OTP_MAX_ATTEMPTS = 5;
+const OTP_WINDOW_MS = 15 * 60 * 1000;
 
-function getResetOtpKey(req, email) {
-  return `${email.toLowerCase()}:${req.ip}`;
+function getOtpAttemptKey(req, email, purpose) {
+  return `${purpose}:${email.toLowerCase()}:${req.ip}`;
 }
 
-function checkResetOtpRateLimit(req, email) {
-  const key = getResetOtpKey(req, email);
+function checkOtpRateLimit(req, email, purpose) {
+  const key = getOtpAttemptKey(req, email, purpose);
   const now = Date.now();
-  const current = resetOtpAttempts.get(key);
+  const current = otpAttempts.get(key);
 
   if (!current || current.resetAt <= now) {
-    resetOtpAttempts.set(key, { count: 1, resetAt: now + RESET_OTP_WINDOW_MS });
+    otpAttempts.set(key, { count: 1, resetAt: now + OTP_WINDOW_MS });
     return true;
   }
 
   current.count += 1;
-  if (current.count > RESET_OTP_MAX_ATTEMPTS) {
+  if (current.count > OTP_MAX_ATTEMPTS) {
     return false;
   }
 
-  resetOtpAttempts.set(key, current);
+  otpAttempts.set(key, current);
   return true;
 }
 
-function clearResetOtpRateLimit(req, email) {
-  resetOtpAttempts.delete(getResetOtpKey(req, email));
+function clearOtpRateLimit(req, email, purpose) {
+  otpAttempts.delete(getOtpAttemptKey(req, email, purpose));
 }
 
 // Register
@@ -140,7 +140,7 @@ router.post('/forgot-password/send-otp', async (req, res) => {
       return res.status(404).json({ error: 'No account found for this email' });
     }
 
-    await sendOTP(email, userResult.rows[0].name || 'User');
+    await sendOTP(email, userResult.rows[0].name || 'User', 'password_reset');
     res.json({ success: true, message: 'Password reset OTP sent to email' });
   } catch (err) {
     console.error('Error sending password reset OTP:', err);
@@ -167,13 +167,13 @@ router.post('/forgot-password/reset', async (req, res) => {
   }
 
   try {
-    if (!checkResetOtpRateLimit(req, email)) {
+    if (!checkOtpRateLimit(req, email, 'password_reset')) {
       return res
         .status(429)
         .json({ error: 'Too many invalid OTP attempts. Please try again later.' });
     }
 
-    const otpResult = await verifyOTP(email, otp);
+    const otpResult = await verifyOTP(email, otp, 'password_reset');
     if (!otpResult.success) {
       return res.status(401).json({ error: otpResult.message });
     }
@@ -188,7 +188,7 @@ router.post('/forgot-password/reset', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    clearResetOtpRateLimit(req, email);
+    clearOtpRateLimit(req, email, 'password_reset');
     res.json({ success: true, message: 'Password reset successfully' });
   } catch (err) {
     console.error('Error resetting password:', err);
@@ -210,7 +210,7 @@ router.post('/send-otp', async (req, res) => {
     const name = userResult.rows.length > 0 ? userResult.rows[0].name : 'User';
 
     // Send OTP
-    await sendOTP(email, name);
+    await sendOTP(email, name, 'login');
     res.json({ success: true, message: 'OTP sent to email', email });
   } catch (err) {
     console.error('Error sending OTP:', err);
@@ -235,7 +235,13 @@ router.post('/verify-otp', async (req, res) => {
 
   try {
     // Verify OTP
-    const otpResult = await verifyOTP(email, otp);
+    if (!checkOtpRateLimit(req, email, 'login')) {
+      return res
+        .status(429)
+        .json({ error: 'Too many invalid OTP attempts. Please try again later.' });
+    }
+
+    const otpResult = await verifyOTP(email, otp, 'login');
     if (!otpResult.success) {
       return res.status(401).json({ error: otpResult.message });
     }
@@ -259,6 +265,7 @@ router.post('/verify-otp', async (req, res) => {
       user: { id: user.id, email: user.email, name: user.name, phone: user.phone },
       message: 'OTP verified successfully',
     });
+    clearOtpRateLimit(req, email, 'login');
   } catch (err) {
     console.error('Error verifying OTP:', err);
     res.status(500).json({ error: 'Failed to verify OTP' });
