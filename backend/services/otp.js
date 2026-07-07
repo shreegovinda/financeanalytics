@@ -1,6 +1,19 @@
 const pool = require('../config/db');
 const nodemailer = require('nodemailer');
 
+const OTP_PURPOSES = {
+  LOGIN: 'login',
+  PASSWORD_RESET: 'password_reset',
+};
+
+function normalizePurpose(purpose) {
+  if (Object.values(OTP_PURPOSES).includes(purpose)) {
+    return purpose;
+  }
+
+  throw new Error('Invalid OTP purpose');
+}
+
 // Generate a random 6-digit OTP
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -84,16 +97,16 @@ async function sendOTPEmail(email, otp, name = 'User') {
 }
 
 // Store OTP in database
-async function storeOTP(email, otp) {
+async function storeOTP(email, otp, purpose = OTP_PURPOSES.LOGIN) {
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
+  const otpPurpose = normalizePurpose(purpose);
 
   try {
-    await pool.query('INSERT INTO otp_codes (email, code, expires_at) VALUES ($1, $2, $3)', [
-      email,
-      otp,
-      expiresAt,
-    ]);
-    console.log(`✅ OTP stored for ${email}, expires at ${expiresAt}`);
+    await pool.query(
+      'INSERT INTO otp_codes (email, code, purpose, expires_at) VALUES ($1, $2, $3, $4)',
+      [email, otp, otpPurpose, expiresAt],
+    );
+    console.log(`✅ ${otpPurpose} OTP stored for ${email}, expires at ${expiresAt}`);
     return true;
   } catch (error) {
     console.error('❌ Failed to store OTP:', error);
@@ -102,13 +115,13 @@ async function storeOTP(email, otp) {
 }
 
 // Send OTP (generate, store, and send email)
-async function sendOTP(email, name = 'User') {
+async function sendOTP(email, name = 'User', purpose = OTP_PURPOSES.LOGIN) {
   try {
     const otp = generateOTP();
     console.log(`📧 Sending OTP to ${email}...`);
 
     // Store OTP in database
-    await storeOTP(email, otp);
+    await storeOTP(email, otp, purpose);
 
     // Send OTP via email
     await sendOTPEmail(email, otp, name);
@@ -121,22 +134,32 @@ async function sendOTP(email, name = 'User') {
 }
 
 // Verify OTP
-async function verifyOTP(email, otp) {
+async function verifyOTP(email, otp, purpose = OTP_PURPOSES.LOGIN) {
+  const otpPurpose = normalizePurpose(purpose);
+
   try {
     const result = await pool.query(
-      'SELECT * FROM otp_codes WHERE email = $1 AND code = $2 AND is_used = FALSE AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1',
-      [email, otp],
+      `SELECT *
+       FROM otp_codes
+       WHERE email = $1
+         AND code = $2
+         AND purpose = $3
+         AND is_used = FALSE
+         AND expires_at > NOW()
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [email, otp, otpPurpose],
     );
 
     if (result.rows.length === 0) {
-      console.log(`❌ OTP verification failed for ${email}`);
+      console.log(`❌ ${otpPurpose} OTP verification failed for ${email}`);
       return { success: false, message: 'Invalid or expired OTP' };
     }
 
     // Mark OTP as used
     await pool.query('UPDATE otp_codes SET is_used = TRUE WHERE id = $1', [result.rows[0].id]);
 
-    console.log(`✅ OTP verified for ${email}`);
+    console.log(`✅ ${otpPurpose} OTP verified for ${email}`);
     return { success: true, message: 'OTP verified successfully' };
   } catch (error) {
     console.error('❌ Error in verifyOTP:', error);
@@ -155,6 +178,7 @@ async function cleanupExpiredOTPs() {
 }
 
 module.exports = {
+  OTP_PURPOSES,
   generateOTP,
   sendOTP,
   verifyOTP,

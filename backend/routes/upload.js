@@ -76,6 +76,28 @@ async function markStatementFailed(statementId, message) {
   });
 }
 
+async function getStatementTransactionCount(statementId) {
+  const result = await pool.query(
+    'SELECT COUNT(*)::int AS count FROM transactions WHERE statement_id = $1',
+    [statementId],
+  );
+  return result.rows[0]?.count || 0;
+}
+
+async function completeStatementAfterInterruptedImport(statement) {
+  await updateStatementProgress(statement.id, 'completed', 100, {
+    status: 'completed',
+    error:
+      'Processing was interrupted after transactions were imported. The statement was completed without re-importing duplicate transactions.',
+    processedAt: new Date(),
+    clearUploadPath: true,
+  });
+
+  if (statement.upload_path && fs.existsSync(statement.upload_path)) {
+    fs.unlinkSync(statement.upload_path);
+  }
+}
+
 async function processStatementInBackground({
   statementId,
   filePath,
@@ -95,15 +117,39 @@ async function processStatementInBackground({
     const client = await pool.connect();
     let clientReleased = false;
     const txnIds = [];
+    let canCategorizeTransactions = true;
+    let completionWarning = null;
 
     try {
       await client.query('BEGIN');
+      const statementLock = await client.query(
+        'SELECT id FROM statements WHERE id = $1 AND user_id = $2 FOR UPDATE',
+        [statementId, userId],
+      );
+
+      if (statementLock.rows.length === 0) {
+        throw new Error('Statement not found');
+      }
+
       await client.query(
         'UPDATE statements SET bank_name = $1, processing_stage = $2, processing_progress = $3 WHERE id = $4 AND user_id = $5',
         [bankName, 'importing_transactions', 65, statementId, userId],
       );
 
-      if (transactions.length > 0) {
+      const existingTransactions = await client.query(
+        'SELECT id FROM transactions WHERE statement_id = $1 ORDER BY created_at, id',
+        [statementId],
+      );
+
+      if (existingTransactions.rows.length > 0) {
+        txnIds.push(...existingTransactions.rows.map((row) => row.id));
+
+        if (txnIds.length !== transactions.length) {
+          canCategorizeTransactions = false;
+          completionWarning =
+            'Transactions were already imported before processing resumed. AI categorization was skipped because the imported row count no longer matches the parsed statement.';
+        }
+      } else if (transactions.length > 0) {
         const values = [];
         const placeholders = transactions.map((txn, index) => {
           const offset = index * 6;
@@ -138,25 +184,35 @@ async function processStatementInBackground({
 
     await updateStatementProgress(statementId, 'categorizing_transactions', 80);
 
-    if (txnIds.length > 0) {
-      const results = await categorizeBatch(transactions, aiProvider);
-      const updateClient = await pool.connect();
+    if (txnIds.length > 0 && canCategorizeTransactions) {
       try {
-        for (const result of results) {
-          if (result.transactionIndex < txnIds.length) {
-            await updateClient.query(
-              'UPDATE transactions SET ai_suggested_category = $1 WHERE id = $2',
-              [result.category, txnIds[result.transactionIndex]],
-            );
+        const results = await categorizeBatch(transactions, aiProvider);
+        const updateClient = await pool.connect();
+        try {
+          for (const result of results) {
+            if (
+              Number.isInteger(result.transactionIndex) &&
+              result.transactionIndex >= 0 &&
+              result.transactionIndex < txnIds.length
+            ) {
+              await updateClient.query(
+                'UPDATE transactions SET ai_suggested_category = $1 WHERE id = $2',
+                [result.category, txnIds[result.transactionIndex]],
+              );
+            }
           }
+        } finally {
+          updateClient.release();
         }
-      } finally {
-        updateClient.release();
+      } catch (categorizeErr) {
+        completionWarning = `Transactions were imported, but AI categorization failed: ${categorizeErr.message}`;
+        console.error('AI categorization failed after import:', categorizeErr);
       }
     }
 
     await updateStatementProgress(statementId, 'completed', 100, {
       status: 'completed',
+      error: completionWarning,
       processedAt: new Date(),
       clearUploadPath: true,
     });
@@ -183,6 +239,12 @@ async function resumeProcessingStatements() {
     );
 
     for (const statement of result.rows) {
+      const existingTransactionCount = await getStatementTransactionCount(statement.id);
+      if (existingTransactionCount > 0) {
+        await completeStatementAfterInterruptedImport(statement);
+        continue;
+      }
+
       if (!statement.upload_path || !fs.existsSync(statement.upload_path)) {
         await markStatementFailed(
           statement.id,

@@ -81,11 +81,26 @@ ALTER TABLE transactions
   ADD CONSTRAINT transactions_category_id_fkey
   FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL;
 
+CREATE TABLE IF NOT EXISTS otp_codes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email VARCHAR(255) NOT NULL,
+  code VARCHAR(6) NOT NULL,
+  purpose VARCHAR(32) NOT NULL DEFAULT 'login',
+  is_used BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  expires_at TIMESTAMP NOT NULL
+);
+
 -- Create indices
 CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON transactions(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category_id);
 CREATE INDEX IF NOT EXISTS idx_statements_user ON statements(user_id);
 CREATE INDEX IF NOT EXISTS idx_categories_user ON categories(user_id);
+
+-- OTP purpose scoping keeps login and password-reset codes from being interchangeable.
+ALTER TABLE otp_codes ADD COLUMN IF NOT EXISTS purpose VARCHAR(32) NOT NULL DEFAULT 'login';
+CREATE INDEX IF NOT EXISTS idx_otp_codes_email_purpose_expires
+  ON otp_codes(email, purpose, expires_at);
 
 -- Insert default categories for new users
 -- (These will be created per-user during signup)
