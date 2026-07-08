@@ -76,6 +76,116 @@ async function markStatementFailed(statementId, message) {
   });
 }
 
+function rowToCategorizationTransaction(row) {
+  return {
+    date: row.date,
+    description: row.description,
+    amount: row.amount,
+    type: row.type,
+  };
+}
+
+async function fetchStatementTransactions(statementId, userId, queryable = pool) {
+  const result = await queryable.query(
+    `SELECT id, date, amount, description, type
+     FROM transactions
+     WHERE statement_id = $1 AND user_id = $2
+     ORDER BY created_at ASC, id ASC`,
+    [statementId, userId],
+  );
+
+  return result.rows;
+}
+
+async function importTransactionsForStatement({ statementId, userId, bankName, transactions }) {
+  const client = await pool.connect();
+  let clientReleased = false;
+
+  try {
+    await client.query('BEGIN');
+
+    const statementResult = await client.query(
+      'SELECT id FROM statements WHERE id = $1 AND user_id = $2 FOR UPDATE',
+      [statementId, userId],
+    );
+
+    if (statementResult.rows.length === 0) {
+      throw new Error('Statement not found');
+    }
+
+    const existingRows = await fetchStatementTransactions(statementId, userId, client);
+    if (existingRows.length > 0) {
+      await client.query(
+        'UPDATE statements SET processing_stage = $1, processing_progress = $2 WHERE id = $3 AND user_id = $4',
+        ['categorizing_transactions', 80, statementId, userId],
+      );
+      await client.query('COMMIT');
+      client.release();
+      clientReleased = true;
+      return existingRows;
+    }
+
+    await client.query(
+      'UPDATE statements SET bank_name = $1, processing_stage = $2, processing_progress = $3 WHERE id = $4 AND user_id = $5',
+      [bankName, 'importing_transactions', 65, statementId, userId],
+    );
+
+    if (transactions.length === 0) {
+      await client.query('COMMIT');
+      client.release();
+      clientReleased = true;
+      return [];
+    }
+
+    const values = [];
+    const placeholders = transactions.map((txn, index) => {
+      const offset = index * 6;
+      values.push(userId, statementId, txn.date, txn.amount, txn.description, txn.type);
+      return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
+    });
+
+    const result = await client.query(
+      `INSERT INTO transactions (user_id, statement_id, date, amount, description, type)
+       VALUES ${placeholders.join(', ')}
+       RETURNING id, date, amount, description, type`,
+      values,
+    );
+
+    await client.query('COMMIT');
+    client.release();
+    clientReleased = true;
+    return result.rows;
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackErr) {
+      console.error('Rollback error:', rollbackErr);
+    }
+    throw err;
+  } finally {
+    if (!clientReleased) {
+      client.release();
+    }
+  }
+}
+
+async function applyCategorizationResults(txnIds, results) {
+  const updateClient = await pool.connect();
+
+  try {
+    for (const result of results) {
+      if (result.transactionIndex >= 0 && result.transactionIndex < txnIds.length) {
+        await updateClient.query(
+          'UPDATE transactions SET ai_suggested_category = $1 WHERE id = $2',
+          [result.category, txnIds[result.transactionIndex]],
+        );
+      }
+    }
+  } finally {
+    updateClient.release();
+  }
+}
+
 async function processStatementInBackground({
   statementId,
   filePath,
@@ -84,79 +194,48 @@ async function processStatementInBackground({
   aiProvider,
 }) {
   try {
-    await updateStatementProgress(statementId, 'extracting_text', 20);
+    let transactionRows = await fetchStatementTransactions(statementId, userId);
 
-    const parsedStatement = await parseStatement(filePath, aiProvider);
-    const bankName = (parsedStatement.bankName || 'Unknown Bank').slice(0, 50).toUpperCase();
-    const transactions = parsedStatement.transactions;
-
-    await updateStatementProgress(statementId, 'importing_transactions', 55);
-
-    const client = await pool.connect();
-    let clientReleased = false;
-    const txnIds = [];
-
-    try {
-      await client.query('BEGIN');
-      await client.query(
-        'UPDATE statements SET bank_name = $1, processing_stage = $2, processing_progress = $3 WHERE id = $4 AND user_id = $5',
-        [bankName, 'importing_transactions', 65, statementId, userId],
-      );
-
-      if (transactions.length > 0) {
-        const values = [];
-        const placeholders = transactions.map((txn, index) => {
-          const offset = index * 6;
-          values.push(userId, statementId, txn.date, txn.amount, txn.description, txn.type);
-          return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
-        });
-
-        const result = await client.query(
-          `INSERT INTO transactions (user_id, statement_id, date, amount, description, type)
-           VALUES ${placeholders.join(', ')}
-           RETURNING id`,
-          values,
+    if (transactionRows.length === 0) {
+      if (!filePath || !fs.existsSync(filePath)) {
+        throw new Error(
+          'Processing was interrupted and the uploaded file is no longer available. Please upload the statement again.',
         );
-        txnIds.push(...result.rows.map((row) => row.id));
       }
 
-      await client.query('COMMIT');
-      client.release();
-      clientReleased = true;
-    } catch (err) {
-      try {
-        await client.query('ROLLBACK');
-      } catch (rollbackErr) {
-        console.error('Rollback error:', rollbackErr);
-      }
-      throw err;
-    } finally {
-      if (!clientReleased) {
-        client.release();
-      }
+      await updateStatementProgress(statementId, 'extracting_text', 20);
+
+      const parsedStatement = await parseStatement(filePath, aiProvider);
+      const bankName = (parsedStatement.bankName || 'Unknown Bank').slice(0, 50).toUpperCase();
+
+      await updateStatementProgress(statementId, 'importing_transactions', 55);
+      transactionRows = await importTransactionsForStatement({
+        statementId,
+        userId,
+        bankName,
+        transactions: parsedStatement.transactions,
+      });
     }
 
     await updateStatementProgress(statementId, 'categorizing_transactions', 80);
 
+    let categorizationError = null;
+    const txnIds = transactionRows.map((row) => row.id);
+
     if (txnIds.length > 0) {
-      const results = await categorizeBatch(transactions, aiProvider);
-      const updateClient = await pool.connect();
+      const transactions = transactionRows.map(rowToCategorizationTransaction);
       try {
-        for (const result of results) {
-          if (result.transactionIndex < txnIds.length) {
-            await updateClient.query(
-              'UPDATE transactions SET ai_suggested_category = $1 WHERE id = $2',
-              [result.category, txnIds[result.transactionIndex]],
-            );
-          }
-        }
-      } finally {
-        updateClient.release();
+        const results = await categorizeBatch(transactions, aiProvider);
+        await applyCategorizationResults(txnIds, results);
+      } catch (err) {
+        categorizationError = `AI categorization failed: ${err.message}`;
+        console.error(categorizationError);
       }
     }
 
     await updateStatementProgress(statementId, 'completed', 100, {
       status: 'completed',
+      error: categorizationError,
       processedAt: new Date(),
       clearUploadPath: true,
     });
@@ -168,7 +247,7 @@ async function processStatementInBackground({
       console.error('Failed to record statement processing error:', updateErr);
     });
   } finally {
-    if (fs.existsSync(filePath)) {
+    if (filePath && fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
   }
@@ -184,6 +263,20 @@ async function resumeProcessingStatements() {
 
     for (const statement of result.rows) {
       if (!statement.upload_path || !fs.existsSync(statement.upload_path)) {
+        const existingRows = await fetchStatementTransactions(statement.id, statement.user_id);
+        if (existingRows.length > 0) {
+          setImmediate(() => {
+            void processStatementInBackground({
+              statementId: statement.id,
+              filePath: statement.upload_path,
+              originalName: statement.file_name,
+              userId: statement.user_id,
+              aiProvider: statement.ai_provider,
+            });
+          });
+          continue;
+        }
+
         await markStatementFailed(
           statement.id,
           'Processing was interrupted and the uploaded file is no longer available. Please upload the statement again.',
@@ -308,5 +401,10 @@ router.get('/:statementId', auth, async (req, res) => {
 });
 
 router.resumeProcessingStatements = resumeProcessingStatements;
+router._private = {
+  processStatementInBackground,
+  importTransactionsForStatement,
+  fetchStatementTransactions,
+};
 
 module.exports = router;
