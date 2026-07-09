@@ -76,6 +76,72 @@ async function markStatementFailed(statementId, message) {
   });
 }
 
+async function getExistingTransactions(client, statementId, userId) {
+  const result = await client.query(
+    `SELECT id, date, amount, description, type
+     FROM transactions
+     WHERE statement_id = $1 AND user_id = $2
+     ORDER BY created_at, id`,
+    [statementId, userId],
+  );
+
+  return result.rows;
+}
+
+function toCategorizationInput(transaction) {
+  return {
+    date: transaction.date,
+    amount: transaction.amount,
+    description: transaction.description,
+    type: transaction.type,
+  };
+}
+
+async function categorizeTransactions(statementId, txnIds, transactions, aiProvider) {
+  if (txnIds.length === 0) {
+    await updateStatementProgress(statementId, 'completed', 100, {
+      status: 'completed',
+      processedAt: new Date(),
+      clearUploadPath: true,
+    });
+    return;
+  }
+
+  await updateStatementProgress(statementId, 'categorizing_transactions', 80);
+
+  try {
+    const results = await categorizeBatch(transactions, aiProvider);
+    const updateClient = await pool.connect();
+    try {
+      for (const result of results) {
+        if (result.transactionIndex >= 0 && result.transactionIndex < txnIds.length) {
+          await updateClient.query(
+            'UPDATE transactions SET ai_suggested_category = $1 WHERE id = $2',
+            [result.category, txnIds[result.transactionIndex]],
+          );
+        }
+      }
+    } finally {
+      updateClient.release();
+    }
+  } catch (err) {
+    console.error('AI categorization failed after transactions were imported:', err);
+    await updateStatementProgress(statementId, 'completed', 100, {
+      status: 'completed',
+      error: `Transactions imported, but AI categorization failed: ${err.message}`,
+      processedAt: new Date(),
+      clearUploadPath: true,
+    });
+    return;
+  }
+
+  await updateStatementProgress(statementId, 'completed', 100, {
+    status: 'completed',
+    processedAt: new Date(),
+    clearUploadPath: true,
+  });
+}
+
 async function processStatementInBackground({
   statementId,
   filePath,
@@ -84,28 +150,48 @@ async function processStatementInBackground({
   aiProvider,
 }) {
   try {
-    await updateStatementProgress(statementId, 'extracting_text', 20);
+    let parsedStatement = null;
+    let bankName = null;
+    let parsedTransactions = [];
 
-    const parsedStatement = await parseStatement(filePath, aiProvider);
-    const bankName = (parsedStatement.bankName || 'Unknown Bank').slice(0, 50).toUpperCase();
-    const transactions = parsedStatement.transactions;
+    if (filePath && fs.existsSync(filePath)) {
+      await updateStatementProgress(statementId, 'extracting_text', 20);
+      parsedStatement = await parseStatement(filePath, aiProvider);
+      bankName = (parsedStatement.bankName || 'Unknown Bank').slice(0, 50).toUpperCase();
+      parsedTransactions = parsedStatement.transactions || [];
+    }
 
     await updateStatementProgress(statementId, 'importing_transactions', 55);
 
     const client = await pool.connect();
     let clientReleased = false;
     const txnIds = [];
+    let transactionsForCategorization = [];
 
     try {
       await client.query('BEGIN');
+      const statementResult = await client.query(
+        'SELECT id FROM statements WHERE id = $1 AND user_id = $2 FOR UPDATE',
+        [statementId, userId],
+      );
+
+      if (statementResult.rows.length === 0) {
+        throw new Error('Statement not found');
+      }
+
+      const existingTransactions = await getExistingTransactions(client, statementId, userId);
+
       await client.query(
-        'UPDATE statements SET bank_name = $1, processing_stage = $2, processing_progress = $3 WHERE id = $4 AND user_id = $5',
+        'UPDATE statements SET bank_name = COALESCE($1, bank_name), processing_stage = $2, processing_progress = $3 WHERE id = $4 AND user_id = $5',
         [bankName, 'importing_transactions', 65, statementId, userId],
       );
 
-      if (transactions.length > 0) {
+      if (existingTransactions.length > 0) {
+        txnIds.push(...existingTransactions.map((row) => row.id));
+        transactionsForCategorization = existingTransactions.map(toCategorizationInput);
+      } else if (parsedTransactions.length > 0) {
         const values = [];
-        const placeholders = transactions.map((txn, index) => {
+        const placeholders = parsedTransactions.map((txn, index) => {
           const offset = index * 6;
           values.push(userId, statementId, txn.date, txn.amount, txn.description, txn.type);
           return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
@@ -118,6 +204,11 @@ async function processStatementInBackground({
           values,
         );
         txnIds.push(...result.rows.map((row) => row.id));
+        transactionsForCategorization = parsedTransactions;
+      } else if (!parsedStatement) {
+        throw new Error(
+          'Processing was interrupted and the uploaded file is no longer available. Please upload the statement again.',
+        );
       }
 
       await client.query('COMMIT');
@@ -136,30 +227,7 @@ async function processStatementInBackground({
       }
     }
 
-    await updateStatementProgress(statementId, 'categorizing_transactions', 80);
-
-    if (txnIds.length > 0) {
-      const results = await categorizeBatch(transactions, aiProvider);
-      const updateClient = await pool.connect();
-      try {
-        for (const result of results) {
-          if (result.transactionIndex < txnIds.length) {
-            await updateClient.query(
-              'UPDATE transactions SET ai_suggested_category = $1 WHERE id = $2',
-              [result.category, txnIds[result.transactionIndex]],
-            );
-          }
-        }
-      } finally {
-        updateClient.release();
-      }
-    }
-
-    await updateStatementProgress(statementId, 'completed', 100, {
-      status: 'completed',
-      processedAt: new Date(),
-      clearUploadPath: true,
-    });
+    await categorizeTransactions(statementId, txnIds, transactionsForCategorization, aiProvider);
 
     console.log(`✓ Completed background processing for ${originalName}`);
   } catch (err) {
@@ -168,7 +236,7 @@ async function processStatementInBackground({
       console.error('Failed to record statement processing error:', updateErr);
     });
   } finally {
-    if (fs.existsSync(filePath)) {
+    if (filePath && fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
   }
@@ -183,14 +251,6 @@ async function resumeProcessingStatements() {
     );
 
     for (const statement of result.rows) {
-      if (!statement.upload_path || !fs.existsSync(statement.upload_path)) {
-        await markStatementFailed(
-          statement.id,
-          'Processing was interrupted and the uploaded file is no longer available. Please upload the statement again.',
-        );
-        continue;
-      }
-
       setImmediate(() => {
         void processStatementInBackground({
           statementId: statement.id,
@@ -308,5 +368,9 @@ router.get('/:statementId', auth, async (req, res) => {
 });
 
 router.resumeProcessingStatements = resumeProcessingStatements;
+router._test = {
+  categorizeTransactions,
+  processStatementInBackground,
+};
 
 module.exports = router;

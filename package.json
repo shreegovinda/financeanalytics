@@ -8,6 +8,7 @@
     "frontend"
   ],
   "scripts": {
+    "test": "npm test --workspace=backend",
     "lint": "npm run lint --workspace=backend && npm run lint --workspace=frontend",
     "lint:fix": "npm run lint:fix --workspace=backend && npm run lint:fix --workspace=frontend",
     "format": "npm run format --workspace=backend && npm run format --workspace=frontend",

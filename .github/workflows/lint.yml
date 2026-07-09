@@ -33,6 +33,10 @@ jobs:
         run: npm run lint
         continue-on-error: false
 
+      - name: Test
+        run: npm test
+        continue-on-error: false
+
       - name: Check formatting
         run: npm run format:check
         continue-on-error: false
