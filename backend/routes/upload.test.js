@@ -166,7 +166,9 @@ test('resumed statement processing reuses existing transaction rows instead of i
   });
 
   assert.equal(
-    poolMock.transactionClientQueries.some((query) => query.sql.includes('INSERT INTO transactions')),
+    poolMock.transactionClientQueries.some((query) =>
+      query.sql.includes('INSERT INTO transactions'),
+    ),
     false,
   );
   assert.deepEqual(categorizeCalls, [
@@ -213,7 +215,9 @@ test('categorization failure after import still completes the statement', async 
   });
 
   assert.equal(
-    poolMock.transactionClientQueries.some((query) => query.sql.includes('INSERT INTO transactions')),
+    poolMock.transactionClientQueries.some((query) =>
+      query.sql.includes('INSERT INTO transactions'),
+    ),
     true,
   );
 
@@ -223,7 +227,9 @@ test('categorization failure after import still completes the statement', async 
   assert.ok(completionUpdate);
   assert.match(completionUpdate.params[3], /AI categorization failed/);
   assert.equal(
-    poolMock.poolQueries.some((query) => query.params[0] === 'failed' && query.params[2] === 'failed'),
+    poolMock.poolQueries.some(
+      (query) => query.params[0] === 'failed' && query.params[2] === 'failed',
+    ),
     false,
   );
 });
