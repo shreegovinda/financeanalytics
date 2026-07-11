@@ -1,10 +1,12 @@
 const assert = require('node:assert/strict');
+const Module = require('node:module');
 const path = require('node:path');
 const test = require('node:test');
 
 function loadOtpWithPool(pool) {
   const dbPath = path.resolve(__dirname, '../config/db.js');
   const otpPath = path.resolve(__dirname, '../services/otp.js');
+  const originalLoad = Module._load;
 
   delete require.cache[otpPath];
   require.cache[dbPath] = {
@@ -14,7 +16,22 @@ function loadOtpWithPool(pool) {
     exports: pool,
   };
 
-  return require(otpPath);
+  Module._load = function loadMockedModule(request, parent, isMain) {
+    if (request === 'nodemailer') {
+      return {
+        createTransport: () => ({
+          sendMail: async () => ({ messageId: 'mock-message-id' }),
+        }),
+      };
+    }
+    return originalLoad.call(this, request, parent, isMain);
+  };
+
+  try {
+    return require(otpPath);
+  } finally {
+    Module._load = originalLoad;
+  }
 }
 
 test('verifyOTP atomically claims a purpose-scoped unused code', async () => {
