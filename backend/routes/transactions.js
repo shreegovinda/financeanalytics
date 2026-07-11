@@ -162,7 +162,7 @@ router.post('/categorize', auth, async (req, res) => {
 
     const updatePromises = categorizations.map((cat) => {
       const txnIndex = cat.transactionIndex;
-      if (txnIndex < result.rows.length) {
+      if (Number.isInteger(txnIndex) && txnIndex >= 0 && txnIndex < result.rows.length) {
         return pool.query('UPDATE transactions SET ai_suggested_category = $1 WHERE id = $2', [
           cat.category,
           result.rows[txnIndex].id,
