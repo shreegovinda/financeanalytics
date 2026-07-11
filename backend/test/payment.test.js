@@ -1,10 +1,12 @@
 const assert = require('node:assert/strict');
+const Module = require('node:module');
 const path = require('node:path');
 const test = require('node:test');
 
 function loadPaymentWithPool(pool) {
   const dbPath = path.resolve(__dirname, '../config/db.js');
   const paymentPath = path.resolve(__dirname, '../services/payment.js');
+  const originalLoad = Module._load;
 
   delete require.cache[paymentPath];
   require.cache[dbPath] = {
@@ -14,7 +16,26 @@ function loadPaymentWithPool(pool) {
     exports: pool,
   };
 
-  return require(paymentPath);
+  Module._load = function loadMockedModule(request, parent, isMain) {
+    if (request === 'razorpay') {
+      return class MockRazorpay {
+        constructor() {
+          this.payments = {
+            fetch: async () => {
+              throw new Error('Razorpay should not be called for an invalid signature');
+            },
+          };
+        }
+      };
+    }
+    return originalLoad.call(this, request, parent, isMain);
+  };
+
+  try {
+    return require(paymentPath);
+  } finally {
+    Module._load = originalLoad;
+  }
 }
 
 test('verifyPayment failure only marks the authenticated user pending order failed', async () => {
