@@ -138,10 +138,14 @@ async function processStatementInBackground({
         const result = await client.query(
           `INSERT INTO transactions (user_id, statement_id, date, amount, description, type, source_index)
            VALUES ${placeholders.join(', ')}
-           RETURNING id`,
+           RETURNING id, source_index`,
           values,
         );
-        txnIds.push(...result.rows.map((row) => row.id));
+        txnIds.push(
+          ...result.rows
+            .sort((a, b) => a.source_index - b.source_index)
+            .map((row) => row.id),
+        );
       }
 
       await client.query('COMMIT');
