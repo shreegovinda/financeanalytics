@@ -142,9 +142,7 @@ async function processStatementInBackground({
           values,
         );
         txnIds.push(
-          ...result.rows
-            .sort((a, b) => a.source_index - b.source_index)
-            .map((row) => row.id),
+          ...result.rows.sort((a, b) => a.source_index - b.source_index).map((row) => row.id),
         );
       }
 
