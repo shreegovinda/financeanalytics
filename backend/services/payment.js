@@ -171,11 +171,11 @@ async function verifyPayment(orderId, paymentId, signature, userId) {
   } catch (error) {
     console.error('❌ Payment verification failed:', error);
 
-    // Update payment status as failed
+    // Do not let a later failed retry revoke a payment that already completed.
     try {
       await pool.query(
-        'UPDATE payments SET status = $1, error_message = $2, updated_at = NOW() WHERE razorpay_order_id = $3 RETURNING *',
-        ['failed', error.message, orderId],
+        'UPDATE payments SET status = $1, error_message = $2, updated_at = NOW() WHERE razorpay_order_id = $3 AND user_id = $4 AND status = $5 RETURNING *',
+        ['failed', error.message, orderId, userId, 'pending'],
       );
     } catch (updateError) {
       console.error('Failed to update payment status:', updateError);
