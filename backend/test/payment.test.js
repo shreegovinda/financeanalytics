@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict');
+const Module = require('node:module');
 const test = require('node:test');
 
 function mockModule(modulePath, exports) {
@@ -27,6 +28,13 @@ function loadPaymentService(pool) {
   delete require.cache[paymentPath];
 
   const restoreDb = mockModule('../config/db', pool);
+  const originalLoad = Module._load;
+  Module._load = function loadWithRazorpayStub(request, parent, isMain) {
+    if (request === 'razorpay') {
+      return class RazorpayStub {};
+    }
+    return originalLoad.call(this, request, parent, isMain);
+  };
   const service = require('../services/payment');
 
   return {
@@ -36,6 +44,7 @@ function loadPaymentService(pool) {
       if (originalPayment) {
         require.cache[paymentPath] = originalPayment;
       }
+      Module._load = originalLoad;
       restoreDb();
     },
   };
