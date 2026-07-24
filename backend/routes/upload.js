@@ -99,12 +99,7 @@ async function getInFlightStatement(userId, queryable = pool) {
  * Claim a processing statement slot for this user under a transaction-scoped
  * advisory lock so two concurrent 202 uploads cannot both insert.
  */
-async function claimProcessingStatement({
-  userId,
-  fileName,
-  filePath,
-  aiProvider,
-}) {
+async function claimProcessingStatement({ userId, fileName, filePath, aiProvider }) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
