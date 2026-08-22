@@ -14,7 +14,9 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [20.x]
+        # 22.x matches local development. The test script relies on glob support
+        # in `node --test`, which is not available on Node 20.
+        node-version: [22.x]
 
     steps:
       - name: Checkout code
@@ -35,6 +37,10 @@ jobs:
 
       - name: Check formatting
         run: npm run format:check
+        continue-on-error: false
+
+      - name: Test
+        run: npm test
         continue-on-error: false
 
       - name: SonarCloud Scan

@@ -11,7 +11,8 @@
     "lint": "npm run lint --workspace=backend && npm run lint --workspace=frontend",
     "lint:fix": "npm run lint:fix --workspace=backend && npm run lint:fix --workspace=frontend",
     "format": "npm run format --workspace=backend && npm run format --workspace=frontend",
-    "format:check": "npm run format:check --workspace=backend && npm run format:check --workspace=frontend"
+    "format:check": "npm run format:check --workspace=backend && npm run format:check --workspace=frontend",
+    "test": "npm run test --workspace=backend"
   },
   "devDependencies": {
     "husky": "^9.1.7",
