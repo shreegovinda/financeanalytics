@@ -284,7 +284,7 @@ export default function AnalyticsPage() {
       <header className="sticky top-0 z-30 border-b border-white/70 bg-white/85 shadow-sm backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-3">
-            <BackButton fallbackHref="/dashboard" className="shadow-sm" />
+            <BackButton fallbackHref="/dashboard" />
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-600">
                 Finlytix

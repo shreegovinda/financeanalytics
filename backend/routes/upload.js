@@ -728,6 +728,42 @@ router.post('/', auth, uploadSingleStatement, async (req, res) => {
 });
 
 /**
+ * Months that already have a statement, per bank.
+ *
+ * Lets the month picker show at a glance what is taken instead of making the
+ * user discover it by having an upload rejected.
+ */
+router.get('/months', auth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT DISTINCT UPPER(bank_name) AS bank,
+              to_char(statement_month, 'YYYY-MM') AS month,
+              status
+       FROM statements
+       WHERE user_id = $1
+         AND statement_month IS NOT NULL
+         AND status IN ('processing', 'pending_review', 'completed')
+       ORDER BY month DESC`,
+      [req.user.id],
+    );
+
+    // Shaped per bank so the picker can react to the selected bank without
+    // refetching.
+    const byBank = {};
+    for (const row of result.rows) {
+      const list = byBank[row.bank] || [];
+      list.push({ month: row.month, status: row.status });
+      byBank[row.bank] = list;
+    }
+
+    res.json({ banks: byBank });
+  } catch (err) {
+    console.error('Error fetching taken statement months:', err);
+    res.status(500).json({ error: 'Failed to fetch statement months' });
+  }
+});
+
+/**
  * Preview payload for a statement awaiting confirmation.
  */
 router.get('/:statementId/draft', auth, async (req, res) => {

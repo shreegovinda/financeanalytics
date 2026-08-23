@@ -245,12 +245,6 @@ export default function DashboardPage() {
               {user.name?.trim().charAt(0).toUpperCase() || 'U'}
             </button>
             <Link
-              href="/pricing"
-              className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 transition font-semibold shadow-sm cursor-pointer"
-            >
-              ✨ Upgrade
-            </Link>
-            <Link
               href="/settings"
               className="px-4 py-2 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition cursor-pointer"
             >
@@ -363,7 +357,7 @@ export default function DashboardPage() {
             </div>
             <p className="text-sm text-gray-500">Fast access to your most-used workflows.</p>
           </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Link
               href="/statements"
               className="group rounded-3xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-white p-5 transition hover:-translate-y-1 hover:border-indigo-300 hover:shadow-xl cursor-pointer"
@@ -394,18 +388,6 @@ export default function DashboardPage() {
               <h3 className="font-semibold text-emerald-700">Analytics Studio</h3>
               <p className="mt-2 text-sm text-gray-600">
                 Explore month, FY, and custom date insights.
-              </p>
-            </Link>
-            <Link
-              href="/pricing"
-              className="group rounded-3xl border border-amber-100 bg-gradient-to-br from-amber-50 to-white p-5 transition hover:-translate-y-1 hover:border-amber-300 hover:shadow-xl cursor-pointer"
-            >
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500 text-xl text-white shadow-lg">
-                ✨
-              </div>
-              <h3 className="font-semibold text-amber-700">Premium Features</h3>
-              <p className="mt-2 text-sm text-gray-600">
-                Unlock advanced analytics and AI insights.
               </p>
             </Link>
           </div>

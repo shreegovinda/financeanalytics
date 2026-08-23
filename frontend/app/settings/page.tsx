@@ -237,7 +237,7 @@ export default function SettingsPage() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <BackButton fallbackHref="/dashboard" className="bg-white/95 shadow-sm" />
+                <BackButton fallbackHref="/dashboard" />
                 <Link
                   href="/dashboard"
                   className="rounded-full bg-white/10 px-3 py-1.5 text-sm text-white hover:bg-white/20 cursor-pointer"
