@@ -4,6 +4,7 @@ const xlsx = require('xlsx');
 const {
   generateJsonObject,
   getProviderConfig,
+  notConfiguredMessage,
   isProviderConfigured,
   normalizeProviderId,
 } = require('../ai');
@@ -107,7 +108,7 @@ async function parseBill(filePath, providerId) {
   const provider = normalizeProviderId(providerId);
 
   if (!isProviderConfigured(provider)) {
-    throw new Error(`${getProviderConfig(provider).label} is not configured`);
+    throw new Error(notConfiguredMessage(provider));
   }
 
   const fileText = await extractTextFromFile(filePath);
