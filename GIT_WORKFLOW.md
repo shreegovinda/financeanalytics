@@ -30,9 +30,9 @@ All branches must follow this naming convention:
 ### 1. Create Feature Branch
 
 ```bash
-# From main (main should always be stable)
-git checkout main
-git pull origin main
+# From master (master should always be stable)
+git checkout master
+git pull origin master
 
 # Create feature branch
 git checkout -b feature/phase-3.2-icici-parser
@@ -82,6 +82,9 @@ npm run format
 
 # Check if everything passes
 npm run format:check
+
+# Run the test suite
+npm test
 ```
 
 If pre-commit hook blocks your commit:
@@ -121,7 +124,8 @@ When PR is created, GitHub Actions runs:
 │ 2. Frontend ESLint (--max 0)      │
 │ 3. Backend Prettier check         │
 │ 4. Frontend Prettier check        │
-│ 5. All must pass for merge        │
+│ 5. Backend test suite (npm test)  │
+│ 6. All must pass for merge        │
 └──────────────────────────────────┘
 ```
 
@@ -150,7 +154,7 @@ When PR is created, GitHub Actions runs:
 
 - User approves PR → indicates review complete
 - Green checkmarks mean safe to merge
-- You (or user) merges into `main`
+- You (or user) merges into `master`
 
 ---
 
@@ -158,7 +162,7 @@ When PR is created, GitHub Actions runs:
 
 ### ❌ DO NOT
 
-- Commit directly to `main` (all changes require PR)
+- Commit directly to `master` (all changes require PR)
 - Push with ESLint/Prettier failures
 - Use `--no-verify` to skip pre-commit hooks
 - Merge PRs with failing automated checks
@@ -180,12 +184,13 @@ When PR is created, GitHub Actions runs:
 
 File: `.github/workflows/lint.yml`
 
-Runs on every push to `main` and every PR:
+Runs on every push to `master` and every PR:
 1. Check out code
 2. Install dependencies
 3. Run ESLint on both backend and frontend
 4. Run Prettier format check on both
-5. **Fail fast** if any check fails (prevents merge to main)
+5. Run the backend test suite (`npm test`)
+6. **Fail fast** if any check fails (prevents merge to master)
 
 ---
 
@@ -214,7 +219,7 @@ git commit --amend --no-edit
 
 ```bash
 git revert <commit-hash>
-git push origin main
+git push origin master
 ```
 
 ---
@@ -249,11 +254,11 @@ npm run lint --workspace=frontend      # Lint only frontend
 
 1. **Create branch** with proper naming: `feature/phase-X-description`
 2. **Code locally** with automatic ESLint/Prettier hooks
-3. **Push to branch** (not main)
+3. **Push to branch** (not master)
 4. **Create PR** with complete checklist
 5. **Automated checks** run on GitHub
 6. **User reviews & approves**
-7. **Merge** to main (main is always stable)
+7. **Merge** to master (master is always stable)
 8. **Repeat** for next feature
 
-All work goes through PRs. Zero direct commits to main.
+All work goes through PRs. Zero direct commits to master.
