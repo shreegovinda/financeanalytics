@@ -55,80 +55,67 @@ function loadUploadRouter(pool) {
   };
 }
 
-test('claimProcessingStatement rejects a second upload while one is processing', async () => {
+test('lockUserUploads serializes concurrent imports for the same user', async () => {
   const queries = [];
-  let beginCount = 0;
   const client = {
     async query(sql, params) {
       queries.push({ sql, params });
-      if (sql === 'BEGIN') {
-        beginCount += 1;
-        return { rows: [] };
-      }
-      if (sql.startsWith('SELECT pg_advisory_xact_lock')) {
-        return { rows: [] };
-      }
-      if (sql.includes("status = 'processing'")) {
-        // First claim sees nothing in-flight; second claim sees the inserted row.
-        if (beginCount === 1) {
-          return { rows: [] };
-        }
-        return { rows: [{ id: 'stmt-1', file_name: 'statement.pdf' }] };
-      }
-      if (sql.startsWith('INSERT INTO statements')) {
-        return {
-          rows: [
-            {
-              id: 'stmt-1',
-              bank_name: 'DETECTING BANK',
-              file_name: 'statement.pdf',
-              status: 'processing',
-              processing_stage: 'uploaded',
-              processing_progress: 5,
-            },
-          ],
-        };
-      }
-      if (sql === 'COMMIT' || sql === 'ROLLBACK') {
-        return { rows: [] };
-      }
-      throw new Error(`Unexpected SQL: ${sql}`);
+      return { rows: [] };
     },
     release() {},
   };
-
   const pool = {
     async connect() {
       return client;
     },
     async query() {
-      throw new Error('pool.query should not be used inside claimProcessingStatement');
+      return { rows: [] };
     },
   };
 
   const { router, cleanup } = loadUploadRouter(pool);
 
   try {
-    const first = await router.claimProcessingStatement({
-      userId: 'user-1',
-      fileName: 'statement.pdf',
-      filePath: '/tmp/statement-1.pdf',
-      aiProvider: 'anthropic',
-    });
-    assert.equal(first.conflict, undefined);
-    assert.equal(first.statement.id, 'stmt-1');
+    await router.lockUserUploads(client, 'user-1');
 
-    const second = await router.claimProcessingStatement({
-      userId: 'user-1',
-      fileName: 'statement.pdf',
-      filePath: '/tmp/statement-2.pdf',
-      aiProvider: 'anthropic',
-    });
-    assert.equal(second.statement, undefined);
-    assert.deepEqual(second.conflict, { id: 'stmt-1', file_name: 'statement.pdf' });
+    assert.equal(queries.length, 1);
+    assert.match(
+      queries[0].sql,
+      /pg_advisory_xact_lock/,
+      'the import transaction must take a per-user advisory lock, otherwise two ' +
+        'concurrent uploads of the same bank+month can both pass the ' +
+        'check-then-insert guards under READ COMMITTED',
+    );
+    // Namespaced and keyed by user, so unrelated users are not serialized.
+    assert.deepEqual(queries[0].params, [87421001, 'user-1']);
+  } finally {
+    cleanup();
+  }
+});
 
-    assert.ok(queries.some((q) => q.sql === 'ROLLBACK'));
-    assert.ok(queries.some((q) => String(q.sql).includes('pg_advisory_xact_lock')));
+test('lockUserUploads keys the lock per user', async () => {
+  const seen = [];
+  const client = {
+    async query(_sql, params) {
+      seen.push(params[1]);
+      return { rows: [] };
+    },
+    release() {},
+  };
+  const pool = {
+    async connect() {
+      return client;
+    },
+    async query() {
+      return { rows: [] };
+    },
+  };
+  const { router, cleanup } = loadUploadRouter(pool);
+
+  try {
+    await router.lockUserUploads(client, 'user-a');
+    await router.lockUserUploads(client, 'user-b');
+    assert.deepEqual(seen, ['user-a', 'user-b'], 'distinct users take distinct lock keys');
   } finally {
     cleanup();
   }

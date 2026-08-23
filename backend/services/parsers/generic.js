@@ -12,6 +12,7 @@ const STATEMENT_PARSE_SCHEMA = {
   type: 'OBJECT',
   properties: {
     bankName: { type: 'STRING' },
+    statementMonth: { type: 'STRING' },
     transactions: {
       type: 'ARRAY',
       items: {
@@ -26,7 +27,7 @@ const STATEMENT_PARSE_SCHEMA = {
       },
     },
   },
-  required: ['bankName', 'transactions'],
+  required: ['bankName', 'statementMonth', 'transactions'],
 };
 
 /**
@@ -53,18 +54,35 @@ async function extractTextFromFile(filePath) {
 /**
  * Use the selected AI provider to parse any bank statement format
  */
-async function parseWithAI(fileText, providerId) {
+async function parseWithAI(fileText, providerId, context = {}) {
   const provider = normalizeProviderId(providerId);
+  const expectedBank = context.expectedBank
+    ? `Expected selected bank: ${context.expectedBank}.`
+    : '';
+  const expectedMonth = context.expectedMonth
+    ? `Expected selected statement month: ${context.expectedMonth}.`
+    : '';
+  const expectedFormat = context.expectedFormat
+    ? `Expected selected file format: ${context.expectedFormat}.`
+    : '';
   const prompt = `You are a production-grade Indian bank statement parser for a personal finance app.
 
 Your task:
 1. Detect the bank or issuer name from the statement text.
-2. Extract only real posted transactions.
-3. Ignore opening balance, closing balance, available balance, page totals, summaries, headers, footers, and duplicate repeated table headers.
-4. Preserve transaction descriptions as written, but remove excessive whitespace.
-5. Use positive numeric amounts. Put direction in "type": "debit" or "credit".
-6. Convert all dates to YYYY-MM-DD. Infer the year from the statement period when needed.
-7. If a row is ambiguous and cannot be trusted as a real transaction, skip it.
+2. Detect the statement month as YYYY-MM from the statement period and transaction dates.
+3. Extract only real posted transactions.
+4. Ignore opening balance, closing balance, available balance, page totals, summaries, headers, footers, and duplicate repeated table headers.
+5. Preserve transaction descriptions as written, but remove excessive whitespace.
+6. Use positive numeric amounts. Put direction in "type": "debit" or "credit".
+7. Convert all dates to YYYY-MM-DD. Infer the year from the statement period when needed.
+8. If a row is ambiguous and cannot be trusted as a real transaction, skip it.
+
+Selected upload metadata:
+${expectedBank}
+${expectedMonth}
+${expectedFormat}
+
+Do not change the detected bank or statement month to match the selected metadata. Return what the statement actually contains so the server can validate it strictly.
 
 Bank Statement Text:
 ${fileText}
@@ -72,6 +90,7 @@ ${fileText}
 Respond ONLY with one valid JSON object in this exact shape:
 {
   "bankName": "Detected Bank Name",
+  "statementMonth": "YYYY-MM",
   "transactions": [
     {
       "date": "YYYY-MM-DD",
@@ -97,6 +116,7 @@ Extract every trustworthy posted transaction.`;
 
     return {
       bankName: normalizeBankName(parsed.bankName),
+      statementMonth: normalizeStatementMonth(parsed.statementMonth, transactions),
       transactions: normalizeTransactions(transactions),
     };
   } catch (err) {
@@ -108,6 +128,23 @@ Extract every trustworthy posted transaction.`;
 function normalizeBankName(bankName) {
   const normalized = typeof bankName === 'string' ? bankName.trim().replace(/\s+/g, ' ') : '';
   return normalized || 'Unknown Bank';
+}
+
+function normalizeStatementMonth(statementMonth, transactions = []) {
+  const normalized = typeof statementMonth === 'string' ? statementMonth.trim() : '';
+  if (/^\d{4}-(0[1-9]|1[0-2])$/.test(normalized)) {
+    return normalized;
+  }
+
+  const firstValidDate = transactions
+    .map((transaction) => new Date(transaction.date))
+    .find((date) => !Number.isNaN(date.getTime()));
+
+  if (!firstValidDate) {
+    return '';
+  }
+
+  return firstValidDate.toISOString().slice(0, 7);
 }
 
 function normalizeTransactions(transactions) {
@@ -145,14 +182,14 @@ function normalizeTransactions(transactions) {
 /**
  * Generic parser - works with any bank statement (PDF or Excel)
  */
-async function parseStatement(filePath, providerId) {
+async function parseStatement(filePath, providerId, context = {}) {
   try {
     console.log(`📄 Extracting text from file: ${filePath}`);
     const fileText = await extractTextFromFile(filePath);
 
     const provider = normalizeProviderId(providerId);
     console.log(`🔍 Parsing transactions with ${getProviderConfig(provider).label}...`);
-    const parsed = await parseWithAI(fileText, provider);
+    const parsed = await parseWithAI(fileText, provider, context);
 
     if (parsed.transactions.length === 0) {
       throw new Error('No valid transactions found in the uploaded statement');

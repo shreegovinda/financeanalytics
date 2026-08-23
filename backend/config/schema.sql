@@ -53,6 +53,9 @@ CREATE TABLE IF NOT EXISTS statements (
   processing_error TEXT,
   upload_path TEXT,
   ai_provider VARCHAR(50),
+  statement_month DATE,
+  file_format VARCHAR(10),
+  detected_bank_name VARCHAR(100),
   processed_at TIMESTAMP
 );
 
@@ -61,6 +64,9 @@ ALTER TABLE statements ADD COLUMN IF NOT EXISTS processing_progress INTEGER DEFA
 ALTER TABLE statements ADD COLUMN IF NOT EXISTS processing_error TEXT;
 ALTER TABLE statements ADD COLUMN IF NOT EXISTS upload_path TEXT;
 ALTER TABLE statements ADD COLUMN IF NOT EXISTS ai_provider VARCHAR(50);
+ALTER TABLE statements ADD COLUMN IF NOT EXISTS statement_month DATE;
+ALTER TABLE statements ADD COLUMN IF NOT EXISTS file_format VARCHAR(10);
+ALTER TABLE statements ADD COLUMN IF NOT EXISTS detected_bank_name VARCHAR(100);
 ALTER TABLE statements ADD COLUMN IF NOT EXISTS processed_at TIMESTAMP;
 
 -- Transactions table
@@ -93,6 +99,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS transactions_statement_source_index_unique
   ON transactions(statement_id, source_index)
   WHERE source_index IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_statements_user ON statements(user_id);
+CREATE INDEX IF NOT EXISTS idx_statements_user_bank_month
+  ON statements(user_id, bank_name, statement_month)
+  WHERE status IN ('processing', 'completed');
 CREATE INDEX IF NOT EXISTS idx_categories_user ON categories(user_id);
 
 -- Insert default categories for new users

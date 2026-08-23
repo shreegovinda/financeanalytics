@@ -210,6 +210,7 @@ export default function SettingsPage() {
   };
 
   const rootCategories = categories.filter((c) => !c.parent_id);
+  const subcategoryCount = categories.length - rootCategories.length;
 
   if (isLoading) {
     return (
@@ -220,317 +221,324 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_34%),linear-gradient(180deg,#f8fafc_0%,#eef2ff_48%,#f8fafc_100%)]">
       <AuthSessionGuard />
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <BackButton className="shadow-sm" />
-            <h1 className="text-lg font-semibold text-gray-900">Categories</h1>
-          </div>
-          <Link
-            href="/dashboard"
-            className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 cursor-pointer"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-            Dashboard
-          </Link>
-        </div>
-      </header>
-
-      <main className="max-w-2xl mx-auto px-4 py-6 space-y-4">
-        {/* Error */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg flex items-center justify-between">
-            <span>{error}</span>
-            <button
-              onClick={() => setError(null)}
-              className="text-red-400 hover:text-red-600 cursor-pointer ml-3"
-            >
-              ✕
-            </button>
-          </div>
-        )}
-
-        {/* Add Category */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">
-            New Category
-          </p>
-          <div className="flex items-center gap-3">
-            <input
-              type="text"
-              placeholder="Category name…"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') void handleCreate(null);
-              }}
-              className="flex-1 px-3.5 py-2 text-sm text-gray-900 placeholder-gray-400 border border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-400 bg-white transition-colors hover:border-gray-300"
-            />
-            <ColorPicker value={newColor} onChange={setNewColor} />
-            <button
-              onClick={() => void handleCreate(null)}
-              disabled={isCreating}
-              className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 cursor-pointer transition-colors shadow-sm"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2.5}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              {isCreating ? 'Adding…' : 'Add'}
-            </button>
-          </div>
-        </div>
-
-        {/* Category List */}
-        <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
-          {rootCategories.length === 0 ? (
-            <div className="px-4 py-10 text-center text-gray-400 text-sm">
-              No categories yet. Add one above.
+      <div className="fixed inset-0 overflow-y-auto bg-slate-950/50 px-4 py-6 backdrop-blur-sm sm:py-10">
+        <main className="mx-auto w-full max-w-3xl overflow-hidden rounded-3xl border border-white/20 bg-white shadow-2xl">
+          <section className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-indigo-600 to-slate-900 px-6 py-6 text-white">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.22),transparent_32%)]" />
+            <div className="relative flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-blue-100">Transaction setup</p>
+                <h1 className="mt-1 text-2xl font-bold">Manage Categories</h1>
+                <p className="mt-2 max-w-xl text-sm text-blue-100">
+                  Keep categories simple. Add parent categories and optional subcategories only when
+                  they help you review spending faster.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <BackButton fallbackHref="/dashboard" className="bg-white/95 shadow-sm" />
+                <Link
+                  href="/dashboard"
+                  className="rounded-full bg-white/10 px-3 py-1.5 text-sm text-white hover:bg-white/20 cursor-pointer"
+                >
+                  Close
+                </Link>
+              </div>
             </div>
-          ) : (
-            rootCategories.map((parent) => {
-              const subcats = categories.filter((c) => c.parent_id === parent.id);
-              const isEditing = editingId === parent.id;
-              const isAddingSub = addingSubFor === parent.id;
-              const childCount = subcats.length;
+          </section>
 
-              return (
-                <div key={parent.id}>
-                  {/* Parent row */}
-                  <div className="flex items-center gap-3 px-4 py-3">
-                    {isEditing ? (
-                      <>
-                        <ColorPicker value={editColor} onChange={setEditColor} />
-                        <input
-                          autoFocus
-                          type="text"
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') void handleUpdate(parent.id);
-                            if (e.key === 'Escape') setEditingId(null);
-                          }}
-                          className="flex-1 px-3 py-1.5 text-sm text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                        />
-                        <button
-                          onClick={() => void handleUpdate(parent.id)}
-                          className="text-xs px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 cursor-pointer"
-                        >
-                          Save
-                        </button>
-                        <button
-                          onClick={() => setEditingId(null)}
-                          className="text-xs px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 cursor-pointer"
-                        >
-                          Cancel
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <div
-                          className="w-4 h-4 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: parent.color }}
-                        />
-                        <span className="flex-1 text-sm font-medium text-gray-800">
-                          {parent.name}
-                        </span>
-                        {childCount > 0 && (
-                          <span className="text-xs text-gray-400 mr-1">{childCount} sub</span>
-                        )}
-                        <button
-                          onClick={() => {
-                            setAddingSubFor(isAddingSub ? null : parent.id);
-                            setSubName('');
-                            setSubColor('#22c55e');
-                            setEditingId(null);
-                            setError(null);
-                          }}
-                          className="text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 py-1 rounded-md cursor-pointer transition-colors"
-                          title="Add subcategory"
-                        >
-                          + Sub
-                        </button>
-                        <button
-                          onClick={() => startEdit(parent)}
-                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md cursor-pointer transition-colors"
-                          title="Edit"
-                        >
-                          <svg
-                            className="w-3.5 h-3.5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828 9 16l.172-2.828z"
-                            />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => setDeleteConfirm({ id: parent.id, name: parent.name })}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md cursor-pointer transition-colors"
-                          title="Delete"
-                        >
-                          <svg
-                            className="w-3.5 h-3.5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                            />
-                          </svg>
-                        </button>
-                      </>
-                    )}
-                  </div>
+          <section className="max-h-[calc(100vh-12rem)] overflow-y-auto px-6 py-6">
+            {error && (
+              <div className="mb-4 flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <span>{error}</span>
+                <button
+                  type="button"
+                  onClick={() => setError(null)}
+                  className="ml-3 text-red-400 hover:text-red-600 cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            )}
 
-                  {/* Inline add subcategory form */}
-                  {isAddingSub && (
-                    <div className="flex items-center gap-2 px-4 py-2.5 bg-blue-50 border-t border-blue-100">
-                      <div className="w-px h-5 bg-blue-200 ml-2 mr-1 flex-shrink-0" />
-                      <input
-                        type="text"
-                        autoFocus
-                        placeholder="Subcategory name"
-                        value={subName}
-                        onChange={(e) => setSubName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') void handleCreate(parent.id);
-                          if (e.key === 'Escape') setAddingSubFor(null);
-                        }}
-                        className="flex-1 px-3 py-1.5 text-sm text-gray-900 placeholder-gray-400 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                      />
-                      <ColorPicker value={subColor} onChange={setSubColor} />
-                      <button
-                        onClick={() => void handleCreate(parent.id)}
-                        disabled={isCreatingSub}
-                        className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
-                      >
-                        {isCreatingSub ? '…' : 'Add'}
-                      </button>
-                      <button
-                        onClick={() => setAddingSubFor(null)}
-                        className="text-xs px-2 py-1.5 text-gray-500 hover:text-gray-700 cursor-pointer"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  )}
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+                  Categories
+                </p>
+                <p className="mt-2 text-2xl font-bold text-blue-950">{rootCategories.length}</p>
+              </div>
+              <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">
+                  Subcategories
+                </p>
+                <p className="mt-2 text-2xl font-bold text-indigo-950">{subcategoryCount}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                  Total labels
+                </p>
+                <p className="mt-2 text-2xl font-bold text-slate-900">{categories.length}</p>
+              </div>
+            </div>
 
-                  {/* Subcategory rows */}
-                  {subcats.map((sub) => {
-                    const isEditingSub = editingId === sub.id;
+            <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div className="mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">Add category</h2>
+                <p className="text-sm text-gray-500">
+                  Create a top-level category for expenses or income.
+                </p>
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <input
+                  type="text"
+                  placeholder="Category name"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') void handleCreate(null);
+                  }}
+                  className="min-w-0 flex-1 rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 shadow-sm transition-colors hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <ColorPicker value={newColor} onChange={setNewColor} />
+                <button
+                  type="button"
+                  onClick={() => void handleCreate(null)}
+                  disabled={isCreating}
+                  className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
+                >
+                  {isCreating ? 'Adding...' : 'Add Category'}
+                </button>
+              </div>
+            </section>
+
+            <section className="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Your categories</h2>
+                  <p className="text-sm text-gray-500">
+                    Edit names, colors, and subcategories inline.
+                  </p>
+                </div>
+              </div>
+
+              {rootCategories.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-blue-200 bg-blue-50/60 px-6 py-10 text-center">
+                  <p className="font-semibold text-blue-900">No categories yet</p>
+                  <p className="mt-1 text-sm text-blue-700">Add your first category above.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {rootCategories.map((parent) => {
+                    const subcats = categories.filter((c) => c.parent_id === parent.id);
+                    const isEditing = editingId === parent.id;
+                    const isAddingSub = addingSubFor === parent.id;
+                    const childCount = subcats.length;
+
                     return (
                       <div
-                        key={sub.id}
-                        className="flex items-center gap-3 px-4 py-2.5 bg-gray-50 border-t border-gray-100"
+                        key={parent.id}
+                        className="overflow-hidden rounded-2xl border border-gray-100 bg-gradient-to-br from-white to-slate-50"
                       >
-                        <div className="w-px h-4 bg-gray-300 ml-2 flex-shrink-0" />
-                        {isEditingSub ? (
-                          <>
-                            <ColorPicker value={editColor} onChange={setEditColor} />
+                        <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center">
+                          {isEditing ? (
+                            <>
+                              <ColorPicker value={editColor} onChange={setEditColor} />
+                              <input
+                                autoFocus
+                                type="text"
+                                value={editName}
+                                onChange={(e) => setEditName(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') void handleUpdate(parent.id);
+                                  if (e.key === 'Escape') setEditingId(null);
+                                }}
+                                className="min-w-0 flex-1 rounded-xl border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => void handleUpdate(parent.id)}
+                                className="rounded-xl bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 cursor-pointer"
+                              >
+                                Save
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingId(null)}
+                                className="rounded-xl bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-200 cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <div className="flex min-w-0 flex-1 items-center gap-3">
+                                <span
+                                  className="h-4 w-4 flex-shrink-0 rounded-full shadow-sm"
+                                  style={{ backgroundColor: parent.color }}
+                                />
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-semibold text-gray-900">
+                                    {parent.name}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    {childCount} subcategor{childCount === 1 ? 'y' : 'ies'}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setAddingSubFor(isAddingSub ? null : parent.id);
+                                    setSubName('');
+                                    setSubColor('#22c55e');
+                                    setEditingId(null);
+                                    setError(null);
+                                  }}
+                                  className="rounded-xl bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 cursor-pointer"
+                                >
+                                  {isAddingSub ? 'Hide Sub Form' : 'Add Sub'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => startEdit(parent)}
+                                  className="rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-200 cursor-pointer"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setDeleteConfirm({ id: parent.id, name: parent.name })
+                                  }
+                                  className="rounded-xl bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 cursor-pointer"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        {isAddingSub && (
+                          <div className="flex flex-col gap-3 border-t border-blue-100 bg-blue-50/70 px-4 py-3 sm:flex-row sm:items-center">
                             <input
-                              autoFocus
                               type="text"
-                              value={editName}
-                              onChange={(e) => setEditName(e.target.value)}
+                              autoFocus
+                              placeholder="Subcategory name"
+                              value={subName}
+                              onChange={(e) => setSubName(e.target.value)}
                               onKeyDown={(e) => {
-                                if (e.key === 'Enter') void handleUpdate(sub.id);
-                                if (e.key === 'Escape') setEditingId(null);
+                                if (e.key === 'Enter') void handleCreate(parent.id);
+                                if (e.key === 'Escape') setAddingSubFor(null);
                               }}
-                              className="flex-1 px-3 py-1.5 text-sm text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                              className="min-w-0 flex-1 rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
+                            <ColorPicker value={subColor} onChange={setSubColor} />
                             <button
-                              onClick={() => void handleUpdate(sub.id)}
-                              className="text-xs px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 cursor-pointer"
+                              type="button"
+                              onClick={() => void handleCreate(parent.id)}
+                              disabled={isCreatingSub}
+                              className="rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
                             >
-                              Save
+                              {isCreatingSub ? 'Adding...' : 'Add Subcategory'}
                             </button>
                             <button
-                              onClick={() => setEditingId(null)}
-                              className="text-xs px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 cursor-pointer"
+                              type="button"
+                              onClick={() => setAddingSubFor(null)}
+                              className="rounded-xl px-3 py-2 text-xs font-semibold text-gray-500 hover:bg-white/80 hover:text-gray-700 cursor-pointer"
                             >
                               Cancel
                             </button>
-                          </>
-                        ) : (
-                          <>
-                            <div
-                              className="w-3 h-3 rounded-full flex-shrink-0"
-                              style={{ backgroundColor: sub.color }}
-                            />
-                            <span className="flex-1 text-sm text-gray-600">{sub.name}</span>
-                            <button
-                              onClick={() => startEdit(sub)}
-                              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md cursor-pointer transition-colors"
-                              title="Edit"
-                            >
-                              <svg
-                                className="w-3 h-3"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828 9 16l.172-2.828z"
-                                />
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() => setDeleteConfirm({ id: sub.id, name: sub.name })}
-                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md cursor-pointer transition-colors"
-                              title="Delete"
-                            >
-                              <svg
-                                className="w-3 h-3"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                />
-                              </svg>
-                            </button>
-                          </>
+                          </div>
+                        )}
+
+                        {subcats.length > 0 && (
+                          <div className="space-y-2 border-t border-gray-100 bg-white/60 px-4 py-3">
+                            {subcats.map((sub) => {
+                              const isEditingSub = editingId === sub.id;
+                              return (
+                                <div
+                                  key={sub.id}
+                                  className="flex flex-col gap-3 rounded-2xl bg-white px-3 py-2 shadow-sm sm:flex-row sm:items-center"
+                                >
+                                  {isEditingSub ? (
+                                    <>
+                                      <ColorPicker value={editColor} onChange={setEditColor} />
+                                      <input
+                                        autoFocus
+                                        type="text"
+                                        value={editName}
+                                        onChange={(e) => setEditName(e.target.value)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') void handleUpdate(sub.id);
+                                          if (e.key === 'Escape') setEditingId(null);
+                                        }}
+                                        className="min-w-0 flex-1 rounded-xl border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => void handleUpdate(sub.id)}
+                                        className="rounded-xl bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 cursor-pointer"
+                                      >
+                                        Save
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setEditingId(null)}
+                                        className="rounded-xl bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-200 cursor-pointer"
+                                      >
+                                        Cancel
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div className="flex min-w-0 flex-1 items-center gap-3">
+                                        <span className="h-px w-4 bg-gray-300" />
+                                        <span
+                                          className="h-3 w-3 flex-shrink-0 rounded-full"
+                                          style={{ backgroundColor: sub.color }}
+                                        />
+                                        <span className="truncate text-sm text-gray-700">
+                                          {sub.name}
+                                        </span>
+                                      </div>
+                                      <div className="flex gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => startEdit(sub)}
+                                          className="rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-200 cursor-pointer"
+                                        >
+                                          Edit
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setDeleteConfirm({ id: sub.id, name: sub.name })
+                                          }
+                                          className="rounded-xl bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 cursor-pointer"
+                                        >
+                                          Delete
+                                        </button>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
                         )}
                       </div>
                     );
                   })}
                 </div>
-              );
-            })
-          )}
-        </div>
-      </main>
+              )}
+            </section>
+          </section>
+        </main>
+      </div>
 
       {/* Delete confirmation modal */}
       {deleteConfirm &&
@@ -538,7 +546,7 @@ export default function SettingsPage() {
           const childCount = categories.filter((c) => c.parent_id === deleteConfirm.id).length;
           return (
             <div
-              className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+              className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm"
               onClick={(e) => {
                 if (e.target === e.currentTarget) setDeleteConfirm(null);
               }}
@@ -550,30 +558,33 @@ export default function SettingsPage() {
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="delete-dialog-title"
-                className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4"
+                className="w-full max-w-sm rounded-3xl border border-white/20 bg-white p-6 shadow-2xl"
               >
-                <h3 id="delete-dialog-title" className="text-base font-semibold text-gray-900 mb-2">
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-600">
+                  Delete
+                </div>
+                <h3 id="delete-dialog-title" className="mb-2 text-lg font-bold text-gray-900">
                   Delete &quot;{deleteConfirm.name}&quot;?
                 </h3>
                 {childCount > 0 ? (
-                  <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
+                  <p className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
                     This will also delete {childCount} subcategor{childCount === 1 ? 'y' : 'ies'}{' '}
                     and clear the category from any associated transactions.
                   </p>
                 ) : (
-                  <p className="text-sm text-gray-500 mb-4">This action cannot be undone.</p>
+                  <p className="mb-5 text-sm text-gray-500">This action cannot be undone.</p>
                 )}
                 <div className="flex gap-2 justify-end">
                   <button
                     autoFocus
                     onClick={() => setDeleteConfirm(null)}
-                    className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 cursor-pointer"
+                    className="rounded-xl bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-200 cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={confirmDelete}
-                    className="px-4 py-2 text-sm text-white bg-red-600 rounded-lg hover:bg-red-700 cursor-pointer"
+                    className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 cursor-pointer"
                   >
                     Delete
                   </button>

@@ -6,9 +6,12 @@ export function formatDate(dateInput: DateInput): string {
   if (!dateInput) return '';
 
   if (typeof dateInput === 'string') {
+    // Match ISO date format YYYY-MM-DD (extract the date part before any time)
     const isoDateMatch = dateInput.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (isoDateMatch) {
       const [, year, month, day] = isoDateMatch;
+      // Return directly from string to avoid any timezone conversion
+      // The database stores dates as YYYY-MM-DD which represents midnight UTC
       return `${day}/${month}/${year}`;
     }
 
@@ -19,10 +22,25 @@ export function formatDate(dateInput: DateInput): string {
     }
   }
 
-  const date = new Date(dateInput);
-  if (Number.isNaN(date.getTime())) return '';
+  // For Date objects or timestamps
+  // Force parse the date as if it's a UTC date to avoid timezone issues
+  if (dateInput instanceof Date) {
+    const year = dateInput.getUTCFullYear();
+    const month = dateInput.getUTCMonth() + 1;
+    const day = dateInput.getUTCDate();
+    return `${padDatePart(day)}/${padDatePart(month)}/${year}`;
+  }
 
-  return `${padDatePart(date.getDate())}/${padDatePart(date.getMonth() + 1)}/${date.getFullYear()}`;
+  // If it's a number (timestamp in ms), create a Date and use UTC
+  if (typeof dateInput === 'number') {
+    const date = new Date(dateInput);
+    const year = date.getUTCFullYear();
+    const month = date.getUTCMonth() + 1;
+    const day = date.getUTCDate();
+    return `${padDatePart(day)}/${padDatePart(month)}/${year}`;
+  }
+
+  return '';
 }
 
 export function parseDisplayDateToIso(dateInput: string): string | null {
