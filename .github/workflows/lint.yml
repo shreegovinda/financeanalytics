@@ -41,6 +41,10 @@ jobs:
         run: npm test
         continue-on-error: false
 
+      - name: Build
+        run: npm run build
+        continue-on-error: false
+
       - name: SonarCloud Scan
         if: ${{ env.SONAR_TOKEN != '' }}
         uses: SonarSource/sonarcloud-github-action@master
