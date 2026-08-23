@@ -213,11 +213,12 @@ export default function DashboardPage() {
     setPasswordSuccess('');
 
     try {
-      await apiPut<{ success: boolean }>(
+      const response = await apiPut<{ success: boolean; token: string }>(
         `${API_BASE_URL}/api/auth/password`,
         { currentPassword, newPassword },
         token,
       );
+      localStorage.setItem('token', response.token);
       setCurrentPassword('');
       setNewPassword('');
       setConfirmNewPassword('');

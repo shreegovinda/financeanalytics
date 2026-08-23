@@ -1,9 +1,9 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 const authenticateToken = require('../middleware/auth');
 const { sendOTP, verifyOTP } = require('../services/otp');
+const { issueAuthToken } = require('../services/authToken');
 
 const router = express.Router();
 const resetOtpAttempts = new Map();
@@ -53,14 +53,12 @@ router.post('/register', async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await pool.query(
-      'INSERT INTO users (email, password_hash, name, phone) VALUES ($1, $2, $3, $4) RETURNING id, email, name, phone',
+      'INSERT INTO users (email, password_hash, name, phone) VALUES ($1, $2, $3, $4) RETURNING id, email, name, phone, token_version',
       [email, hashedPassword, name, phone || null],
     );
 
     const user = result.rows[0];
-    const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
-      expiresIn: '7d',
-    });
+    const token = issueAuthToken(user);
 
     res.json({
       token,
@@ -113,9 +111,7 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
-      expiresIn: '7d',
-    });
+    const token = issueAuthToken(user);
 
     res.json({
       token,
@@ -180,7 +176,7 @@ router.post('/forgot-password/reset', async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     const result = await pool.query(
-      'UPDATE users SET password_hash = $1 WHERE email = $2 RETURNING id',
+      'UPDATE users SET password_hash = $1, token_version = token_version + 1 WHERE email = $2 RETURNING id',
       [hashedPassword, email],
     );
 
@@ -242,7 +238,7 @@ router.post('/verify-otp', async (req, res) => {
 
     // Get user by email
     const userResult = await pool.query(
-      'SELECT id, email, name, phone FROM users WHERE email = $1',
+      'SELECT id, email, name, phone, token_version FROM users WHERE email = $1',
       [email],
     );
     if (userResult.rows.length === 0) {
@@ -250,9 +246,7 @@ router.post('/verify-otp', async (req, res) => {
     }
 
     const user = userResult.rows[0];
-    const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
-      expiresIn: '7d',
-    });
+    const token = issueAuthToken(user);
 
     res.json({
       token,
@@ -329,12 +323,16 @@ router.put('/password', authenticateToken, async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [
-      hashedPassword,
-      req.user.id,
-    ]);
+    const updateResult = await pool.query(
+      `UPDATE users
+       SET password_hash = $1, token_version = token_version + 1
+       WHERE id = $2
+       RETURNING id, email, token_version`,
+      [hashedPassword, req.user.id],
+    );
+    const token = issueAuthToken(updateResult.rows[0]);
 
-    res.json({ success: true, message: 'Password updated successfully' });
+    res.json({ success: true, message: 'Password updated successfully', token });
   } catch (err) {
     console.error('Error updating password:', err);
     res.status(500).json({ error: 'Failed to update password' });
