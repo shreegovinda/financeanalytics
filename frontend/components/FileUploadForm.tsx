@@ -1,8 +1,23 @@
 'use client';
 
-import { useState } from 'react';
-import { apiFetch, getErrorMessage } from '@/lib/api';
+import { useCallback, useEffect, useState } from 'react';
+import { apiFetch, apiGet, getErrorMessage } from '@/lib/api';
 import { getAiProviderHeaders } from '@/lib/aiProvider';
+import MonthPicker, { type TakenMonth } from '@/components/MonthPicker';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+const FORMAT_EXTENSIONS: Record<string, string> = { PDF: '.pdf', XLSX: '.xlsx' };
+
+const BANKS = [
+  { id: 'ICICI', name: 'ICICI Bank', initials: 'IC', accent: 'from-orange-500 to-red-500' },
+  {
+    id: 'SBI',
+    name: 'State Bank of India',
+    initials: 'SBI',
+    accent: 'from-blue-500 to-indigo-600',
+  },
+];
 
 interface UploadResponse {
   success: boolean;
@@ -24,6 +39,25 @@ export default function FileUploadForm({
   const [fileFormat, setFileFormat] = useState('');
   const [loading, setLoading] = useState(false);
   const [pendingStatementId, setPendingStatementId] = useState<string | null>(null);
+  const [takenByBank, setTakenByBank] = useState<Record<string, TakenMonth[]>>({});
+
+  const loadTakenMonths = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token') ?? undefined;
+      const data = await apiGet<{ banks: Record<string, TakenMonth[]> }>(
+        `${API_BASE_URL}/api/upload/months`,
+        token,
+      );
+      setTakenByBank(data.banks);
+    } catch {
+      // The picker still works without this; it just cannot pre-mark taken months.
+      setTakenByBank({});
+    }
+  }, []);
+
+  useEffect(() => {
+    void Promise.resolve().then(loadTakenMonths);
+  }, [loadTakenMonths]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [dragActive, setDragActive] = useState(false);
@@ -38,6 +72,29 @@ export default function FileUploadForm({
     }
   };
 
+  /**
+   * The input's `accept` attribute is only a filter in the file picker: it does
+   * nothing for drag-and-drop, and browsers let users override it. So the
+   * extension is checked here too, and again on the server.
+   */
+  const acceptFile = (candidate: File): void => {
+    const expected = FORMAT_EXTENSIONS[fileFormat];
+
+    if (!fileFormat) {
+      setError('Choose a file type first, so we can check the file matches.');
+      return;
+    }
+
+    if (!candidate.name.toLowerCase().endsWith(expected)) {
+      setError(`You selected ${fileFormat}, but "${candidate.name}" is not a ${expected} file.`);
+      setFile(null);
+      return;
+    }
+
+    setFile(candidate);
+    setError('');
+  };
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -45,15 +102,13 @@ export default function FileUploadForm({
 
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
-      setFile(files[0]);
-      setError('');
+      acceptFile(files[0]);
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setFile(e.target.files[0]);
-      setError('');
+      acceptFile(e.target.files[0]);
     }
   };
 
@@ -151,6 +206,9 @@ export default function FileUploadForm({
       setSuccess(data.message);
       setFile(null);
 
+      // The month just used is now taken; keep the picker honest.
+      void loadTakenMonths();
+
       if (onUploadSuccess) {
         onUploadSuccess(data.requiresReview ? data.statementId : undefined);
       }
@@ -165,106 +223,151 @@ export default function FileUploadForm({
     <div className="w-full max-w-2xl mx-auto p-6">
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-          Select the bank, month, and file type before uploading. AI reads the statement and shows
-          you everything it found — nothing is imported until you confirm.
-          <span className="mt-1 block text-xs text-blue-700">
-            XLSX generally extracts more accurately than PDF, if your bank offers it.
-          </span>
+          Nothing is imported until you review it. We read the statement and show you everything we
+          found first.
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-3">
-          <label className="block">
-            <span className="mb-2 block text-sm font-medium text-gray-700">Bank</span>
-            <select
-              value={bank}
-              onChange={(event) => setBank(event.target.value)}
-              disabled={loading}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
-              required
-            >
-              <option value="">Select bank</option>
-              <option value="ICICI">ICICI</option>
-              <option value="SBI">SBI</option>
-            </select>
-          </label>
-
-          <label className="block">
-            <span className="mb-2 block text-sm font-medium text-gray-700">Statement Month</span>
-            <input
-              type="month"
-              value={statementMonth}
-              onChange={(event) => setStatementMonth(event.target.value)}
-              disabled={loading}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
-              required
-            />
-          </label>
-
-          <fieldset>
-            <legend className="mb-2 block text-sm font-medium text-gray-700">File Type</legend>
-            <div className="grid grid-cols-2 gap-2">
-              {['PDF', 'XLSX'].map((format) => (
-                <label
-                  key={format}
-                  className={`flex cursor-pointer items-center justify-center rounded-lg border px-3 py-2 text-sm font-medium ${
-                    fileFormat === format
-                      ? 'border-blue-600 bg-blue-50 text-blue-700'
-                      : 'border-gray-300 text-gray-700'
-                  }`}
+        <Step n={1} title="Which bank?">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {BANKS.map((option) => {
+              const selected = bank === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  disabled={loading}
+                  onClick={() => {
+                    setBank(option.id);
+                    // Taken months differ per bank, so a stale choice could now
+                    // point at a month that is already imported.
+                    setStatementMonth('');
+                  }}
+                  className={`flex items-center gap-3 rounded-xl border-2 p-4 text-left transition ${
+                    selected
+                      ? 'border-blue-600 bg-blue-50 shadow-sm'
+                      : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/40'
+                  } disabled:cursor-not-allowed disabled:opacity-60`}
                 >
-                  <input
-                    type="radio"
-                    name="fileFormat"
-                    value={format}
-                    checked={fileFormat === format}
-                    onChange={(event) => setFileFormat(event.target.value)}
-                    disabled={loading}
-                    className="sr-only"
-                    required
-                  />
-                  {format}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-        </div>
-
-        <div
-          className={`border-2 border-dashed rounded-lg p-8 text-center transition ${
-            dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
-          }`}
-          onDragEnter={handleDrag}
-          onDragLeave={handleDrag}
-          onDragOver={handleDrag}
-          onDrop={handleDrop}
-        >
-          <input
-            type="file"
-            onChange={handleFileChange}
-            accept={fileFormat === 'PDF' ? '.pdf' : fileFormat === 'XLSX' ? '.xlsx' : '.pdf,.xlsx'}
-            disabled={loading}
-            className="hidden"
-            id="file-input"
-          />
-          <label htmlFor="file-input" className="cursor-pointer">
-            <div className="space-y-2">
-              <div className="text-4xl">📄</div>
-              <p className="text-sm font-medium text-gray-700">Drag and drop your statement here</p>
-              <p className="text-xs text-gray-500">or click to select a file</p>
-              <p className="text-xs text-gray-400">PDF or XLSX • Max 10MB</p>
-            </div>
-          </label>
-        </div>
-
-        {file && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-sm font-medium text-gray-700">Selected file:</p>
-            <p className="text-sm text-gray-600">{file.name}</p>
-            <p className="text-xs text-gray-500 mt-2">
-              Size: {(file.size / 1024 / 1024).toFixed(2)}MB • Type: {file.type || 'unknown'}
-            </p>
+                  <span
+                    className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${option.accent} text-sm font-bold text-white`}
+                  >
+                    {option.initials}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block font-semibold text-gray-900">{option.id}</span>
+                    <span className="block truncate text-xs text-gray-500">{option.name}</span>
+                  </span>
+                  {selected && <span className="ml-auto text-lg text-blue-600">✓</span>}
+                </button>
+              );
+            })}
           </div>
-        )}
+        </Step>
+
+        <Step n={2} title="Which month?" muted={!bank}>
+          {bank ? (
+            <MonthPicker
+              value={statementMonth}
+              onChange={setStatementMonth}
+              taken={takenByBank[bank] ?? []}
+              disabled={loading}
+            />
+          ) : (
+            <p className="text-sm text-gray-400">Choose a bank first.</p>
+          )}
+        </Step>
+
+        <Step n={3} title="File type" muted={!statementMonth}>
+          <div className="grid grid-cols-2 gap-3">
+            {['PDF', 'XLSX'].map((format) => {
+              const selected = fileFormat === format;
+              return (
+                <button
+                  key={format}
+                  type="button"
+                  disabled={loading || !statementMonth}
+                  onClick={() => {
+                    setFileFormat(format);
+                    // A file already chosen may not match the new format.
+                    setFile(null);
+                    setError('');
+                  }}
+                  className={`rounded-xl border-2 p-3 text-center transition ${
+                    selected
+                      ? 'border-blue-600 bg-blue-50 shadow-sm'
+                      : 'border-gray-200 bg-white hover:border-blue-300'
+                  } disabled:cursor-not-allowed disabled:opacity-50`}
+                >
+                  <span className="block font-semibold text-gray-900">{format}</span>
+                  <span className="block text-xs text-gray-500">
+                    {format === 'XLSX' ? 'Reads more accurately' : 'Most common'}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </Step>
+
+        <Step n={4} title="Upload the file" muted={!fileFormat}>
+          <div
+            className={`border-2 border-dashed rounded-lg p-8 text-center transition ${
+              dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
+            }`}
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+          >
+            <input
+              type="file"
+              onChange={handleFileChange}
+              accept={
+                fileFormat === 'PDF' ? '.pdf' : fileFormat === 'XLSX' ? '.xlsx' : '.pdf,.xlsx'
+              }
+              disabled={loading || !fileFormat}
+              className="hidden"
+              id="file-input"
+            />
+            <label
+              htmlFor="file-input"
+              className={fileFormat ? 'cursor-pointer' : 'cursor-not-allowed'}
+            >
+              <div className="space-y-2">
+                <div className="text-4xl">📄</div>
+                <p className="text-sm font-medium text-gray-700">
+                  {fileFormat
+                    ? `Drop your ${fileFormat} statement here`
+                    : 'Choose a file type above first'}
+                </p>
+                <p className="text-xs text-gray-500">or click to select a file</p>
+                <p className="text-xs text-gray-400">
+                  {fileFormat ? `${FORMAT_EXTENSIONS[fileFormat]} only` : 'PDF or XLSX'} • Max 10MB
+                </p>
+              </div>
+            </label>
+          </div>
+
+          {file && (
+            <div className="mt-3 flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
+              <span className="text-2xl">📄</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium text-gray-900">
+                  {file.name}
+                </span>
+                <span className="block text-xs text-gray-500">
+                  {(file.size / 1024 / 1024).toFixed(2)} MB
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setFile(null)}
+                className="text-sm font-medium text-blue-700 hover:text-blue-900"
+              >
+                Remove
+              </button>
+            </div>
+          )}
+        </Step>
 
         {error && (
           <div className="bg-red-50 border-l-4 border-red-600 rounded-lg p-4">
@@ -321,5 +424,29 @@ export default function FileUploadForm({
         </button>
       </form>
     </div>
+  );
+}
+
+function Step({
+  n,
+  title,
+  muted = false,
+  children,
+}: {
+  n: number;
+  title: string;
+  muted?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className={muted ? 'opacity-60 transition' : 'transition'}>
+      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900">
+        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-900 text-xs font-bold text-white">
+          {n}
+        </span>
+        {title}
+      </h3>
+      {children}
+    </section>
   );
 }

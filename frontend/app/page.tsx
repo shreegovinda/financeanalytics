@@ -3,7 +3,6 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import BackButton from '@/components/BackButton';
 
 export default function Home() {
   const router = useRouter();
@@ -18,8 +17,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       <header className="bg-white shadow-sm dark:bg-gray-800">
-        <div className="max-w-7xl mx-auto px-4 py-6 flex items-center gap-4">
-          <BackButton fallbackHref="/auth" className="shadow-sm" />
+        <div className="max-w-7xl mx-auto px-4 py-6">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">💰 Finance Analytics</h1>
         </div>
       </header>
@@ -31,8 +29,8 @@ export default function Home() {
               Take Control of Your Finances
             </h2>
             <p className="text-xl text-gray-600 dark:text-gray-300 mb-8">
-              Upload your bank statements from ICICI, HDFC, and Axis banks. Our AI automatically
-              categorizes your transactions and provides insights into your spending patterns.
+              Upload your bank statements from ICICI and SBI. Our AI automatically categorizes your
+              transactions and provides insights into your spending patterns.
             </p>
 
             <div className="space-y-4 mb-8">
