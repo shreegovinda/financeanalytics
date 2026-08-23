@@ -59,10 +59,13 @@ CREATE DATABASE financeanalytics;
 Then load the schema (includes idempotent migrations safe for both fresh and existing databases):
 
 ```bash
-psql -U postgres -d financeanalytics -f backend/config/schema.sql
+psql -U postgres -d financeanalytics -f backend/db/schema.sql
 ```
 
-> **Note:** `backend/config/schema.sql` is the canonical schema file and includes all migration steps. Alternatively, run `node backend/db/init.js` from the backend directory after `npm install` to apply the same schema programmatically.
+> **Note:** `backend/db/schema.sql` is the canonical schema file and includes all
+> migration steps. You do not normally need to run it by hand — `npm run dev`
+> applies it automatically on startup via `backend/db/init.js`. Run
+> `node backend/db/init.js` to apply it without starting the server.
 
 ### 3. Backend Setup
 
@@ -93,83 +96,140 @@ Frontend will run on `http://localhost:3000`
 financeanalytics/
 ├── backend/
 │   ├── config/
-│   │   ├── db.js           # Database connection
-│   │   └── schema.sql      # Database schema
-│   ├── routes/
-│   │   └── auth.js         # Authentication endpoints
+│   │   └── db.js           # Postgres connection pool
+│   ├── db/
+│   │   ├── schema.sql      # Canonical schema + idempotent migrations
+│   │   └── init.js         # Applies schema.sql on server start
+│   ├── routes/             # auth, upload, transactions, categories,
+│   │                       # analytics, payments, ai
 │   ├── middleware/
 │   │   └── auth.js         # JWT verification
-│   ├── services/           # File parsers, Claude integration
-│   ├── models/             # Database models
+│   ├── services/
+│   │   ├── ai.js           # Provider abstraction (Claude / Gemini)
+│   │   ├── claude.js       # Batch categorization
+│   │   ├── otp.js          # OTP generation and email delivery
+│   │   ├── payment.js      # Razorpay orders and verification
+│   │   └── parsers/
+│   │       └── generic.js  # AI-driven PDF/Excel statement parser
+│   ├── test/               # node:test suite (npm test)
 │   └── server.js           # Express app entry
 ├── frontend/
 │   ├── app/
-│   │   ├── login/          # Login page
-│   │   ├── signup/         # Signup page
-│   │   └── dashboard/      # Main dashboard
+│   │   ├── auth/           # Combined login / signup / OTP flow
+│   │   ├── dashboard/      # Summary widgets and charts
+│   │   ├── transactions/   # Transaction table and category editing
+│   │   ├── statements/     # Upload history and per-statement detail
+│   │   ├── settings/       # Profile and password
+│   │   └── pricing/        # Premium features
 │   ├── components/         # Reusable components
 │   ├── lib/
 │   │   ├── api.ts          # API helpers
-│   │   └── store.ts        # Zustand store
+│   │   ├── store.ts        # Zustand store
+│   │   └── date.ts         # Date formatting
 │   └── public/             # Static assets
 └── README.md
 ```
 
+> `backend/services/parsers/{icici,hdfc,axis}.js` are superseded by the generic
+> AI parser and are no longer referenced by any route.
+
 ## API Endpoints
 
+All routes except those marked *public* require an
+`Authorization: Bearer <token>` header.
+
 ### Authentication
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - Login user
+- `POST /api/auth/register` - Register new user *(public)*
+- `POST /api/auth/login` - Login with email and password *(public)*
+- `POST /api/auth/check-email` - Check whether an email is registered *(public)*
+- `POST /api/auth/send-otp` - Email a login OTP *(public)*
+- `POST /api/auth/verify-otp` - Exchange an OTP for a token *(public)*
+- `POST /api/auth/forgot-password/send-otp` - Email a reset OTP *(public)*
+- `POST /api/auth/forgot-password/reset` - Reset password with an OTP *(public)*
+- `GET /api/auth/me` - Current user profile
+- `PUT /api/auth/me` - Update name and phone
+- `PUT /api/auth/password` - Change password
 
-### File Upload (Coming in Phase 3.2)
-- `POST /api/upload` - Upload statement
-- `GET /api/statements` - List statements
+### Statements
+- `POST /api/upload` - Upload a statement; returns 202 and processes in background
+- `GET /api/upload` - List uploaded statements with processing status
+- `GET /api/upload/:statementId` - Statement detail plus its transactions
 
-### Transactions (Coming in Phase 3.3+)
-- `GET /api/transactions` - List transactions
-- `PUT /api/transactions/:id` - Update category
-- `GET /api/transactions/stats` - Get summary stats
+### Transactions
+- `GET /api/transactions` - List transactions (`startDate`, `endDate`, `categoryId`, `limit`, `offset`)
+- `GET /api/transactions/:id` - Single transaction
+- `PUT /api/transactions/:id` - Update category or description
+- `GET /api/transactions/stats/summary` - Income, expense, and count totals
+- `POST /api/transactions/categorize` - Run AI categorization over given ids
 
-### Analytics (Coming in Phase 3.4)
+### Categories
+- `GET /api/categories` - List categories (defaults are seeded per user)
+- `POST /api/categories` - Create a category
+- `PUT /api/categories/:id` - Rename or recolour a category
+- `DELETE /api/categories/:id` - Delete a category
+- `POST /api/categories/bulk-reassign` - Move transactions between categories
+
+### Analytics
 - `GET /api/analytics/pie` - Spending by category
-- `GET /api/analytics/bar` - Monthly trends
+- `GET /api/analytics/bar` - Monthly income vs expenses
 - `GET /api/analytics/trends` - Month-over-month analysis
+
+### Payments
+- `GET /api/payments/pricing` - Premium feature catalogue *(public)*
+- `POST /api/payments/create-order` - Create a Razorpay order
+- `POST /api/payments/verify` - Verify a completed payment
+- `GET /api/payments/history` - Payment history
+- `GET /api/payments/check/:featureId` - Whether a feature is purchased
+
+### AI
+- `GET /api/ai/providers` - Configured AI providers and their status *(public)*
 
 ## Development Timeline
 
 - **Phase 3.1** ✅ Setup & Auth (Week 1)
-- **Phase 3.2** File Upload & Parsing (Week 2)
-- **Phase 3.3** Claude AI Integration (Week 2-3)
-- **Phase 3.4** Dashboard & Analytics (Week 3)
-- **Phase 3.5** Custom Categories (Week 4)
-- **Phase 3.6** Polish & Testing (Week 4-5)
+- **Phase 3.2** ✅ File Upload & Parsing (Week 2)
+- **Phase 3.3** ✅ AI Integration — Claude and Gemini, async processing (Week 2-3)
+- **Phase 3.4** ✅ Dashboard & Analytics (Week 3)
+- **Phase 3.5** ✅ Custom Categories, incl. sub-categories (Week 4)
+- **Phase 3.6** 🚧 Polish & Testing (Week 4-5) — backend unit tests in place;
+  integration and E2E coverage still outstanding
+
+See `PROJECT_STATUS.md` for detail.
 
 ## Environment Variables
 
-### Backend (.env.local)
-```
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=postgres
-DB_NAME=financeanalytics
-PORT=3001
-JWT_SECRET=super_secret_key
-AI_PROVIDER=gemini
-ANTHROPIC_API_KEY=sk-ant-...
-GEMINI_API_KEY=...
-GEMINI_MODEL=gemini-2.5-flash
-FRONTEND_URL=http://localhost:3000
-```
+`backend/.env.example` and `frontend/.env.example` are the authoritative lists —
+copy each to `.env.local` and fill in the values.
 
-### Frontend (.env.local)
-```
-NEXT_PUBLIC_API_URL=http://localhost:3001
-```
+Note that both `server.js` and `config/db.js` load **`.env.local`**, not `.env`.
+
+Which features need which keys:
+
+| Variable | Needed for | Without it |
+| --- | --- | --- |
+| `DB_*` | Everything | Server exits on startup |
+| `JWT_SECRET` | Everything | Login and all authenticated routes fail |
+| `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` | Statement parsing, categorization | Uploads fail during processing |
+| `SENDGRID_API_KEY` | OTP login, password reset | "Email service is not configured" |
+| `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` | Pricing page, premium features | Order creation returns an error |
+| `FRONTEND_URL` | CORS | Browser requests are blocked |
 
 ## Testing
 
-Coming in Phase 3.6 - Unit tests, integration tests, E2E tests with Cypress
+The backend suite uses the built-in `node:test` runner (Node 22+, no extra
+dependencies). It runs in CI on every pull request.
+
+```bash
+npm test                          # run the suite
+npm run test:watch --workspace=backend
+```
+
+Coverage focuses on the money-critical paths: statement normalization, Razorpay
+signature verification, and OTP generation. A few tests deliberately assert
+current *incorrect* behaviour so that known defects are visible and locked in
+until fixed — each is commented with the reason.
+
+Integration and E2E coverage are still outstanding.
 
 ## Deployment
 
