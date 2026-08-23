@@ -6,10 +6,47 @@ const { getProviderFromRequest } = require('../services/ai');
 
 const router = express.Router();
 
+function parseDateFilter(value, fieldName) {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    const err = new Error(`Invalid ${fieldName}`);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  return date;
+}
+
+function appendDateFilters(whereParts, params, query) {
+  const startDate = parseDateFilter(query.startDate, 'startDate');
+  const endDate = parseDateFilter(query.endDate, 'endDate');
+
+  if (startDate && endDate && startDate > endDate) {
+    const err = new Error('startDate cannot be after endDate');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (startDate) {
+    params.push(startDate);
+    whereParts.push(`date >= $${params.length}`);
+  }
+
+  if (endDate) {
+    params.push(endDate);
+    whereParts.push(`date <= $${params.length}`);
+  }
+}
+
 router.get('/', auth, async (req, res) => {
   try {
     const { startDate, endDate, categoryId, limit = 100, offset = 0 } = req.query;
-    let query = 'SELECT * FROM transactions WHERE user_id = $1';
+    let query =
+      "SELECT id, user_id, statement_id, to_char(date, 'YYYY-MM-DD') as date, amount, description, category_id, ai_suggested_category, type, created_at FROM transactions WHERE user_id = $1";
     const params = [req.user.id];
     let paramIndex = 2;
 
@@ -44,10 +81,10 @@ router.get('/', auth, async (req, res) => {
 
 router.get('/:id', auth, async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM transactions WHERE id = $1 AND user_id = $2', [
-      req.params.id,
-      req.user.id,
-    ]);
+    const result = await pool.query(
+      "SELECT id, user_id, statement_id, to_char(date, 'YYYY-MM-DD') as date, amount, description, category_id, ai_suggested_category, type, created_at FROM transactions WHERE id = $1 AND user_id = $2",
+      [req.params.id, req.user.id],
+    );
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Transaction not found' });
@@ -105,7 +142,7 @@ router.put('/:id', auth, async (req, res) => {
 
     updateQuery +=
       updates.join(', ') +
-      ` WHERE id = $${paramIndex} AND user_id = $${paramIndex + 1} RETURNING *`;
+      ` WHERE id = $${paramIndex} AND user_id = $${paramIndex + 1} RETURNING id, user_id, statement_id, to_char(date, 'YYYY-MM-DD') as date, amount, description, category_id, ai_suggested_category, type, created_at`;
     params.push(req.params.id, req.user.id);
 
     const result = await pool.query(updateQuery, params);
@@ -118,19 +155,25 @@ router.put('/:id', auth, async (req, res) => {
 
 router.get('/stats/summary', auth, async (req, res) => {
   try {
+    const params = [req.user.id];
+    const whereParts = ['user_id = $1'];
+    appendDateFilters(whereParts, params, req.query);
+
     const result = await pool.query(
       `SELECT
         SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END)::numeric as total_income,
         SUM(CASE WHEN type = 'debit' THEN ABS(amount) ELSE 0 END)::numeric as total_expenses,
         COUNT(*) as transaction_count
-      FROM transactions WHERE user_id = $1`,
-      [req.user.id],
+      FROM transactions WHERE ${whereParts.join(' AND ')}`,
+      params,
     );
 
     res.json(result.rows[0]);
   } catch (err) {
     console.error('Error fetching stats:', err);
-    res.status(500).json({ error: 'Failed to fetch stats' });
+    res
+      .status(err.statusCode || 500)
+      .json({ error: err.statusCode ? err.message : 'Failed to fetch stats' });
   }
 });
 
