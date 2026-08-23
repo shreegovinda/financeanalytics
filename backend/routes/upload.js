@@ -741,6 +741,7 @@ router.delete('/:statementId', auth, async (req, res) => {
 
 router.resumeProcessingStatements = resumeProcessingStatements;
 router.getInFlightStatement = getInFlightStatement;
+router.toSqlDate = toSqlDate;
 router.lockUserUploads = lockUserUploads;
 
 module.exports = router;

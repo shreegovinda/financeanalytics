@@ -206,4 +206,8 @@ async function parseStatement(filePath, providerId, context = {}) {
 
 module.exports = {
   parseStatement,
+  // Exported for unit testing — these are the pure normalization helpers that
+  // decide which AI-returned rows are trustworthy enough to become transactions.
+  normalizeBankName,
+  normalizeTransactions,
 };
