@@ -7,15 +7,18 @@ import axios from 'axios';
 
 interface APIError {
   response?: {
+    status?: number;
     data?: {
       error?: string;
+      requiresVerification?: boolean;
+      reason?: string;
     };
   };
 }
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-type AuthStep = 'email' | 'login' | 'signup' | 'forgotPassword';
+type AuthStep = 'email' | 'login' | 'signup' | 'forgotPassword' | 'verifyEmail';
 
 export default function UnifiedAuthPage() {
   const [step, setStep] = useState<AuthStep>('email');
@@ -37,7 +40,17 @@ export default function UnifiedAuthPage() {
   const [resetOtpSent, setResetOtpSent] = useState(false);
   const [resetPassword, setResetPassword] = useState('');
   const [resetConfirmPassword, setResetConfirmPassword] = useState('');
+  const [verifyCode, setVerifyCode] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
   const router = useRouter();
+
+  // Throttles the resend button so users cannot hammer the endpoint into its
+  // server-side rate limit.
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setTimeout(() => setResendCooldown((n) => n - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
 
   useEffect(() => {
     if (localStorage.getItem('token')) {
@@ -101,6 +114,12 @@ export default function UnifiedAuthPage() {
       }, 500);
     } catch (err: unknown) {
       const apiError = err as APIError;
+      if (apiError.response?.data?.requiresVerification) {
+        setStep('verifyEmail');
+        setError('');
+        setSuccess('');
+        return;
+      }
       setError(apiError.response?.data?.error || 'Invalid password');
     } finally {
       setLoading(false);
@@ -171,23 +190,76 @@ export default function UnifiedAuthPage() {
     setLoading(true);
 
     try {
-      const response = await authAPI.register(email, password, name, phone);
+      await authAPI.register(email, password, name, phone);
+      // No session is issued until the address is verified.
+      setStep('verifyEmail');
+      setResendCooldown(30);
+      setSuccess(`We sent a verification link and code to ${email}.`);
+    } catch (err: unknown) {
+      const apiError = err as APIError;
+      // The account may exist but the email failed to send; let them resend.
+      if (apiError.response?.data?.requiresVerification) {
+        setStep('verifyEmail');
+        setError(apiError.response.data.error || 'Could not send the verification email.');
+      } else {
+        setError(apiError.response?.data?.error || 'Signup failed');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Verify a new signup with the emailed 6-digit code.
+  const handleVerifyEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/auth/verify-email`, {
+        email,
+        otp: verifyCode,
+      });
+
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
-      setSuccess('Account created successfully! Redirecting...');
+      setSuccess('Email verified! Redirecting...');
       setTimeout(() => {
         void router.replace('/dashboard');
       }, 500);
     } catch (err: unknown) {
       const apiError = err as APIError;
-      setError(apiError.response?.data?.error || 'Signup failed');
+      setError(apiError.response?.data?.error || 'Invalid or expired verification code');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendVerification = async (): Promise<void> => {
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await axios.post(`${API_BASE_URL}/api/auth/resend-verification`, { email });
+      setResendCooldown(30);
+      setSuccess(`If that account still needs verifying, a new email is on its way to ${email}.`);
+    } catch (err: unknown) {
+      const apiError = err as APIError;
+      setError(apiError.response?.data?.error || 'Failed to resend verification email');
     } finally {
       setLoading(false);
     }
   };
 
   const handleBack = () => {
-    if (step === 'login' || step === 'signup' || step === 'forgotPassword') {
+    if (
+      step === 'login' ||
+      step === 'signup' ||
+      step === 'forgotPassword' ||
+      step === 'verifyEmail'
+    ) {
       setStep('email');
       setPassword('');
       setConfirmPassword('');
@@ -198,6 +270,7 @@ export default function UnifiedAuthPage() {
       setOtpSent(false);
       setResetOtpCode('');
       setResetOtpSent(false);
+      setVerifyCode('');
       setResetPassword('');
       setResetConfirmPassword('');
       setError('');
@@ -263,6 +336,7 @@ export default function UnifiedAuthPage() {
       setPassword('');
       setResetOtpCode('');
       setResetOtpSent(false);
+      setVerifyCode('');
       setResetPassword('');
       setResetConfirmPassword('');
     } catch (err: unknown) {
@@ -296,6 +370,7 @@ export default function UnifiedAuthPage() {
               {step === 'login' && `Welcome back, ${existingUserName || 'User'}!`}
               {step === 'signup' && 'Create your account'}
               {step === 'forgotPassword' && 'Reset your password with an email OTP'}
+              {step === 'verifyEmail' && 'Confirm your email address'}
             </p>
           </div>
 
@@ -518,6 +593,70 @@ export default function UnifiedAuthPage() {
                 className="w-full bg-white/10 hover:bg-white/20 border border-white/20 text-blue-100 font-semibold py-3 rounded-lg transition"
               >
                 Use Password Instead
+              </button>
+            </form>
+          )}
+
+          {/* Email verification after signup, or when an unverified user tries to log in */}
+          {step === 'verifyEmail' && (
+            <form onSubmit={handleVerifyEmail} className="space-y-5">
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 mb-4">
+                <p className="text-sm text-blue-100">
+                  We sent a verification email to <span className="font-semibold">{email}</span>.
+                </p>
+                <p className="mt-2 text-xs text-blue-200">
+                  Click the link in that email, or enter the 6-digit code below. Both expire in 30
+                  minutes.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-200 mb-2">
+                  Verification code
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={verifyCode}
+                  onChange={(e) => setVerifyCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                  maxLength={6}
+                  required
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition text-center text-2xl tracking-widest"
+                  placeholder="000000"
+                  autoFocus
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading || verifyCode.length !== 6}
+                className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold py-3 rounded-lg hover:from-blue-600 hover:to-indigo-700 transition disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Verifying...
+                  </>
+                ) : (
+                  'Verify email'
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => void handleResendVerification()}
+                disabled={loading || resendCooldown > 0}
+                className="w-full bg-white/10 hover:bg-white/20 border border-white/20 text-blue-100 font-semibold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend email'}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleBack}
+                className="w-full text-blue-200 hover:text-white text-sm transition"
+              >
+                Use a different email
               </button>
             </form>
           )}

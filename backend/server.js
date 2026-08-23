@@ -4,6 +4,7 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env.local') });
 
 const { initializeDatabase } = require('./db/init');
+const { assertEmailConfigured, getProvider } = require('./services/email');
 const authRoutes = require('./routes/auth');
 const uploadRoutes = require('./routes/upload');
 const transactionRoutes = require('./routes/transactions');
@@ -34,6 +35,14 @@ app.use('/api/ai', aiRoutes);
 
 async function startServer() {
   await initializeDatabase();
+
+  // Fail at boot rather than at the moment a user tries to sign up.
+  assertEmailConfigured();
+  const emailProvider = getProvider();
+  console.log(`📧 Email provider: ${emailProvider.label}`);
+  if (emailProvider.id === 'console') {
+    console.log('   Verification links and OTP codes will be printed below, not emailed.');
+  }
   await uploadRoutes.resumeProcessingStatements?.();
   app.listen(PORT, () => {
     console.log(`Backend running on http://localhost:${PORT}`);

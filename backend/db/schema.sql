@@ -7,11 +7,45 @@ CREATE TABLE IF NOT EXISTS users (
   name VARCHAR(255),
   phone VARCHAR(50),
   token_version INTEGER NOT NULL DEFAULT 0,
+  email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+  email_verified_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
+
+-- Email verification.
+--
+-- The ADD COLUMN default is TRUE so that accounts which already existed before
+-- verification was introduced are grandfathered in rather than being locked out
+-- of their own data. The default is then flipped to FALSE so every new signup
+-- must verify. On a fresh database the CREATE TABLE above already sets FALSE and
+-- both statements below are no-ops, so this is safe to re-run.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE users ALTER COLUMN email_verified SET DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMP;
+
+UPDATE users SET email_verified_at = created_at
+  WHERE email_verified IS TRUE AND email_verified_at IS NULL;
+
+-- Magic-link tokens for email verification.
+--
+-- Only a SHA-256 hash of the token is stored: a leaked database dump must not
+-- hand out working verification links. The raw token exists only in the email.
+CREATE TABLE IF NOT EXISTS email_verification_tokens (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash CHAR(64) NOT NULL UNIQUE,
+  expires_at TIMESTAMP NOT NULL,
+  used_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_email_verification_tokens_user
+  ON email_verification_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_email_verification_tokens_expires
+  ON email_verification_tokens(expires_at);
 
 -- Create categories table
 CREATE TABLE IF NOT EXISTS categories (

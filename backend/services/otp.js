@@ -1,10 +1,21 @@
 const pool = require('../config/db');
-const nodemailer = require('nodemailer');
 const { randomInt } = require('crypto');
+const { sendMail } = require('./email');
+const { otpEmail } = require('./emailTemplates');
+
+const OTP_TTL_MINUTES = 5;
+// Signup verification is not something the user is sitting and waiting for, so
+// it gets a longer window than a login code.
+const EMAIL_VERIFY_TTL_MINUTES = 30;
+
+function ttlForPurpose(purpose) {
+  return purpose === 'email_verify' ? EMAIL_VERIFY_TTL_MINUTES : OTP_TTL_MINUTES;
+}
 
 const OTP_PURPOSES = {
   LOGIN: 'login',
   PASSWORD_RESET: 'password_reset',
+  EMAIL_VERIFY: 'email_verify',
 };
 
 // Generate a random 6-digit OTP
@@ -12,86 +23,16 @@ function generateOTP() {
   return randomInt(100000, 1000000).toString();
 }
 
-// Create Nodemailer transporter using SendGrid SMTP
-const transporter = nodemailer.createTransport({
-  host: 'smtp.sendgrid.net',
-  port: 587,
-  secure: false,
-  auth: {
-    user: 'apikey',
-    pass: process.env.SENDGRID_API_KEY,
-  },
-});
-
 // Send OTP via email
-async function sendOTPEmail(email, otp, name = 'User') {
-  if (!process.env.SENDGRID_API_KEY) {
-    throw new Error('Email service is not configured');
-  }
-
-  try {
-    const mailOptions = {
-      from: process.env.SENDGRID_FROM_EMAIL || 'admin@finlytix.in',
-      to: email,
-      subject: 'Your Finance Analytics OTP Code',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 8px 8px 0 0; color: white;">
-            <h1 style="margin: 0; font-size: 24px;">Finance Analytics</h1>
-            <p style="margin: 5px 0 0 0; font-size: 14px;">Secure Login</p>
-          </div>
-
-          <div style="padding: 30px; background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 0 0 8px 8px;">
-            <p style="color: #333; font-size: 16px; margin-bottom: 20px;">Hi ${name},</p>
-
-            <p style="color: #666; font-size: 14px; margin-bottom: 20px;">
-              Your one-time password (OTP) for Finance Analytics is:
-            </p>
-
-            <div style="background: white; border: 2px solid #667eea; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0;">
-              <p style="margin: 0; font-size: 14px; color: #666; margin-bottom: 10px;">Enter this code to verify your identity:</p>
-              <p style="margin: 0; font-size: 36px; font-weight: bold; color: #667eea; letter-spacing: 5px;">${otp}</p>
-            </div>
-
-            <p style="color: #999; font-size: 12px; margin: 20px 0;">
-              This code will expire in 5 minutes. Do not share it with anyone.
-            </p>
-
-            <p style="color: #999; font-size: 12px; margin: 15px 0;">
-              If you didn't request this code, please ignore this email.
-            </p>
-
-            <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
-
-            <p style="color: #999; font-size: 12px; text-align: center; margin: 10px 0;">
-              © 2026 Finance Analytics. All rights reserved.
-            </p>
-          </div>
-        </div>
-      `,
-    };
-
-    const result = await transporter.sendMail(mailOptions);
-    console.log(`✅ OTP sent to ${email}:`, result.messageId);
-    return true;
-  } catch (error) {
-    console.error('❌ Failed to send OTP email:', error);
-
-    if (
-      error.responseCode === 550 &&
-      typeof error.response === 'string' &&
-      error.response.includes('verified Sender Identity')
-    ) {
-      throw new Error('SendGrid sender identity is not verified');
-    }
-
-    throw new Error('Failed to send OTP email');
-  }
+async function sendOTPEmail(email, otp, name = 'User', expiryMinutes = OTP_TTL_MINUTES) {
+  const { subject, html } = otpEmail({ name, otp, expiryMinutes });
+  await sendMail({ to: email, subject, html });
+  return true;
 }
 
 // Store OTP in database
 async function storeOTP(email, otp, purpose = OTP_PURPOSES.LOGIN) {
-  const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
+  const expiresAt = new Date(Date.now() + ttlForPurpose(purpose) * 60 * 1000);
   const client = await pool.connect();
 
   try {
@@ -128,7 +69,7 @@ async function sendOTP(email, name = 'User', purpose = OTP_PURPOSES.LOGIN) {
     await storeOTP(email, otp, purpose);
 
     // Send OTP via email
-    await sendOTPEmail(email, otp, name);
+    await sendOTPEmail(email, otp, name, ttlForPurpose(purpose));
 
     return { success: true, message: 'OTP sent successfully' };
   } catch (error) {
@@ -191,4 +132,7 @@ module.exports = {
   storeOTP,
   cleanupExpiredOTPs,
   OTP_PURPOSES,
+  OTP_TTL_MINUTES,
+  EMAIL_VERIFY_TTL_MINUTES,
+  ttlForPurpose,
 };
