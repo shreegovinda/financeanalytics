@@ -1,79 +1,74 @@
 const assert = require('node:assert/strict');
 const Module = require('node:module');
+const path = require('node:path');
 const test = require('node:test');
 
-function mockModule(modulePath, exports) {
-  const resolvedPath = require.resolve(modulePath);
-  const originalModule = require.cache[resolvedPath];
-
-  require.cache[resolvedPath] = {
-    id: resolvedPath,
-    filename: resolvedPath,
-    loaded: true,
-    exports,
-  };
-
-  return () => {
-    if (originalModule) {
-      require.cache[resolvedPath] = originalModule;
-    } else {
-      delete require.cache[resolvedPath];
-    }
-  };
-}
-
-function loadPaymentService(pool) {
-  const paymentPath = require.resolve('../services/payment');
-  const originalPayment = require.cache[paymentPath];
-  delete require.cache[paymentPath];
-
-  const restoreDb = mockModule('../config/db', pool);
+function loadPaymentWithPool(pool) {
+  const dbPath = path.resolve(__dirname, '../config/db.js');
+  const paymentPath = path.resolve(__dirname, '../services/payment.js');
   const originalLoad = Module._load;
-  Module._load = function loadWithRazorpayStub(request, parent, isMain) {
+
+  delete require.cache[paymentPath];
+  require.cache[dbPath] = {
+    id: dbPath,
+    filename: dbPath,
+    loaded: true,
+    exports: pool,
+  };
+
+  Module._load = function loadMockedModule(request, parent, isMain) {
     if (request === 'razorpay') {
-      return class RazorpayStub {};
+      return class MockRazorpay {
+        constructor() {
+          this.payments = {
+            fetch: async () => {
+              throw new Error('Razorpay should not be called for an invalid signature');
+            },
+          };
+        }
+      };
     }
     return originalLoad.call(this, request, parent, isMain);
   };
-  const service = require('../services/payment');
 
-  return {
-    service,
-    cleanup() {
-      delete require.cache[paymentPath];
-      if (originalPayment) {
-        require.cache[paymentPath] = originalPayment;
-      }
-      Module._load = originalLoad;
-      restoreDb();
-    },
-  };
+  try {
+    return require(paymentPath);
+  } finally {
+    Module._load = originalLoad;
+  }
 }
 
-test('verifyPayment only marks the authenticated pending order failed after verification errors', async () => {
-  const originalSecret = process.env.RAZORPAY_KEY_SECRET;
+test('verifyPayment failure only marks the authenticated user pending order failed', async () => {
+  const previousSecret = process.env.RAZORPAY_KEY_SECRET;
   process.env.RAZORPAY_KEY_SECRET = 'test_secret';
 
   const queries = [];
   const pool = {
-    async query(sql, params) {
+    query: async (sql, params) => {
       queries.push({ sql, params });
+      if (sql.startsWith('SELECT amount, feature, status')) {
+        return {
+          rows: [{ amount: 499, feature: 'advanced_analytics', status: 'pending' }],
+        };
+      }
       return { rows: [] };
     },
   };
-  const { service, cleanup } = loadPaymentService(pool);
+  const { verifyPayment } = loadPaymentWithPool(pool);
 
   try {
     await assert.rejects(
-      () => service.verifyPayment('order_123', 'pay_123', 'invalid_signature', 'user_123'),
+      () => verifyPayment('order_123', 'pay_123', 'invalid_signature', 'user_123'),
       /Invalid payment signature/,
     );
 
-    assert.equal(queries.length, 1);
-    assert.match(queries[0].sql, /razorpay_order_id = \$3/);
-    assert.match(queries[0].sql, /user_id = \$4/);
-    assert.match(queries[0].sql, /status = \$5/);
-    assert.deepEqual(queries[0].params, [
+    const failureUpdate = queries.find((query) =>
+      query.sql.startsWith('UPDATE payments SET status = $1'),
+    );
+    assert.ok(failureUpdate);
+    assert.match(failureUpdate.sql, /user_id = \$4/);
+    assert.match(failureUpdate.sql, /status = \$5/);
+    assert.deepEqual(failureUpdate.params, [
       'failed',
       'Invalid payment signature',
       'order_123',
@@ -81,11 +76,10 @@ test('verifyPayment only marks the authenticated pending order failed after veri
       'pending',
     ]);
   } finally {
-    cleanup();
-    if (originalSecret === undefined) {
+    if (previousSecret === undefined) {
       delete process.env.RAZORPAY_KEY_SECRET;
     } else {
-      process.env.RAZORPAY_KEY_SECRET = originalSecret;
+      process.env.RAZORPAY_KEY_SECRET = previousSecret;
     }
   }
 });

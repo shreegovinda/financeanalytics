@@ -158,26 +158,52 @@ async function processStatementInBackground({
 
     try {
       await client.query('BEGIN');
+      const statementLock = await client.query(
+        'SELECT id FROM statements WHERE id = $1 AND user_id = $2 FOR UPDATE',
+        [statementId, userId],
+      );
+
+      if (statementLock.rows.length === 0) {
+        throw new Error('Statement not found');
+      }
+
       await client.query(
         'UPDATE statements SET bank_name = $1, processing_stage = $2, processing_progress = $3 WHERE id = $4 AND user_id = $5',
         [bankName, 'importing_transactions', 65, statementId, userId],
       );
 
-      if (transactions.length > 0) {
+      const existingTransactions = await client.query(
+        `SELECT id
+         FROM transactions
+         WHERE statement_id = $1 AND user_id = $2
+         ORDER BY source_index ASC NULLS LAST, created_at ASC, id ASC`,
+        [statementId, userId],
+      );
+
+      if (existingTransactions.rows.length > 0) {
+        if (existingTransactions.rows.length !== transactions.length) {
+          throw new Error(
+            `Statement already has ${existingTransactions.rows.length} imported transactions, expected ${transactions.length}`,
+          );
+        }
+        txnIds.push(...existingTransactions.rows.map((row) => row.id));
+      } else if (transactions.length > 0) {
         const values = [];
         const placeholders = transactions.map((txn, index) => {
-          const offset = index * 6;
-          values.push(userId, statementId, txn.date, txn.amount, txn.description, txn.type);
-          return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
+          const offset = index * 7;
+          values.push(userId, statementId, txn.date, txn.amount, txn.description, txn.type, index);
+          return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7})`;
         });
 
         const result = await client.query(
-          `INSERT INTO transactions (user_id, statement_id, date, amount, description, type)
+          `INSERT INTO transactions (user_id, statement_id, date, amount, description, type, source_index)
            VALUES ${placeholders.join(', ')}
-           RETURNING id`,
+           RETURNING id, source_index`,
           values,
         );
-        txnIds.push(...result.rows.map((row) => row.id));
+        txnIds.push(
+          ...result.rows.sort((a, b) => a.source_index - b.source_index).map((row) => row.id),
+        );
       }
 
       await client.query('COMMIT');
@@ -198,25 +224,36 @@ async function processStatementInBackground({
 
     await updateStatementProgress(statementId, 'categorizing_transactions', 80);
 
+    let categorizationWarning = null;
     if (txnIds.length > 0) {
-      const results = await categorizeBatch(transactions, aiProvider);
-      const updateClient = await pool.connect();
       try {
-        for (const result of results) {
-          if (result.transactionIndex < txnIds.length) {
-            await updateClient.query(
-              'UPDATE transactions SET ai_suggested_category = $1 WHERE id = $2',
-              [result.category, txnIds[result.transactionIndex]],
-            );
+        const results = await categorizeBatch(transactions, aiProvider);
+        const updateClient = await pool.connect();
+        try {
+          for (const result of results) {
+            if (
+              Number.isInteger(result.transactionIndex) &&
+              result.transactionIndex >= 0 &&
+              result.transactionIndex < txnIds.length
+            ) {
+              await updateClient.query(
+                'UPDATE transactions SET ai_suggested_category = $1 WHERE id = $2',
+                [result.category, txnIds[result.transactionIndex]],
+              );
+            }
           }
+        } finally {
+          updateClient.release();
         }
-      } finally {
-        updateClient.release();
+      } catch (categorizationErr) {
+        categorizationWarning = `Transactions were imported, but AI categorization failed: ${categorizationErr.message}`;
+        console.error(categorizationWarning);
       }
     }
 
     await updateStatementProgress(statementId, 'completed', 100, {
       status: 'completed',
+      error: categorizationWarning,
       processedAt: new Date(),
       clearUploadPath: true,
     });
