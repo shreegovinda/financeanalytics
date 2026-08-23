@@ -26,8 +26,14 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
 
+      # `npm install`, not `npm ci`: the committed lockfile records only the
+      # darwin-arm64 build of lightningcss, because it was generated on macOS
+      # and npm omits other platforms' optional binaries. `npm ci` installs the
+      # lockfile verbatim and the Linux runner then has no lightningcss binary,
+      # which breaks the CSS pipeline during `next build`. Switch back to
+      # `npm ci` once the lockfile is regenerated on Linux.
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Lint
         run: npm run lint
