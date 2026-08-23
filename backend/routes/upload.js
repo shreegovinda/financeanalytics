@@ -76,6 +76,66 @@ async function markStatementFailed(statementId, message) {
   });
 }
 
+/**
+ * Async uploads return 202 immediately, so a second submit can start while the
+ * first job is still importing. Serialize per-user processing to prevent
+ * duplicate ledger rows from concurrent imports of the same (or another) file.
+ */
+const UPLOAD_LOCK_NAMESPACE = 87421001;
+
+async function getInFlightStatement(userId, queryable = pool) {
+  const result = await queryable.query(
+    `SELECT id, file_name
+     FROM statements
+     WHERE user_id = $1 AND status = 'processing'
+     ORDER BY uploaded_at DESC
+     LIMIT 1`,
+    [userId],
+  );
+  return result.rows[0] || null;
+}
+
+/**
+ * Claim a processing statement slot for this user under a transaction-scoped
+ * advisory lock so two concurrent 202 uploads cannot both insert.
+ */
+async function claimProcessingStatement({ userId, fileName, filePath, aiProvider }) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock($1, hashtext($2::text))', [
+      UPLOAD_LOCK_NAMESPACE,
+      String(userId),
+    ]);
+
+    const inFlight = await getInFlightStatement(userId, client);
+    if (inFlight) {
+      await client.query('ROLLBACK');
+      return { conflict: inFlight };
+    }
+
+    const statementResult = await client.query(
+      `INSERT INTO statements
+       (user_id, bank_name, file_name, status, processing_stage, processing_progress, upload_path, ai_provider)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING id, bank_name, file_name, uploaded_at, status, processing_stage, processing_progress`,
+      [userId, 'DETECTING BANK', fileName, 'processing', 'uploaded', 5, filePath, aiProvider],
+    );
+
+    await client.query('COMMIT');
+    return { statement: statementResult.rows[0] };
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackErr) {
+      console.error('Rollback error while claiming statement slot:', rollbackErr);
+    }
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 async function processStatementInBackground({
   statementId,
   filePath,
@@ -253,24 +313,24 @@ router.post('/', auth, upload.single('file'), async (req, res) => {
   const aiProvider = getProviderFromRequest(req);
 
   try {
-    const statementResult = await pool.query(
-      `INSERT INTO statements
-       (user_id, bank_name, file_name, status, processing_stage, processing_progress, upload_path, ai_provider)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING id, bank_name, file_name, uploaded_at, status, processing_stage, processing_progress`,
-      [
-        userId,
-        'DETECTING BANK',
-        req.file.originalname,
-        'processing',
-        'uploaded',
-        5,
-        filePath,
-        aiProvider,
-      ],
-    );
+    const claim = await claimProcessingStatement({
+      userId,
+      fileName: req.file.originalname,
+      filePath,
+      aiProvider,
+    });
 
-    const statement = statementResult.rows[0];
+    if (claim.conflict) {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+      return res.status(409).json({
+        error: `A statement is already being processed (${claim.conflict.file_name}). Please wait for it to finish before uploading another.`,
+        inFlightStatementId: claim.conflict.id,
+      });
+    }
+
+    const statement = claim.statement;
 
     setImmediate(() => {
       void processStatementInBackground({
@@ -345,5 +405,7 @@ router.get('/:statementId', auth, async (req, res) => {
 });
 
 router.resumeProcessingStatements = resumeProcessingStatements;
+router.getInFlightStatement = getInFlightStatement;
+router.claimProcessingStatement = claimProcessingStatement;
 
 module.exports = router;

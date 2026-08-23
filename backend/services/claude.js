@@ -91,10 +91,17 @@ async function categorizeBatch(transactions, providerId) {
     const batch = transactions.slice(i, i + BATCH_SIZE);
     const batchResults = await categorizeWithRetry(batch, provider);
     results.push(
-      ...batchResults.map((result) => ({
-        ...result,
-        transactionIndex: result.transactionIndex + i,
-      })),
+      ...batchResults
+        .filter(
+          (result) =>
+            Number.isInteger(result.transactionIndex) &&
+            result.transactionIndex >= 0 &&
+            result.transactionIndex < batch.length,
+        )
+        .map((result) => ({
+          ...result,
+          transactionIndex: i + result.transactionIndex,
+        })),
     );
   }
 

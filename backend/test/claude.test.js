@@ -1,51 +1,115 @@
 const assert = require('node:assert/strict');
-const path = require('node:path');
 const test = require('node:test');
 
-function loadClaudeWithAiMock(generateJsonArray) {
-  const aiPath = path.resolve(__dirname, '../services/ai.js');
-  const claudePath = path.resolve(__dirname, '../services/claude.js');
+function mockModule(modulePath, exports) {
+  const resolvedPath = require.resolve(modulePath);
+  const originalModule = require.cache[resolvedPath];
 
-  delete require.cache[claudePath];
-  require.cache[aiPath] = {
-    id: aiPath,
-    filename: aiPath,
+  require.cache[resolvedPath] = {
+    id: resolvedPath,
+    filename: resolvedPath,
     loaded: true,
-    exports: {
-      generateJsonArray,
-      getProviderConfig: () => ({ label: 'Mock AI' }),
-      isProviderConfigured: () => true,
-      normalizeProviderId: (providerId) => providerId || 'mock',
-    },
+    exports,
   };
 
-  return require(claudePath);
+  return () => {
+    if (originalModule) {
+      require.cache[resolvedPath] = originalModule;
+    } else {
+      delete require.cache[resolvedPath];
+    }
+  };
 }
 
-test('categorizeBatch offsets batch-local AI indexes to global transaction indexes', async () => {
-  let callCount = 0;
-  const { categorizeBatch } = loadClaudeWithAiMock(async () => {
-    callCount += 1;
-    const batchLength = callCount === 1 ? 50 : 1;
-    return Array.from({ length: batchLength }, (_, index) => ({
-      index: index + 1,
-      category: callCount === 1 ? 'Food' : 'Transport',
-      confidence: 0.9,
-    }));
+function loadClaudeService(generateJsonArray) {
+  const claudePath = require.resolve('../services/claude');
+  const originalClaude = require.cache[claudePath];
+  delete require.cache[claudePath];
+
+  const restoreAi = mockModule('../services/ai', {
+    generateJsonArray,
+    getProviderConfig: () => ({ label: 'Test AI' }),
+    isProviderConfigured: () => true,
+    normalizeProviderId: (providerId) => providerId || 'test',
   });
 
-  const transactions = Array.from({ length: 51 }, (_, index) => ({
-    date: '2026-07-01',
-    description: `Transaction ${index + 1}`,
-    amount: 100 + index,
-    type: 'debit',
-  }));
+  const service = require('../services/claude');
 
-  const results = await categorizeBatch(transactions, 'mock');
+  return {
+    service,
+    cleanup() {
+      delete require.cache[claudePath];
+      if (originalClaude) {
+        require.cache[claudePath] = originalClaude;
+      }
+      restoreAi();
+    },
+  };
+}
 
-  assert.equal(results.length, 51);
-  assert.equal(results[0].transactionIndex, 0);
-  assert.equal(results[49].transactionIndex, 49);
-  assert.equal(results[50].transactionIndex, 50);
-  assert.equal(results[50].category, 'Transport');
+test('categorizeBatch preserves global transaction indexes across batches', async () => {
+  const batches = [
+    [
+      { index: 1, category: 'Food', confidence: 0.9 },
+      { index: 50, category: 'Transport', confidence: 0.8 },
+    ],
+    [
+      { index: 1, category: 'Shopping', confidence: 0.7 },
+      { index: 50, category: 'Utilities', confidence: 0.6 },
+    ],
+    [
+      { index: 1, category: 'Investment', confidence: 0.5 },
+      { index: 20, category: 'Other', confidence: 0.4 },
+    ],
+  ];
+  let callIndex = 0;
+  const { service, cleanup } = loadClaudeService(async () => batches[callIndex++]);
+
+  try {
+    const transactions = Array.from({ length: 120 }, (_, index) => ({
+      date: '2026-07-13',
+      description: `Transaction ${index + 1}`,
+      amount: index + 1,
+      type: 'debit',
+    }));
+
+    const results = await service.categorizeBatch(transactions, 'test');
+
+    assert.equal(callIndex, 3);
+    assert.deepEqual(
+      results.map((result) => result.transactionIndex),
+      [0, 49, 50, 99, 100, 119],
+    );
+    assert.deepEqual(
+      results.map((result) => result.category),
+      ['Food', 'Transport', 'Shopping', 'Utilities', 'Investment', 'Other'],
+    );
+  } finally {
+    cleanup();
+  }
+});
+
+test('categorizeBatch ignores invalid model indexes', async () => {
+  const { service, cleanup } = loadClaudeService(async () => [
+    { index: 0, category: 'Food', confidence: 0.9 },
+    { index: 3, category: 'Shopping', confidence: 0.8 },
+    { index: 1, category: 'Food', confidence: 0.7 },
+    { index: 2, category: 'Transport', confidence: 0.6 },
+  ]);
+
+  try {
+    const transactions = [
+      { date: '2026-07-13', description: 'A', amount: 1, type: 'debit' },
+      { date: '2026-07-13', description: 'B', amount: 2, type: 'debit' },
+    ];
+
+    const results = await service.categorizeBatch(transactions, 'test');
+
+    assert.deepEqual(
+      results.map((result) => result.transactionIndex),
+      [0, 1],
+    );
+  } finally {
+    cleanup();
+  }
 });
