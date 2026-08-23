@@ -121,11 +121,69 @@ CREATE TABLE IF NOT EXISTS transactions (
 );
 
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS source_index INTEGER;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS has_bill BOOLEAN NOT NULL DEFAULT FALSE;
 
 ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_category_id_fkey;
 ALTER TABLE transactions
   ADD CONSTRAINT transactions_category_id_fkey
   FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL;
+
+-- Staging for statement imports.
+--
+-- Extraction writes here, not to transactions, so nothing reaches a user's
+-- ledger until they have seen it and confirmed. The statements row exists with
+-- status 'pending_review' and claims its month, so a second upload of the same
+-- month is blocked while a draft is outstanding.
+--
+-- The payload is JSONB rather than a draft_transactions table because the
+-- preview is approve-or-reject as a whole: there are no per-row updates for a
+-- table to serve. Totals are denormalised so the preview header does not have to
+-- scan the payload.
+CREATE TABLE IF NOT EXISTS statement_drafts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  statement_id UUID NOT NULL UNIQUE REFERENCES statements(id) ON DELETE CASCADE,
+  payload JSONB NOT NULL,
+  transaction_count INTEGER NOT NULL DEFAULT 0,
+  total_debit DECIMAL(12, 2) NOT NULL DEFAULT 0,
+  total_credit DECIMAL(12, 2) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_statement_drafts_statement ON statement_drafts(statement_id);
+
+-- Merchant bills attached to a single transaction (Blinkit, Swiggy, Amazon...).
+-- Same pending_review -> confirmed lifecycle as a statement import.
+CREATE TABLE IF NOT EXISTS transaction_bills (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  transaction_id UUID NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  file_name VARCHAR(255) NOT NULL,
+  merchant_name VARCHAR(255),
+  bill_total DECIMAL(12, 2),
+  bill_date DATE,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending_review',
+  payload JSONB,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  confirmed_at TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_transaction_bills_transaction ON transaction_bills(transaction_id);
+CREATE INDEX IF NOT EXISTS idx_transaction_bills_user_status ON transaction_bills(user_id, status);
+
+-- Line items extracted from a bill.
+CREATE TABLE IF NOT EXISTS transaction_line_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  transaction_bill_id UUID NOT NULL REFERENCES transaction_bills(id) ON DELETE CASCADE,
+  transaction_id UUID NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+  description VARCHAR(500) NOT NULL,
+  quantity DECIMAL(12, 3),
+  unit_price DECIMAL(12, 2),
+  amount DECIMAL(12, 2) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_transaction_line_items_bill ON transaction_line_items(transaction_bill_id);
+CREATE INDEX IF NOT EXISTS idx_transaction_line_items_transaction ON transaction_line_items(transaction_id);
 
 -- Create OTP codes table
 CREATE TABLE IF NOT EXISTS otp_codes (

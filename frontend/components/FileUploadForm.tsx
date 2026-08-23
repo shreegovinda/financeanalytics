@@ -6,18 +6,24 @@ import { getAiProviderHeaders } from '@/lib/aiProvider';
 
 interface UploadResponse {
   success: boolean;
+  requiresReview?: boolean;
   statementId: string;
   transactionCount: number;
   bankName?: string;
   message: string;
 }
 
-export default function FileUploadForm({ onUploadSuccess }: { onUploadSuccess?: () => void }) {
+export default function FileUploadForm({
+  onUploadSuccess,
+}: {
+  onUploadSuccess?: (statementId?: string) => void;
+}) {
   const [file, setFile] = useState<File | null>(null);
   const [bank, setBank] = useState('');
   const [statementMonth, setStatementMonth] = useState('');
   const [fileFormat, setFileFormat] = useState('');
   const [loading, setLoading] = useState(false);
+  const [pendingStatementId, setPendingStatementId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [dragActive, setDragActive] = useState(false);
@@ -130,7 +136,13 @@ export default function FileUploadForm({ onUploadSuccess }: { onUploadSuccess?: 
       }
 
       if (!response.ok) {
-        const errBody = (await response.json().catch(() => ({}))) as { error?: string };
+        const errBody = (await response.json().catch(() => ({}))) as {
+          error?: string;
+          pendingStatementId?: string;
+        };
+        if (errBody.pendingStatementId) {
+          setPendingStatementId(errBody.pendingStatementId);
+        }
         throw new Error(errBody.error || `Upload failed (${response.status})`);
       }
 
@@ -140,7 +152,7 @@ export default function FileUploadForm({ onUploadSuccess }: { onUploadSuccess?: 
       setFile(null);
 
       if (onUploadSuccess) {
-        onUploadSuccess();
+        onUploadSuccess(data.requiresReview ? data.statementId : undefined);
       }
     } catch (err) {
       setError(getErrorMessage(err));
@@ -153,8 +165,11 @@ export default function FileUploadForm({ onUploadSuccess }: { onUploadSuccess?: 
     <div className="w-full max-w-2xl mx-auto p-6">
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-          Select the bank, month, and file type before uploading. AI will verify the statement
-          matches your selections before importing transactions.
+          Select the bank, month, and file type before uploading. AI reads the statement and shows
+          you everything it found — nothing is imported until you confirm.
+          <span className="mt-1 block text-xs text-blue-700">
+            XLSX generally extracts more accurately than PDF, if your bank offers it.
+          </span>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-3">
@@ -265,6 +280,14 @@ export default function FileUploadForm({ onUploadSuccess }: { onUploadSuccess?: 
               </div>
               <div className="ml-3">
                 <p className="text-sm font-medium text-red-800">{error}</p>
+                {pendingStatementId && (
+                  <a
+                    href={`/statements/${pendingStatementId}/preview`}
+                    className="mt-2 inline-block text-sm font-semibold text-red-900 underline hover:text-red-700"
+                  >
+                    Review the pending statement →
+                  </a>
+                )}
               </div>
             </div>
           </div>
