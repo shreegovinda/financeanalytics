@@ -6,14 +6,14 @@ let anthropicClient = null;
 const PROVIDERS = {
   anthropic: {
     id: 'anthropic',
-    label: 'Claude 3.5 Sonnet',
+    label: 'Claude',
     envKey: 'ANTHROPIC_API_KEY',
     modelEnvKey: 'ANTHROPIC_MODEL',
-    defaultModel: 'claude-3-5-sonnet-20241022',
+    defaultModel: 'claude-opus-5',
   },
   gemini: {
     id: 'gemini',
-    label: 'Gemini 2.5 Flash',
+    label: 'Gemini',
     envKey: 'GEMINI_API_KEY',
     modelEnvKey: 'GEMINI_MODEL',
     defaultModel: 'gemini-2.5-flash',
@@ -36,6 +36,25 @@ function getProviderModel(providerId) {
   return process.env[provider.modelEnvKey] || provider.defaultModel;
 }
 
+/**
+ * Names the exact variable to set and where. "Claude is not configured" sends
+ * people hunting; "set ANTHROPIC_API_KEY in backend/.env.local" does not.
+ */
+function notConfiguredMessage(providerId) {
+  const provider = getProviderConfig(providerId);
+  const alternatives = Object.values(PROVIDERS)
+    .filter((candidate) => candidate.id !== provider.id)
+    .map((candidate) => candidate.envKey);
+
+  return (
+    `${provider.label} is not configured. ` +
+    `Set ${provider.envKey} in backend/.env.local and restart the server` +
+    (alternatives.length
+      ? `, or set ${alternatives.join(' / ')} and AI_PROVIDER to use another provider.`
+      : '.')
+  );
+}
+
 function isProviderConfigured(providerId) {
   const provider = getProviderConfig(providerId);
   const value = process.env[provider.envKey];
@@ -44,11 +63,20 @@ function isProviderConfigured(providerId) {
 
 function getDefaultProviderId() {
   const envProvider = process.env.AI_PROVIDER;
-  if (envProvider && PROVIDERS[envProvider] && isProviderConfigured(envProvider)) {
-    return envProvider;
+  const explicit = envProvider && PROVIDERS[envProvider] ? envProvider : null;
+
+  if (explicit && isProviderConfigured(explicit)) {
+    return explicit;
   }
 
-  return Object.keys(PROVIDERS).find(isProviderConfigured) || 'anthropic';
+  const configured = Object.keys(PROVIDERS).find(isProviderConfigured);
+  if (configured) {
+    return configured;
+  }
+
+  // Nothing is configured. Report the provider the user actually asked for so
+  // the resulting error points at the key they need to set.
+  return explicit || 'anthropic';
 }
 
 function normalizeProviderId(providerId) {
@@ -78,6 +106,7 @@ function getProvidersStatus() {
       label: provider.label,
       model: getProviderModel(provider.id),
       configured: isProviderConfigured(provider.id),
+      envKey: provider.envKey,
     })),
   };
 }
@@ -208,7 +237,7 @@ async function generateJsonArray(prompt, { providerId, maxTokens }) {
   const provider = normalizeProviderId(providerId);
 
   if (!isProviderConfigured(provider)) {
-    throw new Error(`${getProviderConfig(provider).envKey} is not configured`);
+    throw new Error(notConfiguredMessage(provider));
   }
 
   const responseText =
@@ -223,7 +252,7 @@ async function generateJsonObject(prompt, { providerId, maxTokens, responseSchem
   const provider = normalizeProviderId(providerId);
 
   if (!isProviderConfigured(provider)) {
-    throw new Error(`${getProviderConfig(provider).envKey} is not configured`);
+    throw new Error(notConfiguredMessage(provider));
   }
 
   const responseText =
@@ -236,6 +265,7 @@ async function generateJsonObject(prompt, { providerId, maxTokens, responseSchem
 
 module.exports = {
   getProviderConfig,
+  notConfiguredMessage,
   getProviderFromRequest,
   getProvidersStatus,
   generateJsonArray,

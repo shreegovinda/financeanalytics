@@ -4,6 +4,7 @@ const xlsx = require('xlsx');
 const {
   generateJsonObject,
   getProviderConfig,
+  notConfiguredMessage,
   isProviderConfigured,
   normalizeProviderId,
 } = require('../ai');
@@ -103,7 +104,7 @@ Respond ONLY with one valid JSON object in this exact shape:
 Extract every trustworthy posted transaction.`;
 
   if (!isProviderConfigured(provider)) {
-    throw new Error(`${getProviderConfig(provider).label} is not configured`);
+    throw new Error(notConfiguredMessage(provider));
   }
 
   try {
