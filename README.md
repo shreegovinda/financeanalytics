@@ -11,7 +11,7 @@ A personal finance statement analyzer that uses AI to automatically categorize b
   - Pie charts showing spending breakdown by category
   - Bar charts showing monthly income vs expenses
   - Monthly-wise analysis and trends
-- 👤 User authentication with email/password and Google OAuth
+- 👤 User authentication with email/password, verified email, and OTP sign-in
 - 📱 Responsive design for desktop and mobile
 
 ## Tech Stack
@@ -140,7 +140,10 @@ All routes except those marked *public* require an
 `Authorization: Bearer <token>` header.
 
 ### Authentication
-- `POST /api/auth/register` - Register new user *(public)*
+- `POST /api/auth/register` - Register new user; sends a verification email and issues **no** session until the address is confirmed *(public)*
+- `POST /api/auth/verify-email` - Confirm a signup with the emailed 6-digit code *(public)*
+- `POST /api/auth/verify-email/token` - Confirm a signup with the magic-link token *(public)*
+- `POST /api/auth/resend-verification` - Reissue the verification link and code *(public)*
 - `POST /api/auth/login` - Login with email and password *(public)*
 - `POST /api/auth/check-email` - Check whether an email is registered *(public)*
 - `POST /api/auth/send-otp` - Email a login OTP *(public)*
@@ -210,6 +213,19 @@ copy each to `.env.local` and fill in the values.
 
 Note that both `server.js` and `config/db.js` load **`.env.local`**, not `.env`.
 
+### Email
+
+Signup verification, OTP sign-in, and password reset all send mail. `EMAIL_PROVIDER`
+chooses how:
+
+- `console` — writes the message to the server log. No credentials, no network,
+  so every email flow is testable locally out of the box. The server refuses to
+  start on this provider when `NODE_ENV=production`, because verification codes
+  would go to a log instead of a user.
+- `sendgrid` — real delivery. Requires `SENDGRID_API_KEY`.
+
+Unset, it picks `sendgrid` when a key is present and `console` otherwise.
+
 Which features need which keys:
 
 | Variable | Needed for | Without it |
@@ -217,7 +233,8 @@ Which features need which keys:
 | `DB_*` | Everything | Server exits on startup |
 | `JWT_SECRET` | Everything | Login and all authenticated routes fail |
 | `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` | Statement parsing, categorization | Uploads fail during processing |
-| `SENDGRID_API_KEY` | OTP login, password reset | "Email service is not configured" |
+| `EMAIL_PROVIDER` | Selects the mail transport | Auto: `sendgrid` if a key is set, else `console` |
+| `SENDGRID_API_KEY` | Real email delivery | Falls back to the console provider in development |
 | `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` | Pricing page, premium features | Order creation returns an error |
 | `FRONTEND_URL` | CORS | Browser requests are blocked |
 

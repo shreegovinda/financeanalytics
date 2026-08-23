@@ -4,6 +4,11 @@ const pool = require('../config/db');
 const authenticateToken = require('../middleware/auth');
 const { OTP_PURPOSES, sendOTP, verifyOTP } = require('../services/otp');
 const { issueAuthToken } = require('../services/authToken');
+const {
+  issueVerification,
+  verifyWithToken,
+  verifyWithOtp,
+} = require('../services/emailVerification');
 
 const router = express.Router();
 const otpAttempts = new Map();
@@ -51,22 +56,156 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'User already exists' });
     }
 
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters long' });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await pool.query(
-      'INSERT INTO users (email, password_hash, name, phone) VALUES ($1, $2, $3, $4) RETURNING id, email, name, phone, token_version',
+      'INSERT INTO users (email, password_hash, name, phone) VALUES ($1, $2, $3, $4) RETURNING id, email, name, phone, token_version, email_verified',
       [email, hashedPassword, name, phone || null],
     );
 
     const user = result.rows[0];
-    const token = issueAuthToken(user);
 
-    res.json({
-      token,
+    // No session until the address is proven. Returning a token here would make
+    // verification cosmetic.
+    try {
+      await issueVerification({ userId: user.id, email: user.email, name: user.name });
+    } catch (mailErr) {
+      console.error('Failed to send verification email:', mailErr);
+      // The account exists but is unusable without a code, so surface this
+      // rather than reporting a success the user cannot act on.
+      return res.status(502).json({
+        error:
+          'Account created, but the verification email could not be sent. Please request a new one.',
+        requiresVerification: true,
+        email: user.email,
+      });
+    }
+
+    res.status(201).json({
+      requiresVerification: true,
+      email: user.email,
       user: { id: user.id, email: user.email, name: user.name, phone: user.phone },
+      message: 'Account created. Check your email for a verification link or code.',
     });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+/**
+ * Verify a signup with the emailed 6-digit code.
+ */
+router.post('/verify-email', async (req, res) => {
+  const { email, otp } = req.body;
+
+  if (!email || !otp) {
+    return res.status(400).json({ error: 'Email and verification code are required' });
+  }
+
+  try {
+    if (!checkOtpRateLimit(req, email, OTP_PURPOSES.EMAIL_VERIFY)) {
+      return res
+        .status(429)
+        .json({ error: 'Too many verification attempts. Please try again later.' });
+    }
+
+    const result = await verifyWithOtp(email, otp);
+    if (!result.success) {
+      return res.status(401).json({ error: result.message });
+    }
+
+    clearOtpRateLimit(req, email, OTP_PURPOSES.EMAIL_VERIFY);
+
+    const user = result.user;
+    res.json({
+      token: issueAuthToken(user),
+      user: { id: user.id, email: user.email, name: user.name, phone: user.phone },
+      message: 'Email verified successfully',
+    });
+  } catch (err) {
+    console.error('Error verifying email:', err);
+    res.status(500).json({ error: 'Failed to verify email' });
+  }
+});
+
+/**
+ * Verify a signup with the emailed magic link.
+ *
+ * POST rather than GET: the token would otherwise travel in a URL, where it
+ * leaks through Referer headers, browser history, and access logs. The frontend
+ * /verify-email page reads it from the query string and posts it here.
+ */
+router.post('/verify-email/token', async (req, res) => {
+  const { token } = req.body;
+
+  if (!token) {
+    return res.status(400).json({ error: 'Verification token is required' });
+  }
+
+  try {
+    const result = await verifyWithToken(token);
+    if (!result.success) {
+      const status = result.reason === 'already_verified' ? 409 : 401;
+      return res.status(status).json({ error: result.message, reason: result.reason });
+    }
+
+    const user = result.user;
+    res.json({
+      token: issueAuthToken(user),
+      user: { id: user.id, email: user.email, name: user.name, phone: user.phone },
+      message: 'Email verified successfully',
+    });
+  } catch (err) {
+    console.error('Error verifying email token:', err);
+    res.status(500).json({ error: 'Failed to verify email' });
+  }
+});
+
+/**
+ * Reissue a verification link and code.
+ *
+ * Always answers the same way whether or not the address exists, so this cannot
+ * be used to enumerate accounts.
+ */
+router.post('/resend-verification', async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+
+  const genericResponse = {
+    success: true,
+    message: 'If that account exists and is unverified, a new verification email has been sent.',
+  };
+
+  try {
+    if (!checkOtpRateLimit(req, email, OTP_PURPOSES.EMAIL_VERIFY)) {
+      return res
+        .status(429)
+        .json({ error: 'Too many requests. Please wait before requesting another email.' });
+    }
+
+    const found = await pool.query(
+      'SELECT id, email, name, email_verified FROM users WHERE LOWER(email) = LOWER($1)',
+      [email],
+    );
+
+    if (found.rows.length === 0 || found.rows[0].email_verified) {
+      return res.json(genericResponse);
+    }
+
+    const user = found.rows[0];
+    await issueVerification({ userId: user.id, email: user.email, name: user.name });
+
+    res.json(genericResponse);
+  } catch (err) {
+    console.error('Error resending verification email:', err);
+    res.status(500).json({ error: 'Failed to send verification email' });
   }
 });
 
@@ -79,9 +218,16 @@ router.post('/check-email', async (req, res) => {
   }
 
   try {
-    const result = await pool.query('SELECT id, name FROM users WHERE email = $1', [email]);
+    const result = await pool.query(
+      'SELECT id, name, email_verified FROM users WHERE LOWER(email) = LOWER($1)',
+      [email],
+    );
     if (result.rows.length > 0) {
-      return res.json({ exists: true, user: { name: result.rows[0].name } });
+      return res.json({
+        exists: true,
+        verified: result.rows[0].email_verified,
+        user: { name: result.rows[0].name },
+      });
     }
     res.json({ exists: false });
   } catch (err) {
@@ -109,6 +255,16 @@ router.post('/login', async (req, res) => {
 
     if (!validPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Checked only after the password is confirmed, so this cannot be used to
+    // discover which addresses are registered.
+    if (!user.email_verified) {
+      return res.status(403).json({
+        error: 'Please verify your email before signing in.',
+        requiresVerification: true,
+        email: user.email,
+      });
     }
 
     const token = issueAuthToken(user);
@@ -242,9 +398,15 @@ router.post('/verify-otp', async (req, res) => {
       return res.status(401).json({ error: otpResult.message });
     }
 
-    // Get user by email
+    // Receiving a code at this address proves the user controls it, so a
+    // successful login OTP also satisfies signup verification. Without this,
+    // an unverified user who can read their mail would still be locked out.
     const userResult = await pool.query(
-      'SELECT id, email, name, phone, token_version FROM users WHERE email = $1',
+      `UPDATE users
+       SET email_verified = TRUE,
+           email_verified_at = COALESCE(email_verified_at, NOW())
+       WHERE LOWER(email) = LOWER($1)
+       RETURNING id, email, name, phone, token_version`,
       [email],
     );
     if (userResult.rows.length === 0) {
