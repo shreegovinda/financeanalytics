@@ -4,7 +4,7 @@ A personal finance statement analyzer that uses AI to automatically categorize b
 
 ## Features
 
-- 📤 Upload bank statements (PDF/Excel) from Indian banks (ICICI, HDFC, Axis)
+- 📤 Upload bank statements (PDF/Excel) from Indian banks (ICICI, SBI)
 - 🤖 AI-powered transaction categorization using Claude API
 - ✏️ Manual category override for transactions
 - 📊 Beautiful analytics dashboards with:
@@ -118,6 +118,7 @@ financeanalytics/
 │   │   ├── auth/           # Combined login / signup / OTP flow
 │   │   ├── dashboard/      # Summary widgets and charts
 │   │   ├── transactions/   # Transaction table and category editing
+│   │   ├── analytics/      # Charts and date-range analysis
 │   │   ├── statements/     # Upload history and per-statement detail
 │   │   ├── settings/       # Profile and password
 │   │   └── pricing/        # Premium features
@@ -151,9 +152,14 @@ All routes except those marked *public* require an
 - `PUT /api/auth/password` - Change password
 
 ### Statements
-- `POST /api/upload` - Upload a statement; returns 202 and processes in background
+- `POST /api/upload` - Upload a statement. Requires `bank`, `statementMonth`, and
+  `fileFormat` alongside the file; rejects with 400 if the parsed content does
+  not match, and 409 if another statement is still processing. On success the
+  transactions are imported synchronously and 202 is returned while
+  categorization continues in the background.
 - `GET /api/upload` - List uploaded statements with processing status
 - `GET /api/upload/:statementId` - Statement detail plus its transactions
+- `DELETE /api/upload/:statementId` - Delete a statement and its transactions
 
 ### Transactions
 - `GET /api/transactions` - List transactions (`startDate`, `endDate`, `categoryId`, `limit`, `offset`)
@@ -170,6 +176,7 @@ All routes except those marked *public* require an
 - `POST /api/categories/bulk-reassign` - Move transactions between categories
 
 ### Analytics
+All three accept optional validated `startDate` / `endDate` query parameters.
 - `GET /api/analytics/pie` - Spending by category
 - `GET /api/analytics/bar` - Monthly income vs expenses
 - `GET /api/analytics/trends` - Month-over-month analysis

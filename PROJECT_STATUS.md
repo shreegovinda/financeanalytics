@@ -1,6 +1,6 @@
 # Project Status & Progress Tracking
 
-**Last Updated:** 2026-08-23
+**Last Updated:** 2026-08-23 (post PR #26-#32 merge)
 **Current Phase:** 3.6 - Polish & Testing (IN PROGRESS)
 **Quality Infrastructure:** ✅ ESLint + Prettier + Pre-commit Hooks + GitHub Actions + SonarCloud + Tests
 
@@ -81,10 +81,11 @@ See `backend/PHASE_3.3_IMPLEMENTATION.md`.
 - [x] Error handling for failed uploads and API timeouts
 - [x] Loading skeletons, toasts, error boundary
 - [x] Mobile-responsive layout
-- [x] **Backend unit tests** (`node:test`, runs in CI)
+- [x] **Backend unit tests** (`node:test`) — 41 tests, executed in CI
 - [ ] Integration tests against a live database
 - [ ] E2E tests
-- [ ] Security fixes from the 2026-08-23 audit (see below)
+- [x] Critical and high security fixes (#26, #27, #29, #30, #31)
+- [ ] Remaining security fixes from the 2026-08-23 audit (see below)
 - [ ] Dependency vulnerability remediation
 - [ ] User testing & feedback loop
 
@@ -92,55 +93,55 @@ See `backend/PHASE_3.3_IMPLEMENTATION.md`.
 
 ## Open Issues
 
-Findings from the audit of 2026-08-23, highest severity first. Full detail and
-reproduction steps are in `SECURITY_AND_QUALITY_AUDIT.md`.
+Findings from the 2026-08-23 audit. **7 of 20 code findings are now fixed**,
+including the critical one. Full detail in `SECURITY_AND_QUALITY_AUDIT.md`.
 
-### Security
+### Fixed by #26-#31
 
-| # | Issue | Severity |
-| --- | --- | --- |
-| 1 | `POST /api/auth/verify-otp` has no rate limiting; a 6-digit OTP is brute-forceable inside its 5-minute window and yields a 7-day JWT | Critical |
-| 2 | OTPs are generated with `Math.random()`, which is predictable | High |
-| 3 | `POST /api/auth/send-otp` is unauthenticated and unthrottled — email bombing at your SendGrid cost | High |
-| 4 | Failed payment verification updates rows by `razorpay_order_id` with no `user_id` filter, letting one user mark another's payment failed | High |
-| 5 | `POST /api/auth/login` has no rate limiting | Medium |
-| 6 | `check-email` and `forgot-password/send-otp` disclose account existence and the account holder's name | Medium |
-| 7 | Razorpay signature compared with `===` rather than a timing-safe comparison | Medium |
-| 8 | `createOrder` feature-id guard bypassed by inherited `Object` keys | Medium |
-| 9 | Upload file type validated by filename extension only, not content | Medium |
-| 10 | No password strength requirement at registration (reset requires 8 chars; register requires none) | Medium |
-| 11 | JWTs cannot be revoked; a password reset leaves existing sessions valid for up to 7 days | Medium |
-| 12 | No global Express error handler, so unhandled route errors return stack traces | Low |
+| # | Issue | Was | Fixed in |
+| --- | --- | --- | --- |
+| A1 | OTP login brute-forceable into account takeover | Critical | #26 |
+| A2 | OTPs generated with `Math.random()` | High | #26 |
+| A4 | Payment records alterable across users | High | #26, #27 |
+| B4 | Batch offset lost, so statements over 50 transactions were categorized onto the **wrong transactions** | High | #27 |
+| B1 | Transaction dates drifted a day west of UTC, misfiling month boundaries | High | #31 |
+| B5 | Re-uploading a statement duplicated every transaction | Medium | #30, #31 |
+| A11 | Sessions survived password changes | Medium | #29 |
 
-### Correctness
+### Still open
 
 | # | Issue | Severity |
 | --- | --- | --- |
-| 13 | Transaction dates shift one day back on servers in timezones behind UTC, misfiling month-boundary transactions in analytics | High |
-| 14 | Emails are matched case-sensitively, so `User@x.com` and `user@x.com` become separate accounts | Medium |
-| 15 | `limit`/`offset` on `GET /api/transactions` are unvalidated — non-numeric values 500, and there is no maximum | Medium |
-| 16 | AI-supplied `transactionIndex` is used as an array index with no lower bound; a negative value fails the whole statement | Medium |
-| 17 | Re-uploading the same statement silently duplicates every transaction | Medium |
-| 18 | `/analytics/trends` ignores `ai_suggested_category`, so it disagrees with `/analytics/pie` on the same data | Low |
-| 19 | Statements over ~10,900 transactions exceed Postgres's parameter limit in the bulk insert | Low |
-| 20 | `resetOtpAttempts` map grows without bound and is per-process | Low |
+| A3 | `send-otp` unauthenticated and unthrottled | High |
+| A5 | No rate limiting on `login` | Medium |
+| A6 | `check-email` discloses account existence and holder's name | Medium |
+| A7 | Razorpay signature compared non-timing-safely | Medium |
+| A8 | Feature-id guard bypassed by inherited `Object` keys | Medium |
+| A9 | Upload type validated by filename only | Medium |
+| A10 | No password strength requirement at registration | Medium |
+| B2 | Emails matched case-sensitively | Medium |
+| B3 | `limit`/`offset` unvalidated on `GET /transactions` | Medium |
+| A12 | No global Express error handler | Low |
+| B6 | `/trends` and `/pie` disagree on uncategorized rows | Low |
+| B7 | Bulk insert exceeds Postgres parameter cap above ~10,900 rows | Low |
+| B8 | OTP attempt map unbounded and per-process | Low |
 
 ### Dependencies
 
-`npm audit` reports 16 vulnerabilities (1 critical, 11 high). Notably:
+`npm audit`: 16 vulnerabilities (1 critical, 11 high).
 
-- **`next-auth`** — critical advisory, and the package is not used anywhere.
-  Removing it resolves the only critical finding.
-- **`xlsx`** — prototype pollution and ReDoS, **no fix available** from the
-  registry. Needs migration to a maintained fork or an alternative reader.
-- `next`, `multer`, `axios`, `nodemailer`, `form-data` — all have fixes available.
+- **`next-auth`** — the only critical advisory, and unused anywhere in the
+  frontend. Removing it is the highest value-per-effort item outstanding.
+- **`xlsx`** — prototype pollution and ReDoS, **no upstream fix**, and it parses
+  untrusted uploads. Needs migration.
+- `next`, `multer`, `axios`, `nodemailer`, `form-data` — fixes available.
 
 ### Tooling
 
-- `SonarSource/sonarcloud-github-action@master` is pinned to a mutable ref;
-  pin to a release tag or commit SHA.
-- `backend/test-parser*.js` and `create-test-*.js` are ad-hoc scripts at the
-  backend root that predate the real test suite.
+- `SonarSource/sonarcloud-github-action@master` is pinned to a mutable ref.
+- Dead code: the three superseded bank parsers, the root-level `test-parser*.js`
+  and `create-test-*.js` scripts, and the `crypto` dependency (the deprecated npm
+  shim, not the builtin).
 
 ---
 
@@ -158,13 +159,13 @@ Schema is applied automatically on server start by `backend/db/init.js`.
 
 ## Next Steps
 
-1. Fix audit items 1-4 — these are the ones that are exploitable today.
-2. Remove `next-auth` and run `npm audit fix`; plan the `xlsx` migration.
-3. Fix the timezone bug (item 13) and un-`todo` its test.
-4. Delete the dead bank parsers and root-level test scripts.
-5. Add integration tests covering upload → parse → analytics against a real DB.
-
----
+1. Remove `next-auth` and run `npm audit fix`; plan the `xlsx` migration.
+2. Add rate limiting to `send-otp` and `login` (A3, A5) — no throttling
+   middleware exists in the app yet.
+3. Normalize email case (B2) before the account count grows.
+4. Clear the small, well-understood items: A7, A8, A10, B3, B6.
+5. Delete dead code (D2) and pin the SonarCloud action (D1).
+6. Add integration tests covering upload -> parse -> analytics against a real DB.
 
 ## Quality Infrastructure
 

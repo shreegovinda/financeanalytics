@@ -139,6 +139,29 @@ function verifyPaymentSignature(orderId, paymentId, signature) {
  */
 async function verifyPayment(orderId, paymentId, signature, userId) {
   try {
+    const paymentRecordResult = await pool.query(
+      'SELECT amount, feature, status FROM payments WHERE razorpay_order_id = $1 AND user_id = $2',
+      [orderId, userId],
+    );
+
+    if (paymentRecordResult.rows.length === 0) {
+      throw new Error('Payment record not found');
+    }
+
+    const paymentRecord = paymentRecordResult.rows[0];
+    if (paymentRecord.status !== 'pending') {
+      throw new Error(`Payment is already ${paymentRecord.status}`);
+    }
+
+    const feature = PREMIUM_FEATURES[paymentRecord.feature];
+    if (!feature) {
+      throw new Error('Invalid payment feature');
+    }
+
+    if (Math.round(Number(paymentRecord.amount) * 100) !== feature.amount) {
+      throw new Error('Stored payment amount does not match feature price');
+    }
+
     // Verify signature
     if (!verifyPaymentSignature(orderId, paymentId, signature)) {
       throw new Error('Invalid payment signature');
@@ -155,10 +178,14 @@ async function verifyPayment(orderId, paymentId, signature, userId) {
       throw new Error(`Payment is ${payment.status}`);
     }
 
+    if (Number(payment.amount) !== feature.amount) {
+      throw new Error('Payment amount does not match feature price');
+    }
+
     // Update payment in database
     const result = await pool.query(
-      'UPDATE payments SET razorpay_payment_id = $1, razorpay_signature = $2, status = $3, payment_method = $4, paid_at = $5, updated_at = NOW() WHERE razorpay_order_id = $6 AND user_id = $7 RETURNING *',
-      [paymentId, signature, 'completed', payment.method, new Date(), orderId, userId],
+      'UPDATE payments SET razorpay_payment_id = $1, razorpay_signature = $2, status = $3, payment_method = $4, paid_at = $5, updated_at = NOW() WHERE razorpay_order_id = $6 AND user_id = $7 AND status = $8 RETURNING *',
+      [paymentId, signature, 'completed', payment.method, new Date(), orderId, userId, 'pending'],
     );
 
     if (result.rows.length === 0) {
@@ -171,11 +198,11 @@ async function verifyPayment(orderId, paymentId, signature, userId) {
   } catch (error) {
     console.error('❌ Payment verification failed:', error);
 
-    // Update payment status as failed
+    // Do not let a later failed retry revoke a payment that already completed.
     try {
       await pool.query(
-        'UPDATE payments SET status = $1, error_message = $2, updated_at = NOW() WHERE razorpay_order_id = $3 RETURNING *',
-        ['failed', error.message, orderId],
+        'UPDATE payments SET status = $1, error_message = $2, updated_at = NOW() WHERE razorpay_order_id = $3 AND user_id = $4 AND status = $5 RETURNING *',
+        ['failed', error.message, orderId, userId, 'pending'],
       );
     } catch (updateError) {
       console.error('Failed to update payment status:', updateError);

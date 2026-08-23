@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import AuthSessionGuard from '@/components/AuthSessionGuard';
 import BackButton from '@/components/BackButton';
 import FileUploadForm from '@/components/FileUploadForm';
+import ConfirmationDialog from '@/components/ConfirmationDialog';
 import { apiGet, getErrorMessage } from '@/lib/api';
 import { formatDate } from '@/lib/date';
 import { TableSkeletonLoader } from '@/components/Skeleton';
@@ -29,6 +30,11 @@ export default function StatementsPage() {
   const [statements, setStatements] = useState<Statement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deleteDialog, setDeleteDialog] = useState({
+    isOpen: false,
+    statementId: '',
+    fileName: '',
+  });
 
   async function fetchStatements() {
     try {
@@ -71,6 +77,44 @@ export default function StatementsPage() {
 
   const handleUploadSuccess = () => {
     void fetchStatements();
+  };
+
+  const openDeleteDialog = (statementId: string, fileName: string) => {
+    setDeleteDialog({ isOpen: true, statementId, fileName });
+  };
+
+  const closeDeleteDialog = () => {
+    setDeleteDialog({ isOpen: false, statementId: '', fileName: '' });
+  };
+
+  const confirmDelete = async () => {
+    const { statementId } = deleteDialog;
+    closeDeleteDialog();
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/upload/${statementId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete statement');
+      }
+
+      // Refresh the statements list
+      await fetchStatements();
+    } catch (err) {
+      setError(`Failed to delete statement: ${getErrorMessage(err)}`);
+      console.error('Delete error:', err);
+    }
   };
 
   return (
@@ -123,6 +167,9 @@ export default function StatementsPage() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                         Uploaded
                       </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -157,6 +204,17 @@ export default function StatementsPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                           {formatDate(statement.uploaded_at)}
                         </td>
+                        <td
+                          className="px-6 py-4 whitespace-nowrap text-sm"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            onClick={() => openDeleteDialog(statement.id, statement.file_name)}
+                            className="text-red-600 hover:text-red-800 font-medium transition-colors"
+                          >
+                            Delete
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -166,6 +224,17 @@ export default function StatementsPage() {
           </div>
         )}
       </div>
+
+      <ConfirmationDialog
+        isOpen={deleteDialog.isOpen}
+        title="Delete Statement?"
+        message={`Are you sure you want to delete "${deleteDialog.fileName}"? This will remove the statement and all its associated transactions. This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        isDangerous={true}
+        onConfirm={confirmDelete}
+        onCancel={closeDeleteDialog}
+      />
     </div>
   );
 }

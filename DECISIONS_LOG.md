@@ -195,6 +195,98 @@
 
 ---
 
+## Decision: REVERSED — Statement Deletion Now Allowed
+
+**Date:** 2026-07-27  
+**Status:** ✅ Implemented  
+**Decision:** Add `DELETE /api/upload/:statementId`, cascading to that statement's transactions
+
+**Reverses:** "No Deletion Policy for Financial Data" (2026-04-19)
+
+**Rationale:**
+- Strict per-bank-per-month upload validation means a bad import blocks that month entirely
+- Without deletion, a mis-parsed statement is unrecoverable for the user
+- Deletion is scoped to a single statement and is user-owned (ownership verified before delete)
+
+**Trade-off:** Loses the absolute audit trail. Accepted because the duplicate guard makes an
+un-deletable bad import a hard dead end. Revisit with soft-delete (`deleted_at`) if audit history
+becomes a requirement.
+
+---
+
+## Decision: REVERSED — Uploaded Files No Longer Retained
+
+**Date:** 2026-07-27  
+**Status:** ✅ Implemented  
+**Decision:** Delete the uploaded file immediately after parsing; `upload_path` is no longer persisted
+
+**Reverses:** "Store Uploaded PDFs Locally (Phase 1)" (2026-04-19)
+
+**Rationale:**
+- Bank statements are sensitive; not storing them removes a data-at-rest exposure
+- Transactions are extracted and committed synchronously, so the file has no further use
+- Avoids unbounded local disk growth
+
+**Trade-off:** Users can no longer download their original statement, and a failed parse cannot be
+retried without re-uploading. Restart recovery now resumes from committed transactions in the
+database instead of from disk.
+
+---
+
+## Decision: Synchronous Parse, Background Categorization
+
+**Date:** 2026-07-27  
+**Status:** ✅ Implemented  
+**Decision:** Parse and import transactions inside the upload request; background only the AI categorization
+
+**Previously:** The upload request returned immediately and both parsing and categorization ran in the background.
+
+**Rationale:**
+- Validation (bank match, month match, duplicates) requires parsed content, and the user must be
+  told *at upload time* if their statement is rejected
+- A rejected upload leaves no partial statement row behind
+- Response can report the real transaction count instead of 0
+
+**Trade-off:** Upload latency now includes an AI parse call, which exceeds the "<2s upload" target in
+the SDLC plan. **Open risk:** large multi-page PDFs may hit proxy/gateway timeouts in production.
+Needs measurement before deployment; mitigation would be a two-phase upload (validate → confirm).
+
+---
+
+## Decision: Bank Scope Changed to ICICI + SBI
+
+**Date:** 2026-07-27  
+**Status:** ✅ Implemented  
+**Decision:** MVP supports ICICI and SBI; HDFC and Axis dropped from current scope
+
+**Amends:** "Support Indian Banks First (ICICI, HDFC, Axis)" (2026-04-19)
+
+**Rationale:**
+- Parsing is AI-driven and format-agnostic, so the bank list is a validation allowlist rather than
+  a set of hand-written parsers
+- ICICI and SBI cover the statements available for testing
+
+**Trade-off:** HDFC and Axis users are blocked at upload validation. Adding a bank is now a one-line
+change to `ALLOWED_BANKS` plus a `detectedBankMatches` branch.
+
+---
+
+## Decision: Drop `.xls` Support (XLSX Only)
+
+**Date:** 2026-07-27  
+**Status:** ✅ Implemented  
+**Decision:** Accept only `.pdf` and `.xlsx`; `.xls` removed from the upload filter
+
+**Rationale:**
+- Users must now declare the file format at upload time, and the declared format is validated
+  against the actual extension — a third format widens that matrix for little benefit
+- `.xls` is a legacy binary format
+
+**Trade-off:** **Breaking change.** Anyone who previously uploaded `.xls` can no longer do so and
+must convert to `.xlsx` first. No migration needed for already-imported data.
+
+---
+
 ## Known Issues & Pending Decisions
 
 ### Signup Form Bug (2026-04-21)
@@ -207,6 +299,10 @@
 
 ## Future Decisions (To Be Made)
 
+- [ ] Enforce the per-bank-per-month guard with a **unique** partial index on
+      `(user_id, bank_name, statement_month)` — the current check is a read at READ COMMITTED and
+      two concurrent uploads can both pass it
+- [ ] Measure upload latency for large PDFs; decide whether a two-phase upload is needed
 - [ ] Rate limiting strategy for Claude API calls
 - [ ] Error recovery strategy for failed file uploads
 - [ ] Password reset flow
