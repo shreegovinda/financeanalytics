@@ -14,9 +14,7 @@ jobs:
 
     strategy:
       matrix:
-        # 22.x matches local development. The test script relies on glob support
-        # in `node --test`, which is not available on Node 20.
-        node-version: [22.x]
+        node-version: [20.x]
 
     steps:
       - name: Checkout code

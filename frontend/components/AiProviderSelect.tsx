@@ -23,7 +23,7 @@ interface ProvidersResponse {
   providers: AiProvider[];
 }
 
-export default function AiProviderSelect() {
+export default function AiProviderSelect({ embedded = false }: { embedded?: boolean }) {
   const pathname = usePathname();
   const [providers, setProviders] = useState<AiProvider[]>([]);
   const [selectedProvider, setSelectedProviderState] = useState('');
@@ -81,8 +81,20 @@ export default function AiProviderSelect() {
   const configuredCount = providers.filter((provider) => provider.configured).length;
 
   return (
-    <div className="fixed top-3 right-3 z-40 rounded-xl border border-gray-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur">
-      <label className="flex items-center gap-2 text-xs font-medium text-gray-600">
+    <div
+      className={
+        embedded
+          ? 'rounded-lg border border-gray-200 bg-gray-50 px-3 py-3'
+          : 'fixed top-3 right-3 z-40 rounded-xl border border-gray-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur'
+      }
+    >
+      <label
+        className={
+          embedded
+            ? 'block text-sm font-medium text-gray-700'
+            : 'flex items-center gap-2 text-xs font-medium text-gray-600'
+        }
+      >
         <span>AI Model</span>
         <select
           value={selectedProvider}
@@ -91,7 +103,11 @@ export default function AiProviderSelect() {
             setSelectedAiProvider(event.target.value);
           }}
           disabled={configuredCount === 0}
-          className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-900 shadow-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+          className={
+            embedded
+              ? 'mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400'
+              : 'rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-900 shadow-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400'
+          }
         >
           {configuredCount === 0 ? (
             <option value="">{error || 'No API key configured'}</option>

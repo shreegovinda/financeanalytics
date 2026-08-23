@@ -6,10 +6,12 @@ CREATE TABLE IF NOT EXISTS users (
   google_id VARCHAR(255),
   name VARCHAR(255),
   phone VARCHAR(50),
+  token_version INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
 
 -- Categories table
 CREATE TABLE IF NOT EXISTS categories (
@@ -51,6 +53,9 @@ CREATE TABLE IF NOT EXISTS statements (
   processing_error TEXT,
   upload_path TEXT,
   ai_provider VARCHAR(50),
+  statement_month DATE,
+  file_format VARCHAR(10),
+  detected_bank_name VARCHAR(100),
   processed_at TIMESTAMP
 );
 
@@ -59,6 +64,9 @@ ALTER TABLE statements ADD COLUMN IF NOT EXISTS processing_progress INTEGER DEFA
 ALTER TABLE statements ADD COLUMN IF NOT EXISTS processing_error TEXT;
 ALTER TABLE statements ADD COLUMN IF NOT EXISTS upload_path TEXT;
 ALTER TABLE statements ADD COLUMN IF NOT EXISTS ai_provider VARCHAR(50);
+ALTER TABLE statements ADD COLUMN IF NOT EXISTS statement_month DATE;
+ALTER TABLE statements ADD COLUMN IF NOT EXISTS file_format VARCHAR(10);
+ALTER TABLE statements ADD COLUMN IF NOT EXISTS detected_bank_name VARCHAR(100);
 ALTER TABLE statements ADD COLUMN IF NOT EXISTS processed_at TIMESTAMP;
 
 -- Transactions table
@@ -72,8 +80,11 @@ CREATE TABLE IF NOT EXISTS transactions (
   category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
   ai_suggested_category VARCHAR(100),
   type VARCHAR(10) DEFAULT 'debit',
+  source_index INTEGER,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS source_index INTEGER;
 
 -- Idempotent migration: ensure transactions.category_id FK uses ON DELETE SET NULL
 ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_category_id_fkey;
@@ -84,7 +95,13 @@ ALTER TABLE transactions
 -- Create indices
 CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON transactions(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category_id);
+CREATE UNIQUE INDEX IF NOT EXISTS transactions_statement_source_index_unique
+  ON transactions(statement_id, source_index)
+  WHERE source_index IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_statements_user ON statements(user_id);
+CREATE INDEX IF NOT EXISTS idx_statements_user_bank_month
+  ON statements(user_id, bank_name, statement_month)
+  WHERE status IN ('processing', 'completed');
 CREATE INDEX IF NOT EXISTS idx_categories_user ON categories(user_id);
 
 -- Insert default categories for new users

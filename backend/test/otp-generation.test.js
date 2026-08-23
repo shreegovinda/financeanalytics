@@ -31,24 +31,50 @@ test('generateOTP: does not obviously repeat', () => {
   assert.ok(seen.size > 450, `only ${seen.size} unique codes in 500 draws`);
 });
 
-// KNOWN WEAKNESS — see SECURITY_AND_QUALITY_AUDIT.md.
-// generateOTP is built on Math.random(), which is a non-cryptographic PRNG.
-// Its output is predictable from observed values, and POST /api/auth/verify-otp
-// has no rate limiting, so codes are also brute-forceable within their 5-minute
-// window. Fix: crypto.randomInt(100000, 1000000) plus attempt throttling.
-test('generateOTP is derived from Math.random (documents the weakness)', () => {
+// #26 replaced Math.random() with crypto.randomInt and added rate limiting to
+// verify-otp. This test previously documented the Math.random weakness; it now
+// guards the fix, so that reverting to a non-cryptographic PRNG fails the build.
+test('generateOTP does not depend on Math.random', () => {
   const originalRandom = Math.random;
+  let mathRandomCalls = 0;
   try {
-    Math.random = () => 0;
-    assert.equal(generateOTP(), '100000', 'lowest value is fully predictable');
+    Math.random = () => {
+      mathRandomCalls += 1;
+      return 0.5;
+    };
 
-    Math.random = () => 0.999999999;
-    assert.equal(generateOTP(), '999999', 'highest value is fully predictable');
+    const codes = new Set();
+    for (let i = 0; i < 200; i++) {
+      codes.add(generateOTP());
+    }
 
-    Math.random = () => 0.5;
-    assert.equal(generateOTP(), '550000', 'output is a pure function of Math.random');
+    assert.equal(mathRandomCalls, 0, 'generateOTP must not call Math.random');
+    assert.ok(
+      codes.size > 150,
+      `a stubbed Math.random must not make output predictable; got ${codes.size} unique of 200`,
+    );
   } finally {
     Math.random = originalRandom;
+  }
+});
+
+test('generateOTP uses the crypto module', () => {
+  const crypto = require('crypto');
+  const originalRandomInt = crypto.randomInt;
+  let used = false;
+  try {
+    crypto.randomInt = (...args) => {
+      used = true;
+      return originalRandomInt(...args);
+    };
+    // Re-require so the service picks up the instrumented function.
+    delete require.cache[require.resolve('../services/otp')];
+    const { generateOTP: fresh } = require('../services/otp');
+    fresh();
+    assert.ok(used, 'OTP generation must go through crypto.randomInt');
+  } finally {
+    crypto.randomInt = originalRandomInt;
+    delete require.cache[require.resolve('../services/otp')];
   }
 });
 
@@ -61,6 +87,7 @@ test('the OTP keyspace is small enough to brute force unthrottled', () => {
   const attemptsInWindow = 100 * 60 * 5;
   assert.ok(
     attemptsInWindow > keyspace / 300,
-    'verify-otp needs per-account attempt limits, which it currently lacks',
+    'the keyspace alone is not enough protection, which is why #26 added ' +
+      'per-account attempt limits to verify-otp',
   );
 });

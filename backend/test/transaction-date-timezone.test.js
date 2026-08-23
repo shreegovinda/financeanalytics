@@ -3,94 +3,103 @@ const assert = require('node:assert/strict');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
-// transactions.date is a Postgres DATE column. node-pg serializes a JS Date to
-// a DATE using its LOCAL calendar components, so the calendar day that lands in
-// the database depends on the server's TZ. These tests pin that behaviour down,
-// because a one-day drift silently misfiles transactions across month
-// boundaries and corrupts every monthly analytics bucket.
-
-const pad = (n) => String(n).padStart(2, '0');
+// transactions.date is a Postgres DATE column. Before #31 the import passed a JS
+// Date straight to node-pg, which serializes using the server's LOCAL calendar
+// components — so a statement dated 2026-04-01 was stored as 2026-03-31 on any
+// server west of UTC, pushing the transaction into the previous month and
+// skewing every monthly analytics bucket.
+//
+// #31 replaced that with toSqlDate(), which formats via toISOString() in UTC and
+// therefore round-trips the same day the AI reported, in any timezone. These
+// tests pin that down so the drift cannot come back.
 
 /**
- * Runs normalizeTransactions in a child process under a fixed TZ and returns
- * the calendar day that node-pg would write to the DATE column.
+ * Runs the real import date path in a child process under a fixed TZ, returning
+ * the calendar day that would be written to the DATE column.
  */
 function storedDateUnderTZ(timeZone, isoDate) {
   const script = `
     const { normalizeTransactions } = require(${JSON.stringify(
       path.join(__dirname, '..', 'services', 'parsers', 'generic.js'),
     )});
+    const uploadRouter = require(${JSON.stringify(
+      path.join(__dirname, '..', 'routes', 'upload.js'),
+    )});
     const [txn] = normalizeTransactions([
       { date: ${JSON.stringify(isoDate)}, description: 'TEST', amount: 100, type: 'debit' },
     ]);
-    const pad = (n) => String(n).padStart(2, '0');
-    const d = txn.date;
-    process.stdout.write(d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()));
+    process.stdout.write(uploadRouter.toSqlDate(txn.date));
   `;
 
-  return execFileSync(process.execPath, ['-e', script], {
-    env: { ...process.env, TZ: timeZone },
+  const out = execFileSync(process.execPath, ['-e', script], {
+    env: { ...process.env, TZ: timeZone, DOTENV_CONFIG_QUIET: 'true' },
     encoding: 'utf8',
   });
+
+  // Loading the upload router pulls in config/db, whose dotenv call prints a
+  // banner to stdout. The date is the final line.
+  return out.trim().split('\n').pop().trim();
 }
 
-test('date parsing is stable in IST and UTC', () => {
-  assert.equal(storedDateUnderTZ('Asia/Kolkata', '2026-04-05'), '2026-04-05');
-  assert.equal(storedDateUnderTZ('UTC', '2026-04-05'), '2026-04-05');
+const ZONES = [
+  'UTC',
+  'Asia/Kolkata', // +05:30, where this app is developed
+  'America/New_York', // -04:00/-05:00, where the drift used to appear
+  'Pacific/Honolulu', // -10:00, the largest common negative offset
+  'Pacific/Kiritimati', // +14:00, the largest positive offset
+];
+
+test('transaction dates do not shift in any timezone', () => {
+  for (const zone of ZONES) {
+    assert.equal(
+      storedDateUnderTZ(zone, '2026-04-05'),
+      '2026-04-05',
+      `date drifted under TZ=${zone}`,
+    );
+  }
 });
 
-test('normalizeTransactions parses YYYY-MM-DD as UTC midnight', () => {
-  const [txn] = normalizeTransactionsLocal('2026-04-05');
-  assert.equal(
-    txn.date.toISOString(),
-    '2026-04-05T00:00:00.000Z',
-    'ISO date-only strings are parsed as UTC midnight, not local midnight',
+test('the first of a month stays in that month', () => {
+  // The damaging case: if this drifts back a day it lands in the previous month
+  // and DATE_TRUNC('month', date) files it under the wrong month in
+  // /api/analytics/bar and /trends.
+  for (const zone of ZONES) {
+    const stored = storedDateUnderTZ(zone, '2026-04-01');
+    assert.equal(stored, '2026-04-01', `month-boundary drift under TZ=${zone}`);
+    assert.equal(stored.slice(0, 7), '2026-04', `bucketed into the wrong month under TZ=${zone}`);
+  }
+});
+
+test('the last of a month stays in that month', () => {
+  for (const zone of ZONES) {
+    const stored = storedDateUnderTZ(zone, '2026-03-31');
+    assert.equal(stored, '2026-03-31', `month-end drift under TZ=${zone}`);
+  }
+});
+
+test('leap day survives the round trip', () => {
+  for (const zone of ZONES) {
+    assert.equal(
+      storedDateUnderTZ(zone, '2028-02-29'),
+      '2028-02-29',
+      `leap day lost under ${zone}`,
+    );
+  }
+});
+
+test('toSqlDate accepts both Date objects and ISO strings', () => {
+  const uploadRouter = require('../routes/upload');
+
+  assert.equal(uploadRouter.toSqlDate(new Date('2026-04-05T00:00:00.000Z')), '2026-04-05');
+  assert.equal(uploadRouter.toSqlDate('2026-04-05'), '2026-04-05');
+});
+
+test('toSqlDate rejects an unparseable date rather than storing garbage', () => {
+  const uploadRouter = require('../routes/upload');
+
+  assert.throws(
+    () => uploadRouter.toSqlDate('not-a-date'),
+    /invalid transaction date/i,
+    'an unparseable date must fail the upload, not silently become NaN',
   );
-});
-
-function normalizeTransactionsLocal(isoDate) {
-  const { normalizeTransactions } = require('../services/parsers/generic');
-  return normalizeTransactions([
-    { date: isoDate, description: 'TEST', amount: 100, type: 'debit' },
-  ]);
-}
-
-// KNOWN BUG — see SECURITY_AND_QUALITY_AUDIT.md.
-// A statement dated 2026-04-05 is stored as 2026-04-04 when the server runs in
-// any timezone behind UTC. On the 1st of a month this pushes the transaction
-// into the previous month and silently skews /api/analytics/bar and /trends.
-// Fix: build the Date from local components, or pass the 'YYYY-MM-DD' string
-// straight through to Postgres instead of a JS Date.
-test.todo('transaction dates should not shift in timezones behind UTC', () => {
-  assert.equal(
-    storedDateUnderTZ('America/New_York', '2026-04-05'),
-    '2026-04-05',
-    'currently returns 2026-04-04 — the date drifts one day back',
-  );
-});
-
-test('the one-day drift is real and reproducible (documents current behaviour)', () => {
-  assert.equal(
-    storedDateUnderTZ('America/New_York', '2026-04-05'),
-    '2026-04-04',
-    'if this ever fails, the timezone bug has been fixed — delete this test and ' +
-      'un-todo the one above',
-  );
-});
-
-test('month-boundary drift moves a transaction into the previous month', () => {
-  // The damaging case: the 1st of a month becomes the last day of the previous
-  // month, so DATE_TRUNC('month', date) buckets it into the wrong month.
-  const stored = storedDateUnderTZ('America/New_York', '2026-04-01');
-  assert.equal(stored, '2026-03-31');
-  assert.notEqual(
-    stored.slice(0, 7),
-    '2026-04',
-    'April transaction is bucketed into March by monthly analytics',
-  );
-});
-
-test('pad helper produces zero-padded components', () => {
-  assert.equal(pad(4), '04');
-  assert.equal(pad(12), '12');
 });

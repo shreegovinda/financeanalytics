@@ -14,6 +14,9 @@ interface UploadResponse {
 
 export default function FileUploadForm({ onUploadSuccess }: { onUploadSuccess?: () => void }) {
   const [file, setFile] = useState<File | null>(null);
+  const [bank, setBank] = useState('');
+  const [statementMonth, setStatementMonth] = useState('');
+  const [fileFormat, setFileFormat] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -49,6 +52,9 @@ export default function FileUploadForm({ onUploadSuccess }: { onUploadSuccess?: 
   };
 
   const validateFile = (): string | null => {
+    if (!bank) return 'Please select a bank before uploading';
+    if (!statementMonth) return 'Please select the statement month before uploading';
+    if (!fileFormat) return 'Please select PDF or XLSX before uploading';
     if (!file) return 'Please select a file';
 
     const maxSize = 10 * 1024 * 1024; // 10MB
@@ -56,13 +62,18 @@ export default function FileUploadForm({ onUploadSuccess }: { onUploadSuccess?: 
       return `File is too large (${(file.size / 1024 / 1024).toFixed(2)}MB). Maximum size is 10MB`;
     }
 
-    const allowedTypes = [
-      'application/pdf',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    ];
-    if (!allowedTypes.includes(file.type)) {
-      return 'Invalid file type. Please upload a PDF or Excel file';
+    const fileName = file.name.toLowerCase();
+    const actualFormat = fileName.endsWith('.pdf')
+      ? 'PDF'
+      : fileName.endsWith('.xlsx')
+        ? 'XLSX'
+        : '';
+    if (!actualFormat) {
+      return 'Invalid file type. Please upload a PDF or XLSX file';
+    }
+
+    if (actualFormat !== fileFormat) {
+      return `Selected format is ${fileFormat}, but the file is ${actualFormat}`;
     }
 
     return null;
@@ -89,6 +100,9 @@ export default function FileUploadForm({ onUploadSuccess }: { onUploadSuccess?: 
 
     try {
       const formData = new FormData();
+      formData.append('bank', bank);
+      formData.append('statementMonth', statementMonth);
+      formData.append('fileFormat', fileFormat);
       formData.append('file', selectedFile);
 
       const token = localStorage.getItem('token');
@@ -130,7 +144,6 @@ export default function FileUploadForm({ onUploadSuccess }: { onUploadSuccess?: 
       }
     } catch (err) {
       setError(getErrorMessage(err));
-      console.error(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -140,8 +153,65 @@ export default function FileUploadForm({ onUploadSuccess }: { onUploadSuccess?: 
     <div className="w-full max-w-2xl mx-auto p-6">
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-          Upload your PDF or Excel statement. AI will detect the bank and extract posted
-          transactions automatically.
+          Select the bank, month, and file type before uploading. AI will verify the statement
+          matches your selections before importing transactions.
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <label className="block">
+            <span className="mb-2 block text-sm font-medium text-gray-700">Bank</span>
+            <select
+              value={bank}
+              onChange={(event) => setBank(event.target.value)}
+              disabled={loading}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
+              required
+            >
+              <option value="">Select bank</option>
+              <option value="ICICI">ICICI</option>
+              <option value="SBI">SBI</option>
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="mb-2 block text-sm font-medium text-gray-700">Statement Month</span>
+            <input
+              type="month"
+              value={statementMonth}
+              onChange={(event) => setStatementMonth(event.target.value)}
+              disabled={loading}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
+              required
+            />
+          </label>
+
+          <fieldset>
+            <legend className="mb-2 block text-sm font-medium text-gray-700">File Type</legend>
+            <div className="grid grid-cols-2 gap-2">
+              {['PDF', 'XLSX'].map((format) => (
+                <label
+                  key={format}
+                  className={`flex cursor-pointer items-center justify-center rounded-lg border px-3 py-2 text-sm font-medium ${
+                    fileFormat === format
+                      ? 'border-blue-600 bg-blue-50 text-blue-700'
+                      : 'border-gray-300 text-gray-700'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="fileFormat"
+                    value={format}
+                    checked={fileFormat === format}
+                    onChange={(event) => setFileFormat(event.target.value)}
+                    disabled={loading}
+                    className="sr-only"
+                    required
+                  />
+                  {format}
+                </label>
+              ))}
+            </div>
+          </fieldset>
         </div>
 
         <div
@@ -156,7 +226,7 @@ export default function FileUploadForm({ onUploadSuccess }: { onUploadSuccess?: 
           <input
             type="file"
             onChange={handleFileChange}
-            accept=".pdf,.xlsx,.xls"
+            accept={fileFormat === 'PDF' ? '.pdf' : fileFormat === 'XLSX' ? '.xlsx' : '.pdf,.xlsx'}
             disabled={loading}
             className="hidden"
             id="file-input"
@@ -166,7 +236,7 @@ export default function FileUploadForm({ onUploadSuccess }: { onUploadSuccess?: 
               <div className="text-4xl">📄</div>
               <p className="text-sm font-medium text-gray-700">Drag and drop your statement here</p>
               <p className="text-xs text-gray-500">or click to select a file</p>
-              <p className="text-xs text-gray-400">PDF or Excel (XLSX/XLS) • Max 10MB</p>
+              <p className="text-xs text-gray-400">PDF or XLSX • Max 10MB</p>
             </div>
           </label>
         </div>
@@ -221,7 +291,7 @@ export default function FileUploadForm({ onUploadSuccess }: { onUploadSuccess?: 
 
         <button
           type="submit"
-          disabled={loading || !file}
+          disabled={loading || !bank || !statementMonth || !fileFormat || !file}
           className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
         >
           {loading ? 'Uploading...' : 'Upload Statement'}

@@ -175,6 +175,39 @@ const FILTER_CHIPS: { id: FilterMode; label: string }[] = [
   { id: 'custom', label: 'Custom' },
 ];
 
+const TRANSACTION_PAGE_SIZE = 1000;
+
+async function fetchAllTransactions(
+  apiUrl: string,
+  token: string | undefined,
+  startDate: string,
+  endDate: string,
+): Promise<Transaction[]> {
+  const transactions: Transaction[] = [];
+  let offset = 0;
+
+  while (true) {
+    const query = new URLSearchParams({
+      limit: String(TRANSACTION_PAGE_SIZE),
+      offset: String(offset),
+    });
+    if (startDate) query.set('startDate', startDate);
+    if (endDate) query.set('endDate', endDate);
+
+    const page = await apiGet<Transaction[]>(
+      `${apiUrl}/api/transactions?${query.toString()}`,
+      token,
+    );
+    transactions.push(...page);
+
+    if (page.length < TRANSACTION_PAGE_SIZE) {
+      return transactions;
+    }
+
+    offset += page.length;
+  }
+}
+
 function getIsoRange(mode: FilterMode): { start: string; end: string } | null {
   if (mode === 'all' || mode === 'custom') return null;
   const now = new Date();
@@ -234,11 +267,8 @@ export default function TransactionsPage() {
     try {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-      const query = new URLSearchParams({ limit: '5000' });
-      if (appliedStart) query.set('startDate', appliedStart);
-      if (appliedEnd) query.set('endDate', appliedEnd);
       const [txnData, catData] = await Promise.all([
-        apiGet<Transaction[]>(`${apiUrl}/api/transactions?${query.toString()}`, token ?? undefined),
+        fetchAllTransactions(apiUrl, token ?? undefined, appliedStart, appliedEnd),
         apiGet<Category[]>(`${apiUrl}/api/categories`, token ?? undefined),
       ]);
       setTransactions(txnData);

@@ -1,40 +1,40 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 const authenticateToken = require('../middleware/auth');
-const { sendOTP, verifyOTP } = require('../services/otp');
+const { OTP_PURPOSES, sendOTP, verifyOTP } = require('../services/otp');
+const { issueAuthToken } = require('../services/authToken');
 
 const router = express.Router();
-const resetOtpAttempts = new Map();
-const RESET_OTP_MAX_ATTEMPTS = 5;
-const RESET_OTP_WINDOW_MS = 15 * 60 * 1000;
+const otpAttempts = new Map();
+const OTP_MAX_ATTEMPTS = 5;
+const OTP_WINDOW_MS = 15 * 60 * 1000;
 
-function getResetOtpKey(req, email) {
-  return `${email.toLowerCase()}:${req.ip}`;
+function getOtpRateLimitKey(req, email, purpose) {
+  return `${purpose}:${email.toLowerCase()}:${req.ip}`;
 }
 
-function checkResetOtpRateLimit(req, email) {
-  const key = getResetOtpKey(req, email);
+function checkOtpRateLimit(req, email, purpose) {
+  const key = getOtpRateLimitKey(req, email, purpose);
   const now = Date.now();
-  const current = resetOtpAttempts.get(key);
+  const current = otpAttempts.get(key);
 
   if (!current || current.resetAt <= now) {
-    resetOtpAttempts.set(key, { count: 1, resetAt: now + RESET_OTP_WINDOW_MS });
+    otpAttempts.set(key, { count: 1, resetAt: now + OTP_WINDOW_MS });
     return true;
   }
 
   current.count += 1;
-  if (current.count > RESET_OTP_MAX_ATTEMPTS) {
+  if (current.count > OTP_MAX_ATTEMPTS) {
     return false;
   }
 
-  resetOtpAttempts.set(key, current);
+  otpAttempts.set(key, current);
   return true;
 }
 
-function clearResetOtpRateLimit(req, email) {
-  resetOtpAttempts.delete(getResetOtpKey(req, email));
+function clearOtpRateLimit(req, email, purpose) {
+  otpAttempts.delete(getOtpRateLimitKey(req, email, purpose));
 }
 
 // Register
@@ -53,14 +53,12 @@ router.post('/register', async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await pool.query(
-      'INSERT INTO users (email, password_hash, name, phone) VALUES ($1, $2, $3, $4) RETURNING id, email, name, phone',
+      'INSERT INTO users (email, password_hash, name, phone) VALUES ($1, $2, $3, $4) RETURNING id, email, name, phone, token_version',
       [email, hashedPassword, name, phone || null],
     );
 
     const user = result.rows[0];
-    const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
-      expiresIn: '7d',
-    });
+    const token = issueAuthToken(user);
 
     res.json({
       token,
@@ -113,9 +111,7 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
-      expiresIn: '7d',
-    });
+    const token = issueAuthToken(user);
 
     res.json({
       token,
@@ -140,7 +136,7 @@ router.post('/forgot-password/send-otp', async (req, res) => {
       return res.status(404).json({ error: 'No account found for this email' });
     }
 
-    await sendOTP(email, userResult.rows[0].name || 'User');
+    await sendOTP(email, userResult.rows[0].name || 'User', OTP_PURPOSES.PASSWORD_RESET);
     res.json({ success: true, message: 'Password reset OTP sent to email' });
   } catch (err) {
     console.error('Error sending password reset OTP:', err);
@@ -167,20 +163,20 @@ router.post('/forgot-password/reset', async (req, res) => {
   }
 
   try {
-    if (!checkResetOtpRateLimit(req, email)) {
+    if (!checkOtpRateLimit(req, email, OTP_PURPOSES.PASSWORD_RESET)) {
       return res
         .status(429)
         .json({ error: 'Too many invalid OTP attempts. Please try again later.' });
     }
 
-    const otpResult = await verifyOTP(email, otp);
+    const otpResult = await verifyOTP(email, otp, OTP_PURPOSES.PASSWORD_RESET);
     if (!otpResult.success) {
       return res.status(401).json({ error: otpResult.message });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     const result = await pool.query(
-      'UPDATE users SET password_hash = $1 WHERE email = $2 RETURNING id',
+      'UPDATE users SET password_hash = $1, token_version = token_version + 1 WHERE email = $2 RETURNING id',
       [hashedPassword, email],
     );
 
@@ -188,7 +184,7 @@ router.post('/forgot-password/reset', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    clearResetOtpRateLimit(req, email);
+    clearOtpRateLimit(req, email, OTP_PURPOSES.PASSWORD_RESET);
     res.json({ success: true, message: 'Password reset successfully' });
   } catch (err) {
     console.error('Error resetting password:', err);
@@ -210,7 +206,7 @@ router.post('/send-otp', async (req, res) => {
     const name = userResult.rows.length > 0 ? userResult.rows[0].name : 'User';
 
     // Send OTP
-    await sendOTP(email, name);
+    await sendOTP(email, name, OTP_PURPOSES.LOGIN);
     res.json({ success: true, message: 'OTP sent to email', email });
   } catch (err) {
     console.error('Error sending OTP:', err);
@@ -234,15 +230,21 @@ router.post('/verify-otp', async (req, res) => {
   }
 
   try {
+    if (!checkOtpRateLimit(req, email, OTP_PURPOSES.LOGIN)) {
+      return res
+        .status(429)
+        .json({ error: 'Too many invalid OTP attempts. Please try again later.' });
+    }
+
     // Verify OTP
-    const otpResult = await verifyOTP(email, otp);
+    const otpResult = await verifyOTP(email, otp, OTP_PURPOSES.LOGIN);
     if (!otpResult.success) {
       return res.status(401).json({ error: otpResult.message });
     }
 
     // Get user by email
     const userResult = await pool.query(
-      'SELECT id, email, name, phone FROM users WHERE email = $1',
+      'SELECT id, email, name, phone, token_version FROM users WHERE email = $1',
       [email],
     );
     if (userResult.rows.length === 0) {
@@ -250,9 +252,9 @@ router.post('/verify-otp', async (req, res) => {
     }
 
     const user = userResult.rows[0];
-    const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
-      expiresIn: '7d',
-    });
+    const token = issueAuthToken(user);
+
+    clearOtpRateLimit(req, email, OTP_PURPOSES.LOGIN);
 
     res.json({
       token,
@@ -329,12 +331,16 @@ router.put('/password', authenticateToken, async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [
-      hashedPassword,
-      req.user.id,
-    ]);
+    const updateResult = await pool.query(
+      `UPDATE users
+       SET password_hash = $1, token_version = token_version + 1
+       WHERE id = $2
+       RETURNING id, email, token_version`,
+      [hashedPassword, req.user.id],
+    );
+    const token = issueAuthToken(updateResult.rows[0]);
 
-    res.json({ success: true, message: 'Password updated successfully' });
+    res.json({ success: true, message: 'Password updated successfully', token });
   } catch (err) {
     console.error('Error updating password:', err);
     res.status(500).json({ error: 'Failed to update password' });

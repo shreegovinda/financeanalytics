@@ -3,20 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import {
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts';
 import AuthSessionGuard from '@/components/AuthSessionGuard';
+import AiProviderSelect from '@/components/AiProviderSelect';
 import { apiGet, apiPut, getErrorMessage } from '@/lib/api';
 import { DashboardSkeleton } from '@/components/Skeleton';
 
@@ -34,30 +22,11 @@ interface CategoryData {
   value: number;
 }
 
-interface MonthlyData {
-  month: string;
-  income: number;
-  expenses: number;
-}
-
 interface SummaryStats {
   total_income: number;
   total_expenses: number;
   transaction_count: number;
 }
-
-const COLORS = [
-  '#3b82f6',
-  '#ef4444',
-  '#10b981',
-  '#f59e0b',
-  '#8b5cf6',
-  '#ec4899',
-  '#14b8a6',
-  '#f97316',
-  '#6366f1',
-  '#06b6d4',
-];
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -80,7 +49,6 @@ export default function DashboardPage() {
     transaction_count: 0,
   });
   const [categoryData, setCategoryData] = useState<CategoryData[]>([]);
-  const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [profileName, setProfileName] = useState('');
   const [profilePhone, setProfilePhone] = useState('');
@@ -93,21 +61,20 @@ export default function DashboardPage() {
   const [isSavingPassword, setIsSavingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
 
   const fetchAnalytics = async (token: string) => {
     const results = await Promise.allSettled([
       apiGet<SummaryStats>('http://localhost:3001/api/transactions/stats/summary', token),
       apiGet<CategoryData[]>('http://localhost:3001/api/analytics/pie', token),
-      apiGet<MonthlyData[]>('http://localhost:3001/api/analytics/bar', token),
     ]);
 
     if (results[0].status === 'fulfilled') setStats(results[0].value);
     if (results[1].status === 'fulfilled') setCategoryData(results[1].value);
-    if (results[2].status === 'fulfilled') setMonthlyData(results[2].value);
 
     results.forEach((result, index) => {
       if (result.status === 'rejected') {
-        const endpoints = ['stats', 'pie chart', 'bar chart'];
+        const endpoints = ['stats', 'pie chart'];
         console.error(`Error fetching ${endpoints[index]}:`, getErrorMessage(result.reason));
       }
     });
@@ -157,6 +124,7 @@ export default function DashboardPage() {
     setConfirmNewPassword('');
     setPasswordError('');
     setPasswordSuccess('');
+    setShowPasswordForm(false);
     setIsProfileOpen(true);
   };
 
@@ -213,15 +181,17 @@ export default function DashboardPage() {
     setPasswordSuccess('');
 
     try {
-      await apiPut<{ success: boolean }>(
+      const response = await apiPut<{ success: boolean; token: string }>(
         `${API_BASE_URL}/api/auth/password`,
         { currentPassword, newPassword },
         token,
       );
+      localStorage.setItem('token', response.token);
       setCurrentPassword('');
       setNewPassword('');
       setConfirmNewPassword('');
       setPasswordSuccess('Password updated successfully.');
+      setShowPasswordForm(false);
     } catch (err) {
       setPasswordError(getErrorMessage(err));
     } finally {
@@ -234,21 +204,38 @@ export default function DashboardPage() {
   }
 
   const netBalance = stats.total_income - stats.total_expenses;
+  const totalIncome = Number(stats.total_income || 0);
+  const totalExpenses = Number(stats.total_expenses || 0);
+  const totalTransactions = Number(stats.transaction_count || 0);
+  const savingsRate =
+    totalIncome > 0 ? Math.max(0, Math.round((netBalance / totalIncome) * 100)) : 0;
+  const topCategory = categoryData[0]?.name || 'No category yet';
+  const formatCurrency = (value: number): string => `₹${Number(value || 0).toFixed(2)}`;
   const hasProfileChanges =
     profileName.trim() !== user.name || profilePhone.trim() !== (user.phone || '');
   const canSavePassword =
     currentPassword.length > 0 && newPassword.length > 0 && confirmNewPassword.length > 0;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_34%),linear-gradient(180deg,#f8fafc_0%,#eef2ff_48%,#f8fafc_100%)]">
       <AuthSessionGuard />
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+      <header className="sticky top-0 z-30 border-b border-white/70 bg-white/85 shadow-sm backdrop-blur-xl">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-4 lg:flex-row lg:justify-between lg:items-center">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-gray-800">Finance Analytics</h1>
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-lg">
+              ₹
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-600">
+                Finlytix
+              </p>
+              <h1 className="text-2xl font-bold text-gray-900">Finance Analytics</h1>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-gray-700">Welcome, {user.name}</span>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="rounded-full bg-blue-50 px-4 py-2 text-sm font-medium text-blue-800">
+              Welcome, {user.name}
+            </span>
             <button
               type="button"
               onClick={openProfile}
@@ -259,19 +246,19 @@ export default function DashboardPage() {
             </button>
             <Link
               href="/pricing"
-              className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition font-semibold cursor-pointer"
+              className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 transition font-semibold shadow-sm cursor-pointer"
             >
               ✨ Upgrade
             </Link>
             <Link
               href="/settings"
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition cursor-pointer"
+              className="px-4 py-2 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition cursor-pointer"
             >
               Categories
             </Link>
             <button
               onClick={handleLogout}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition cursor-pointer"
+              className="px-4 py-2 bg-white text-red-600 rounded-xl border border-red-200 hover:bg-red-50 transition cursor-pointer"
             >
               Logout
             </button>
@@ -280,245 +267,361 @@ export default function DashboardPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
+        <section className="mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-blue-950 to-indigo-900 p-6 text-white shadow-2xl sm:p-8">
+          <div className="grid gap-8 lg:grid-cols-[1.25fr_0.75fr] lg:items-center">
+            <div>
+              <p className="mb-3 inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-blue-100">
+                Money Command Center
+              </p>
+              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                Your financial picture, beautifully organized.
+              </h2>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100 sm:text-base">
+                Track cash flow, spending categories, and monthly movement from one polished
+                dashboard.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link
+                  href="/statements"
+                  className="rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-950 shadow-lg transition hover:bg-blue-50"
+                >
+                  Upload Statement
+                </Link>
+                <Link
+                  href="/transactions"
+                  className="rounded-2xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/20"
+                >
+                  Review Transactions
+                </Link>
+              </div>
+            </div>
+            <div className="rounded-3xl border border-white/15 bg-white/10 p-5 backdrop-blur">
+              <p className="text-sm text-blue-100">Net Balance</p>
+              <p
+                className={`mt-2 text-4xl font-bold ${netBalance >= 0 ? 'text-emerald-300' : 'text-red-300'}`}
+              >
+                {formatCurrency(netBalance)}
+              </p>
+              <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
+                <div className="rounded-2xl bg-white/10 p-3">
+                  <p className="text-blue-100">Savings Rate</p>
+                  <p className="mt-1 text-xl font-bold">{savingsRate}%</p>
+                </div>
+                <div className="rounded-2xl bg-white/10 p-3">
+                  <p className="text-blue-100">Transactions</p>
+                  <p className="mt-1 text-xl font-bold">{totalTransactions}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-gray-600 text-sm font-medium">Total Income</h3>
-            <p className="text-3xl font-bold text-green-600 mt-2">
-              ₹{Number(stats.total_income || 0).toFixed(2)}
-            </p>
+          <div className="group rounded-3xl border border-emerald-100 bg-white/90 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
+            <div className="mb-5 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-600">Total Income</h3>
+              <span className="rounded-2xl bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+                Credit
+              </span>
+            </div>
+            <p className="text-3xl font-bold text-emerald-600">{formatCurrency(totalIncome)}</p>
+            <p className="mt-3 text-sm text-gray-500">Money received across all imported data.</p>
           </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-gray-600 text-sm font-medium">Total Expenses</h3>
-            <p className="text-3xl font-bold text-red-600 mt-2">
-              ₹{Number(stats.total_expenses || 0).toFixed(2)}
-            </p>
+          <div className="group rounded-3xl border border-red-100 bg-white/90 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
+            <div className="mb-5 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-600">Total Expenses</h3>
+              <span className="rounded-2xl bg-red-50 px-3 py-1 text-xs font-bold text-red-700">
+                Debit
+              </span>
+            </div>
+            <p className="text-3xl font-bold text-red-600">{formatCurrency(totalExpenses)}</p>
+            <p className="mt-3 text-sm text-gray-500">Spending tracked from uploaded statements.</p>
           </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-gray-600 text-sm font-medium">Net Balance</h3>
+          <div className="group rounded-3xl border border-indigo-100 bg-white/90 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
+            <div className="mb-5 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-600">Net Balance</h3>
+              <span className="rounded-2xl bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700">
+                {netBalance >= 0 ? 'Positive' : 'Negative'}
+              </span>
+            </div>
             <p
-              className={`text-3xl font-bold mt-2 ${netBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}
+              className={`text-3xl font-bold ${netBalance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}
             >
-              ₹{Number(netBalance || 0).toFixed(2)}
+              {formatCurrency(netBalance)}
             </p>
+            <p className="mt-3 text-sm text-gray-500">Top category: {topCategory}</p>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Quick Links</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white/90 rounded-3xl border border-white p-6 shadow-sm mb-8">
+          <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
+                Shortcuts
+              </p>
+              <h2 className="text-2xl font-bold text-gray-900">What would you like to do?</h2>
+            </div>
+            <p className="text-sm text-gray-500">Fast access to your most-used workflows.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
             <Link
               href="/statements"
-              className="p-4 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition cursor-pointer"
+              className="group rounded-3xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-white p-5 transition hover:-translate-y-1 hover:border-indigo-300 hover:shadow-xl cursor-pointer"
             >
-              <h3 className="font-semibold text-indigo-600">📤 Upload Statement</h3>
-              <p className="text-sm text-gray-600">Upload bank statement PDF/Excel</p>
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600 text-xl text-white shadow-lg">
+                📤
+              </div>
+              <h3 className="font-semibold text-indigo-700">Upload Statement</h3>
+              <p className="mt-2 text-sm text-gray-600">Import verified PDF or XLSX statements.</p>
             </Link>
             <Link
               href="/transactions"
-              className="p-4 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition cursor-pointer"
+              className="group rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white p-5 transition hover:-translate-y-1 hover:border-blue-300 hover:shadow-xl cursor-pointer"
             >
-              <h3 className="font-semibold text-indigo-600">📋 View Transactions</h3>
-              <p className="text-sm text-gray-600">View and manage transactions</p>
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-xl text-white shadow-lg">
+                📋
+              </div>
+              <h3 className="font-semibold text-blue-700">View Transactions</h3>
+              <p className="mt-2 text-sm text-gray-600">Search, review, and tune categories.</p>
+            </Link>
+            <Link
+              href="/analytics"
+              className="group rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-5 transition hover:-translate-y-1 hover:border-emerald-300 hover:shadow-xl cursor-pointer"
+            >
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-600 text-xl text-white shadow-lg">
+                📊
+              </div>
+              <h3 className="font-semibold text-emerald-700">Analytics Studio</h3>
+              <p className="mt-2 text-sm text-gray-600">
+                Explore month, FY, and custom date insights.
+              </p>
             </Link>
             <Link
               href="/pricing"
-              className="p-4 border border-blue-400 rounded-lg hover:bg-blue-50 transition bg-blue-50/50 cursor-pointer"
+              className="group rounded-3xl border border-amber-100 bg-gradient-to-br from-amber-50 to-white p-5 transition hover:-translate-y-1 hover:border-amber-300 hover:shadow-xl cursor-pointer"
             >
-              <h3 className="font-semibold text-blue-600">✨ Premium Features</h3>
-              <p className="text-sm text-gray-600">Unlock advanced analytics & AI insights</p>
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500 text-xl text-white shadow-lg">
+                ✨
+              </div>
+              <h3 className="font-semibold text-amber-700">Premium Features</h3>
+              <p className="mt-2 text-sm text-gray-600">
+                Unlock advanced analytics and AI insights.
+              </p>
             </Link>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Analytics</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="flex justify-center items-center h-80">
-              {categoryData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={categoryData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, value }) => `${name}: ₹${value}`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {categoryData.map((_, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => `₹${Number(value).toFixed(2)}`} />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <p className="text-gray-500">No expense data available</p>
-              )}
-            </div>
-            <div className="flex justify-center items-center h-80">
-              {monthlyData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthlyData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => `₹${Number(value).toFixed(2)}`} />
-                    <Legend />
-                    <Bar dataKey="income" fill="#10b981" name="Income" />
-                    <Bar dataKey="expenses" fill="#ef4444" name="Expenses" />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <p className="text-gray-500">No monthly data available</p>
-              )}
-            </div>
           </div>
         </div>
       </main>
 
       {isProfileOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 px-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border border-gray-100">
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">Edit Profile</h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsProfileOpen(false)}
-                className="text-gray-400 hover:text-gray-600 cursor-pointer"
-                aria-label="Close profile editor"
-              >
-                ✕
-              </button>
-            </div>
-
-            {profileError && (
-              <div className="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">
-                {profileError}
-              </div>
-            )}
-            {profileSuccess && (
-              <div className="mb-4 bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-3 rounded-lg">
-                {profileSuccess}
-              </div>
-            )}
-            {passwordError && (
-              <div className="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">
-                {passwordError}
-              </div>
-            )}
-            {passwordSuccess && (
-              <div className="mb-4 bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-3 rounded-lg">
-                {passwordSuccess}
-              </div>
-            )}
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                <input
-                  type="text"
-                  value={profileName}
-                  onChange={(event) => setProfileName(event.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                <input
-                  type="tel"
-                  value={profilePhone}
-                  onChange={(event) => setProfilePhone(event.target.value)}
-                  placeholder="+91 98765 43210"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input
-                  type="email"
-                  value={user.email}
-                  disabled
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-gray-500 bg-gray-100 cursor-not-allowed"
-                />
-                <p className="text-xs text-gray-500 mt-1">Email cannot be changed.</p>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 mt-6 pb-6 border-b border-gray-100">
-              <button
-                type="button"
-                onClick={() => setIsProfileOpen(false)}
-                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleProfileSave()}
-                disabled={isSavingProfile || !hasProfileChanges}
-                className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 cursor-pointer"
-              >
-                {isSavingProfile ? 'Saving...' : 'Save Changes'}
-              </button>
-            </div>
-
-            <div className="mt-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">Update Password</h3>
-              <p className="text-sm text-gray-500 mb-4">
-                Use this only when you want to change your password.
-              </p>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Current Password
-                  </label>
-                  <input
-                    type="password"
-                    value={currentPassword}
-                    onChange={(event) => setCurrentPassword(event.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/60 px-4 py-6 backdrop-blur-sm sm:py-10">
+          <div className="mx-auto w-full max-w-2xl overflow-hidden rounded-3xl border border-white/20 bg-white shadow-2xl">
+            <div className="relative bg-gradient-to-br from-blue-600 via-indigo-600 to-slate-900 px-6 py-6 text-white">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.22),transparent_32%)]" />
+              <div className="relative flex items-start justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/25 bg-white/15 text-2xl font-bold shadow-lg">
+                    {user.name?.trim().charAt(0).toUpperCase() || 'U'}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-blue-100">Account settings</p>
+                    <h2 className="text-2xl font-bold">{user.name || 'Your Profile'}</h2>
+                    <p className="mt-1 text-sm text-blue-100">{user.email}</p>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    New Password
-                  </label>
-                  <input
-                    type="password"
-                    value={newPassword}
-                    onChange={(event) => setNewPassword(event.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Confirm New Password
-                  </label>
-                  <input
-                    type="password"
-                    value={confirmNewPassword}
-                    onChange={(event) => setConfirmNewPassword(event.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end mt-6">
                 <button
                   type="button"
-                  onClick={() => void handlePasswordSave()}
-                  disabled={isSavingPassword || !canSavePassword}
-                  className="px-4 py-2 rounded-lg bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-60 cursor-pointer"
+                  onClick={() => setIsProfileOpen(false)}
+                  className="rounded-full bg-white/10 px-3 py-1.5 text-sm text-white hover:bg-white/20 cursor-pointer"
+                  aria-label="Close profile editor"
                 >
-                  {isSavingPassword ? 'Updating...' : 'Update Password'}
+                  Close
                 </button>
               </div>
+            </div>
+
+            <div className="max-h-[calc(100vh-12rem)] overflow-y-auto px-6 py-6">
+              {profileError && (
+                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {profileError}
+                </div>
+              )}
+              {profileSuccess && (
+                <div className="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                  {profileSuccess}
+                </div>
+              )}
+              {passwordError && (
+                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {passwordError}
+                </div>
+              )}
+              {passwordSuccess && (
+                <div className="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                  {passwordSuccess}
+                </div>
+              )}
+
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+                    Profile
+                  </p>
+                  <p className="mt-2 text-sm text-blue-950">Manage your name and contact number.</p>
+                </div>
+                <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">
+                    AI Model
+                  </p>
+                  <p className="mt-2 text-sm text-indigo-950">Choose the model used for parsing.</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                    Security
+                  </p>
+                  <p className="mt-2 text-sm text-slate-700">
+                    Password settings stay hidden by default.
+                  </p>
+                </div>
+              </div>
+
+              <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Personal details</h3>
+                  <p className="text-sm text-gray-500">Keep your profile information up to date.</p>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="mb-1 block text-sm font-medium text-gray-700">Name</span>
+                    <input
+                      type="text"
+                      value={profileName}
+                      onChange={(event) => setProfileName(event.target.value)}
+                      className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-sm font-medium text-gray-700">Phone</span>
+                    <input
+                      type="tel"
+                      value={profilePhone}
+                      onChange={(event) => setProfilePhone(event.target.value)}
+                      placeholder="+91 98765 43210"
+                      className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </label>
+                  <label className="block sm:col-span-2">
+                    <span className="mb-1 block text-sm font-medium text-gray-700">Email</span>
+                    <input
+                      type="email"
+                      value={user.email}
+                      disabled
+                      className="w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-100 px-3 py-2.5 text-gray-500"
+                    />
+                    <span className="mt-1 block text-xs text-gray-500">
+                      Email cannot be changed.
+                    </span>
+                  </label>
+                </div>
+
+                <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setIsProfileOpen(false)}
+                    className="rounded-xl border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleProfileSave()}
+                    disabled={isSavingProfile || !hasProfileChanges}
+                    className="rounded-xl bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-60 cursor-pointer"
+                  >
+                    {isSavingProfile ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </section>
+
+              <section className="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">AI preferences</h3>
+                  <p className="text-sm text-gray-500">
+                    Select the model used for statement parsing and categorization.
+                  </p>
+                </div>
+                <AiProviderSelect embedded />
+              </section>
+
+              <section className="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Security</h3>
+                    <p className="text-sm text-gray-500">
+                      Update your password only when you need to rotate it.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPasswordForm((current) => !current);
+                      setPasswordError('');
+                      setPasswordSuccess('');
+                    }}
+                    className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
+                  >
+                    {showPasswordForm ? 'Hide Password Form' : 'Change Password'}
+                  </button>
+                </div>
+
+                {showPasswordForm && (
+                  <div className="mt-5 space-y-4 rounded-2xl bg-slate-50 p-4">
+                    <label className="block">
+                      <span className="mb-1 block text-sm font-medium text-gray-700">
+                        Current Password
+                      </span>
+                      <input
+                        type="password"
+                        value={currentPassword}
+                        onChange={(event) => setCurrentPassword(event.target.value)}
+                        className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-sm font-medium text-gray-700">
+                        New Password
+                      </span>
+                      <input
+                        type="password"
+                        value={newPassword}
+                        onChange={(event) => setNewPassword(event.target.value)}
+                        className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-sm font-medium text-gray-700">
+                        Confirm New Password
+                      </span>
+                      <input
+                        type="password"
+                        value={confirmNewPassword}
+                        onChange={(event) => setConfirmNewPassword(event.target.value)}
+                        className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </label>
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => void handlePasswordSave()}
+                        disabled={isSavingPassword || !canSavePassword}
+                        className="rounded-xl bg-gray-900 px-4 py-2 text-white hover:bg-gray-800 disabled:opacity-60 cursor-pointer"
+                      >
+                        {isSavingPassword ? 'Updating...' : 'Update Password'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </section>
             </div>
           </div>
         </div>
