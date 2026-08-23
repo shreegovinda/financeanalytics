@@ -12,6 +12,7 @@ const categoryRoutes = require('./routes/categories');
 const analyticsRoutes = require('./routes/analytics');
 const paymentRoutes = require('./routes/payments');
 const aiRoutes = require('./routes/ai');
+const billRoutes = require('./routes/bills');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -32,6 +33,8 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/ai', aiRoutes);
+// Nested under a transaction: a bill only has meaning attached to one.
+app.use('/api/transactions/:transactionId/bills', billRoutes);
 
 async function startServer() {
   await initializeDatabase();

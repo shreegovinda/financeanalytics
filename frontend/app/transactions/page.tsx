@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { AgGridReact } from 'ag-grid-react';
 import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
 import type { ColDef, GridApi, ICellRendererParams } from 'ag-grid-community';
+import BillAttachDialog from '@/components/BillAttachDialog';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-quartz.css';
 import AuthSessionGuard from '@/components/AuthSessionGuard';
@@ -23,6 +24,7 @@ interface Transaction {
   type: string;
   category_id?: string;
   ai_suggested_category?: string;
+  has_bill?: boolean;
 }
 
 interface Category {
@@ -48,10 +50,12 @@ interface TxnRow {
   subName: string;
   subColor: string;
   aiSuggested: string;
+  hasBill: boolean;
 }
 
 interface GridContext {
   onEdit: (row: TxnRow) => void;
+  onAttachBill: (row: TxnRow) => void;
 }
 
 function CategoryCellRenderer({ data }: ICellRendererParams<TxnRow>) {
@@ -141,6 +145,23 @@ function StyledSelect({
         </svg>
       </div>
     </div>
+  );
+}
+
+function BillCellRenderer({ data, context }: ICellRendererParams<TxnRow, unknown, GridContext>) {
+  if (!data) return null;
+  return (
+    <button
+      onClick={() => context?.onAttachBill(data)}
+      title={data.hasBill ? 'Bill attached — view or add another' : 'Attach a bill'}
+      className={`px-2.5 py-1 text-xs rounded-md cursor-pointer border ${
+        data.hasBill
+          ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+          : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+      }`}
+    >
+      {data.hasBill ? '\u{1F9FE} Bill' : '+ Bill'}
+    </button>
   );
 }
 
@@ -325,8 +346,21 @@ export default function TransactionsPage() {
     [categories],
   );
 
+  const [billDialog, setBillDialog] = useState<{
+    transactionId: string | null;
+    description: string;
+    amount: number;
+  }>({ transactionId: null, description: '', amount: 0 });
+
   const gridContext = useMemo<GridContext>(
     () => ({
+      onAttachBill: (row: TxnRow) => {
+        setBillDialog({
+          transactionId: row.id,
+          description: row.description,
+          amount: row.amount,
+        });
+      },
       onEdit: (row: TxnRow) => {
         const { parent, sub } = resolveCats(row.categoryId);
         setEditingTxnId(row.id);
@@ -356,6 +390,7 @@ export default function TransactionsPage() {
           subName: sub?.name ?? '',
           subColor: sub?.color ?? '',
           aiSuggested: t.ai_suggested_category ?? '',
+          hasBill: Boolean(t.has_bill),
         };
       }),
     [transactions, resolveCats],
@@ -488,6 +523,13 @@ export default function TransactionsPage() {
         filter: 'agNumberColumnFilter',
         type: 'numericColumn',
         cellRenderer: AmountCellRenderer,
+      },
+      {
+        headerName: 'Bill',
+        width: 90,
+        sortable: false,
+        filter: false,
+        cellRenderer: BillCellRenderer,
       },
       {
         headerName: 'Action',
@@ -854,6 +896,17 @@ export default function TransactionsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {billDialog.transactionId && (
+        <BillAttachDialog
+          key={billDialog.transactionId}
+          transactionId={billDialog.transactionId}
+          transactionDescription={billDialog.description}
+          transactionAmount={billDialog.amount}
+          onClose={() => setBillDialog({ transactionId: null, description: '', amount: 0 })}
+          onAttached={() => void fetchData()}
+        />
       )}
     </div>
   );

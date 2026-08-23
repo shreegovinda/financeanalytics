@@ -183,11 +183,11 @@ async function ensureMonthNotAlreadyUploaded(client, userId, selectedBank, selec
   const bankFullNamePattern = selectedBank === 'SBI' ? '%STATE BANK OF INDIA%' : bankPattern;
 
   const existing = await client.query(
-    `SELECT s.id
+    `SELECT s.id, s.status, s.file_name
      FROM statements s
      WHERE s.user_id = $1
        AND (
-         (s.status IN ('processing', 'completed') AND s.statement_month = $2)
+         (s.status IN ('processing', 'pending_review', 'completed') AND s.statement_month = $2)
          OR EXISTS (
            SELECT 1
            FROM transactions t
@@ -214,6 +214,19 @@ async function ensureMonthNotAlreadyUploaded(client, userId, selectedBank, selec
   );
 
   if (existing.rows.length > 0) {
+    const blocker = existing.rows[0];
+
+    // A draft awaiting review is recoverable: the user can open or discard it,
+    // so say so rather than reporting a dead end.
+    if (blocker.status === 'pending_review') {
+      const error = new UploadValidationError(
+        `A pending ${selectedBank} statement for ${selectedMonth} ("${blocker.file_name}") is waiting for your review. ` +
+          'Confirm or discard it before uploading this month again.',
+      );
+      error.pendingStatementId = blocker.id;
+      throw error;
+    }
+
     throw new UploadValidationError(
       `${selectedBank} transactions for ${selectedMonth} already exist.`,
     );
@@ -290,6 +303,76 @@ async function getInFlightStatement(userId, queryable = pool) {
      LIMIT 1`,
     [userId],
   );
+  return result.rows[0] || null;
+}
+
+/**
+ * Writes the parsed statement to staging and returns the preview payload.
+ *
+ * Totals are denormalised onto the row so the preview header does not have to
+ * scan the payload on every read.
+ */
+async function createStatementDraft(client, statementId, parsedStatement) {
+  const transactions = parsedStatement.transactions.map((txn) => ({
+    date: toSqlDate(txn.date),
+    description: txn.description,
+    amount: Number(Number(txn.amount).toFixed(2)),
+    type: txn.type,
+  }));
+
+  const totals = transactions.reduce(
+    (acc, txn) => {
+      if (txn.type === 'credit') {
+        acc.credit += txn.amount;
+      } else {
+        acc.debit += txn.amount;
+      }
+      return acc;
+    },
+    { debit: 0, credit: 0 },
+  );
+
+  const payload = {
+    bankName: parsedStatement.bankName,
+    statementMonth: parsedStatement.statementMonth || null,
+    transactions,
+  };
+
+  const result = await client.query(
+    `INSERT INTO statement_drafts
+       (statement_id, payload, transaction_count, total_debit, total_credit)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING id, transaction_count, total_debit, total_credit,
+               to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS') AS created_at`,
+    [
+      statementId,
+      JSON.stringify(payload),
+      transactions.length,
+      totals.debit.toFixed(2),
+      totals.credit.toFixed(2),
+    ],
+  );
+
+  return { ...result.rows[0], payload };
+}
+
+/**
+ * Loads a draft, scoped to its owner. Returns null when the statement does not
+ * exist, belongs to someone else, or is not awaiting review.
+ */
+async function loadStatementDraft(queryable, statementId, userId) {
+  const result = await queryable.query(
+    `SELECT d.id, d.payload, d.transaction_count, d.total_debit, d.total_credit,
+            s.id AS statement_id, s.bank_name, s.file_name, s.file_format,
+            s.detected_bank_name, s.status, s.ai_provider,
+            to_char(s.statement_month, 'YYYY-MM') AS statement_month,
+            to_char(s.uploaded_at, 'YYYY-MM-DD') AS uploaded_at
+     FROM statement_drafts d
+     JOIN statements s ON s.id = d.statement_id
+     WHERE d.statement_id = $1 AND s.user_id = $2 AND s.status = 'pending_review'`,
+    [statementId, userId],
+  );
+
   return result.rows[0] || null;
 }
 
@@ -563,10 +646,10 @@ router.post('/', auth, uploadSingleStatement, async (req, res) => {
     }
 
     const transactions = parsedStatement.transactions;
-    const txnIds = [];
     const client = await pool.connect();
     let clientReleased = false;
     let statement;
+    let draft;
 
     try {
       await client.query('BEGIN');
@@ -574,20 +657,23 @@ router.post('/', auth, uploadSingleStatement, async (req, res) => {
       await ensureMonthNotAlreadyUploaded(client, userId, selectedBank, selectedMonth);
       await ensureNoExistingDuplicateTransactions(client, userId, transactions);
 
+      // Held for review rather than imported. The statements row still claims
+      // the month, so a second upload of the same month is blocked while this
+      // draft is outstanding.
       const statementResult = await client.query(
         `INSERT INTO statements
          (user_id, bank_name, file_name, status, processing_stage, processing_progress,
           upload_path, ai_provider, statement_month, file_format, detected_bank_name)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          RETURNING id, bank_name, file_name, to_char(uploaded_at, 'YYYY-MM-DD') as uploaded_at, status, processing_stage,
-                   processing_progress, statement_month, file_format`,
+                   processing_progress, to_char(statement_month, 'YYYY-MM') as statement_month, file_format`,
         [
           userId,
           selectedBank,
           req.file.originalname,
-          'processing',
-          'importing_transactions',
-          65,
+          'pending_review',
+          'awaiting_confirmation',
+          90,
           null,
           aiProvider,
           `${selectedMonth}-01`,
@@ -597,28 +683,7 @@ router.post('/', auth, uploadSingleStatement, async (req, res) => {
       );
 
       statement = statementResult.rows[0];
-
-      const values = [];
-      const placeholders = transactions.map((txn, index) => {
-        const offset = index * 6;
-        values.push(
-          userId,
-          statement.id,
-          toSqlDate(txn.date),
-          txn.amount,
-          txn.description,
-          txn.type,
-        );
-        return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
-      });
-
-      const transactionResult = await client.query(
-        `INSERT INTO transactions (user_id, statement_id, date, amount, description, type)
-         VALUES ${placeholders.join(', ')}
-         RETURNING id`,
-        values,
-      );
-      txnIds.push(...transactionResult.rows.map((row) => row.id));
+      draft = await createStatementDraft(client, statement.id, parsedStatement);
 
       await client.query('COMMIT');
       client.release();
@@ -636,22 +701,14 @@ router.post('/', auth, uploadSingleStatement, async (req, res) => {
       }
     }
 
-    setImmediate(() => {
-      void categorizeStatementInBackground({
-        statementId: statement.id,
-        originalName: req.file.originalname,
-        transactions,
-        txnIds,
-        aiProvider,
-      });
-    });
-
     res.status(202).json({
       success: true,
+      requiresReview: true,
       statementId: statement.id,
       statement,
+      draft,
       transactionCount: transactions.length,
-      message: `Statement accepted. ${transactions.length} transactions imported and categorization has started.`,
+      message: `Extracted ${transactions.length} transactions. Review and confirm to import them.`,
     });
   } catch (err) {
     console.error('Upload failed:', err);
@@ -662,7 +719,162 @@ router.post('/', auth, uploadSingleStatement, async (req, res) => {
 
     const status = err instanceof UploadValidationError ? 400 : 500;
     const prefix = err instanceof UploadValidationError ? '' : 'Failed to upload statement: ';
+    const body = { error: `${prefix}${err.message}` };
+    if (err.pendingStatementId) {
+      body.pendingStatementId = err.pendingStatementId;
+    }
+    res.status(status).json(body);
+  }
+});
+
+/**
+ * Preview payload for a statement awaiting confirmation.
+ */
+router.get('/:statementId/draft', auth, async (req, res) => {
+  try {
+    const draft = await loadStatementDraft(pool, req.params.statementId, req.user.id);
+
+    if (!draft) {
+      return res.status(404).json({ error: 'No pending draft found for this statement.' });
+    }
+
+    res.json({
+      statementId: draft.statement_id,
+      bankName: draft.bank_name,
+      detectedBankName: draft.detected_bank_name,
+      fileName: draft.file_name,
+      fileFormat: draft.file_format,
+      statementMonth: draft.statement_month,
+      uploadedAt: draft.uploaded_at,
+      transactionCount: draft.transaction_count,
+      totalDebit: draft.total_debit,
+      totalCredit: draft.total_credit,
+      transactions: draft.payload.transactions,
+    });
+  } catch (err) {
+    console.error('Error fetching statement draft:', err);
+    res.status(500).json({ error: 'Failed to fetch statement draft' });
+  }
+});
+
+/**
+ * Commits a reviewed draft into transactions.
+ *
+ * The duplicate check runs again here, not just at upload: another statement may
+ * have been confirmed in between, and the draft could have been sitting for days.
+ */
+router.post('/:statementId/confirm', auth, async (req, res) => {
+  const userId = req.user.id;
+  const client = await pool.connect();
+  let clientReleased = false;
+
+  try {
+    await client.query('BEGIN');
+    await lockUserUploads(client, userId);
+
+    const draft = await loadStatementDraft(client, req.params.statementId, userId);
+    if (!draft) {
+      await client.query('ROLLBACK');
+      client.release();
+      clientReleased = true;
+      return res.status(404).json({ error: 'No pending draft found for this statement.' });
+    }
+
+    const transactions = draft.payload.transactions;
+    await ensureNoExistingDuplicateTransactions(client, userId, transactions);
+
+    const values = [];
+    const placeholders = transactions.map((txn, index) => {
+      const offset = index * 6;
+      values.push(
+        userId,
+        draft.statement_id,
+        toSqlDate(txn.date),
+        txn.amount,
+        txn.description,
+        txn.type,
+      );
+      return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
+    });
+
+    const inserted = await client.query(
+      `INSERT INTO transactions (user_id, statement_id, date, amount, description, type)
+       VALUES ${placeholders.join(', ')}
+       RETURNING id`,
+      values,
+    );
+    const txnIds = inserted.rows.map((row) => row.id);
+
+    await client.query('DELETE FROM statement_drafts WHERE statement_id = $1', [
+      draft.statement_id,
+    ]);
+    await client.query(
+      `UPDATE statements
+       SET status = 'completed', processing_stage = 'categorizing_transactions',
+           processing_progress = 80, processed_at = NOW()
+       WHERE id = $1 AND user_id = $2`,
+      [draft.statement_id, userId],
+    );
+
+    await client.query('COMMIT');
+    client.release();
+    clientReleased = true;
+
+    setImmediate(() => {
+      void categorizeStatementInBackground({
+        statementId: draft.statement_id,
+        originalName: draft.file_name,
+        transactions,
+        txnIds,
+        aiProvider: draft.ai_provider,
+      });
+    });
+
+    res.json({
+      success: true,
+      statementId: draft.statement_id,
+      imported: txnIds.length,
+      message: `${txnIds.length} transactions imported. Categorization has started.`,
+    });
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackErr) {
+      console.error('Rollback error while confirming draft:', rollbackErr);
+    }
+    console.error('Error confirming statement draft:', err);
+
+    const status = err instanceof UploadValidationError ? 400 : 500;
+    const prefix = err instanceof UploadValidationError ? '' : 'Failed to confirm import: ';
     res.status(status).json({ error: `${prefix}${err.message}` });
+  } finally {
+    if (!clientReleased) {
+      client.release();
+    }
+  }
+});
+
+/**
+ * Discards a draft, releasing its month for a fresh upload.
+ */
+router.post('/:statementId/discard', auth, async (req, res) => {
+  try {
+    // ON DELETE CASCADE removes the draft with the statement row.
+    const result = await pool.query(
+      `DELETE FROM statements
+       WHERE id = $1 AND user_id = $2 AND status = 'pending_review'
+       RETURNING id`,
+      [req.params.statementId, req.user.id],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'No pending draft found for this statement.' });
+    }
+
+    res.json({ success: true, message: 'Draft discarded. You can upload this month again.' });
+  } catch (err) {
+    console.error('Error discarding statement draft:', err);
+    res.status(500).json({ error: 'Failed to discard draft' });
   }
 });
 
@@ -670,7 +882,8 @@ router.get('/', auth, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT id, bank_name, file_name, to_char(uploaded_at, 'YYYY-MM-DD') as uploaded_at, status, processing_stage,
-              processing_progress, processing_error, to_char(processed_at, 'YYYY-MM-DD') as processed_at, statement_month,
+              processing_progress, processing_error, to_char(processed_at, 'YYYY-MM-DD') as processed_at,
+              to_char(statement_month, 'YYYY-MM') as statement_month,
               file_format, detected_bank_name
        FROM statements
        WHERE user_id = $1
@@ -690,7 +903,8 @@ router.get('/:statementId', auth, async (req, res) => {
     const statement = await pool.query(
       `SELECT id, user_id, bank_name, file_name, to_char(uploaded_at, 'YYYY-MM-DD') as uploaded_at, status,
               processing_stage, processing_progress, processing_error, to_char(processed_at, 'YYYY-MM-DD') as processed_at,
-              statement_month, file_format, detected_bank_name, upload_path, ai_provider, to_char(created_at, 'YYYY-MM-DD') as created_at
+              to_char(statement_month, 'YYYY-MM') as statement_month,
+              file_format, detected_bank_name, upload_path, ai_provider, to_char(created_at, 'YYYY-MM-DD') as created_at
        FROM statements WHERE id = $1 AND user_id = $2`,
       [req.params.statementId, req.user.id],
     );

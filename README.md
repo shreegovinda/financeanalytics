@@ -4,7 +4,9 @@ A personal finance statement analyzer that uses AI to automatically categorize b
 
 ## Features
 
-- 📤 Upload bank statements (PDF/Excel) from Indian banks (ICICI, SBI)
+- 📤 Upload bank statements (PDF/Excel) from Indian banks (ICICI, SBI), with a
+  review step before anything is saved
+- 🧾 Attach merchant bills to any transaction for line-item detail
 - 🤖 AI-powered transaction categorization using Claude API
 - ✏️ Manual category override for transactions
 - 📊 Beautiful analytics dashboards with:
@@ -157,9 +159,12 @@ All routes except those marked *public* require an
 ### Statements
 - `POST /api/upload` - Upload a statement. Requires `bank`, `statementMonth`, and
   `fileFormat` alongside the file; rejects with 400 if the parsed content does
-  not match, and 409 if another statement is still processing. On success the
-  transactions are imported synchronously and 202 is returned while
-  categorization continues in the background.
+  not match, and 409 if another statement is still processing. **Nothing is
+  imported here** — the extracted transactions are held for review and returned
+  for preview.
+- `GET /api/upload/:id/draft` - Extracted transactions awaiting confirmation
+- `POST /api/upload/:id/confirm` - Import the reviewed draft, then categorize
+- `POST /api/upload/:id/discard` - Discard the draft, releasing its month
 - `GET /api/upload` - List uploaded statements with processing status
 - `GET /api/upload/:statementId` - Statement detail plus its transactions
 - `DELETE /api/upload/:statementId` - Delete a statement and its transactions
@@ -177,6 +182,15 @@ All routes except those marked *public* require an
 - `PUT /api/categories/:id` - Rename or recolour a category
 - `DELETE /api/categories/:id` - Delete a category
 - `POST /api/categories/bulk-reassign` - Move transactions between categories
+
+### Bills
+Merchant bills (Blinkit, Swiggy, Amazon) attached to a single transaction for
+line-item detail. Attaching a bill never creates a transaction, so spending
+totals are unaffected.
+- `POST /api/transactions/:id/bills` - Upload and parse a bill; held for review
+- `POST /api/transactions/:id/bills/:billId/confirm` - Attach the reviewed bill
+- `POST /api/transactions/:id/bills/:billId/discard` - Discard a pending bill
+- `GET /api/transactions/:id/bills` - Bills and line items for a transaction
 
 ### Analytics
 All three accept optional validated `startDate` / `endDate` query parameters.

@@ -75,7 +75,13 @@ export default function StatementsPage() {
     return () => window.clearInterval(intervalId);
   }, [statements]);
 
-  const handleUploadSuccess = () => {
+  const handleUploadSuccess = (statementId?: string) => {
+    if (statementId) {
+      // Extraction is held for review; take the user there rather than leaving
+      // them on a list where the import looks finished.
+      router.push(`/statements/${statementId}/preview`);
+      return;
+    }
     void fetchStatements();
   };
 
@@ -192,11 +198,25 @@ export default function StatementsPage() {
                                 ? 'bg-green-100 text-green-800'
                                 : statement.status === 'processing'
                                   ? 'bg-yellow-100 text-yellow-800'
-                                  : 'bg-red-100 text-red-800'
+                                  : statement.status === 'pending_review'
+                                    ? 'bg-amber-100 text-amber-800'
+                                    : 'bg-red-100 text-red-800'
                             }`}
                           >
-                            {statement.status.charAt(0).toUpperCase() + statement.status.slice(1)}
+                            {statement.status === 'pending_review'
+                              ? 'Needs review'
+                              : statement.status.charAt(0).toUpperCase() +
+                                statement.status.slice(1)}
                           </span>
+                          {statement.status === 'pending_review' && (
+                            <button
+                              type="button"
+                              onClick={() => router.push(`/statements/${statement.id}/preview`)}
+                              className="mt-1 block text-xs font-semibold text-blue-600 underline hover:text-blue-800"
+                            >
+                              Review now
+                            </button>
+                          )}
                         </td>
                         <td className="px-6 py-4 min-w-72">
                           <StatementProcessingProgress statement={statement} />
