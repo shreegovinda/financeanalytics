@@ -51,12 +51,7 @@ function uploadSingleStatement(req, res, next) {
 
 const ALLOWED_FORMATS = new Set(['PDF', 'XLSX']);
 
-class UploadValidationError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = 'UploadValidationError';
-  }
-}
+const UploadValidationError = require('../services/uploadValidationError');
 
 function normalizeSelectedBank(value) {
   const bank = String(value || '')
@@ -1051,11 +1046,9 @@ router.get('/:statementId/file', auth, async (req, res) => {
       [req.params.statementId, req.user.id],
     );
     if (!result.rows.length)
-      return res
-        .status(404)
-        .json({
-          error: 'Original file unavailable. Older uploads did not retain their original files.',
-        });
+      return res.status(404).json({
+        error: 'Original file unavailable. Older uploads did not retain their original files.',
+      });
     const file = result.rows[0];
     res.set('Cache-Control', 'private, no-store');
     res.set('X-Content-Type-Options', 'nosniff');

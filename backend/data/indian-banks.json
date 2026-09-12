@@ -70,9 +70,7 @@
       "id": "SBI",
       "name": "State Bank of India",
       "category": "Public sector",
-      "aliases": [
-        "SBI"
-      ],
+      "aliases": ["SBI"],
       "active": true
     },
     {
@@ -303,9 +301,7 @@
       "id": "SLICE_SMALL_FINANCE",
       "name": "Slice Small Finance Bank",
       "category": "Small finance",
-      "aliases": [
-        "North East Small Finance Bank"
-      ],
+      "aliases": ["North East Small Finance Bank"],
       "active": true
     },
     {

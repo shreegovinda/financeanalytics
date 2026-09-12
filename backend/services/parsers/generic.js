@@ -1,6 +1,7 @@
 const fs = require('fs');
 const PDFParse = require('pdf-parse');
 const xlsx = require('xlsx');
+const UploadValidationError = require('../uploadValidationError');
 const {
   generateJsonObject,
   getProviderConfig,
@@ -204,6 +205,7 @@ async function parseStatement(filePath, providerId, context = {}) {
     );
     return parsed;
   } catch (err) {
+    if (err instanceof UploadValidationError) throw err;
     throw new Error(`Statement parsing failed: ${err.message}`);
   }
 }

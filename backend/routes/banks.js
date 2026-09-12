@@ -45,14 +45,12 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ error: 'Select an available bank from the catalogue' });
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    res
-      .status(err.code === '23505' ? 409 : 500)
-      .json({
-        error:
-          err.code === '23505'
-            ? 'This bank is already saved. Reactivate it if needed.'
-            : 'Failed to add bank',
-      });
+    res.status(err.code === '23505' ? 409 : 500).json({
+      error:
+        err.code === '23505'
+          ? 'This bank is already saved. Reactivate it if needed.'
+          : 'Failed to add bank',
+    });
   }
 });
 async function changeBank(req, res, remove) {

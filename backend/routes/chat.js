@@ -12,11 +12,9 @@ router.get('/history', auth, async (req, res) => {
       .set('Cache-Control', 'no-store')
       .json(await chatHistory.page(pool, req.user.id, req.query.before));
   } catch (error) {
-    res
-      .status(error.status || 500)
-      .json({
-        error: error.status === 400 ? error.message : 'Unable to load history. Please retry.',
-      });
+    res.status(error.status || 500).json({
+      error: error.status === 400 ? error.message : 'Unable to load history. Please retry.',
+    });
   }
 });
 router.delete('/history', auth, async (req, res) => {
@@ -59,11 +57,9 @@ router.post('/', auth, async (req, res) => {
     );
     const saved = await chatHistory.save(pool, req.user.id, historyVersion, message.trim(), result);
     if (!saved)
-      return res
-        .status(409)
-        .json({
-          error: 'History was deleted while this answer was being prepared. Please reload.',
-        });
+      return res.status(409).json({
+        error: 'History was deleted while this answer was being prepared. Please reload.',
+      });
     res.set('Cache-Control', 'no-store').json(result);
   } catch (error) {
     // Do not log prompts, financial data, credentials or upstream error bodies.

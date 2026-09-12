@@ -43,7 +43,17 @@ export default function AssistantPage() {
   const [error, setError] = useState('');
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [before, setBefore] = useState<string | null>(null);
+  const [pendingQuestion, setPendingQuestion] = useState('');
   const bottom = useRef<HTMLDivElement>(null);
+  const historyStart = useRef<HTMLDivElement>(null);
+  const scrollTarget = useRef<'latest' | 'older' | null>(null);
+  useEffect(() => {
+    const target = scrollTarget.current;
+    scrollTarget.current = null;
+    if (target === 'latest') bottom.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    if (target === 'older')
+      historyStart.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [messages, pendingQuestion]);
   async function loadHistory(older = false) {
     setLoadingHistory(true);
     setError('');
@@ -61,6 +71,7 @@ export default function AssistantPage() {
       }
       if (!response.ok) throw new Error('Unable to load saved history. Please retry.');
       const data = await response.json();
+      scrollTarget.current = older ? 'older' : 'latest';
       setMessages((previous) => (older ? [...data.messages, ...previous] : data.messages));
       setBefore(data.before);
     } catch (err) {
@@ -113,7 +124,8 @@ export default function AssistantPage() {
     setError('');
     setInput('');
     const history = messages.slice(-6).map(({ role, content }) => ({ role, content }));
-    setMessages((previous) => [...previous, { role: 'user', content: question }]);
+    scrollTarget.current = 'latest';
+    setPendingQuestion(question);
     try {
       const response = await apiFetch(
         `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/chat`,
@@ -135,14 +147,17 @@ export default function AssistantPage() {
       }
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Unable to answer');
+      scrollTarget.current = 'latest';
       setMessages((previous) => [
         ...previous,
+        { role: 'user', content: question },
         { role: 'assistant', content: data.answer, result: data },
       ]);
     } catch (err) {
       setError(getErrorMessage(err));
       setInput(question);
     } finally {
+      setPendingQuestion('');
       setBusy(false);
     }
   }
@@ -193,6 +208,7 @@ export default function AssistantPage() {
           </div>
         )}
         <section aria-label="Conversation" aria-live="polite" className="my-6 space-y-5">
+          <div ref={historyStart} />
           {messages.map((message, index) => (
             <article
               key={index}
@@ -246,7 +262,15 @@ export default function AssistantPage() {
               )}
             </article>
           ))}
-          {busy && (
+          {pendingQuestion && (
+            <article className="ml-8 rounded-2xl bg-indigo-100 p-5">
+              <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+                You · sending
+              </p>
+              <p className="whitespace-pre-wrap text-sm leading-7">{pendingQuestion}</p>
+            </article>
+          )}
+          {pendingQuestion && (
             <p role="status" className="rounded-xl bg-white p-4 text-sm text-indigo-700">
               Checking your records and preparing an answer…
             </p>
