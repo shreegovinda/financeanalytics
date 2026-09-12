@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useState, useEffect, useMemo, useRef } from 'react';
+import { subscribeFinanceChanges } from '@/lib/financeRefresh';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { AgGridReact } from 'ag-grid-react';
@@ -310,6 +311,7 @@ export default function TransactionsPage() {
       return;
     }
     void Promise.resolve().then(fetchData);
+    return subscribeFinanceChanges(() => void fetchData());
   }, [fetchData, router]);
 
   const applyFilter = (mode: FilterMode) => {

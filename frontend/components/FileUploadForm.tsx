@@ -2,22 +2,13 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch, apiGet, getErrorMessage } from '@/lib/api';
+import { subscribeFinanceChanges } from '@/lib/financeRefresh';
 import { getAiProviderHeaders } from '@/lib/aiProvider';
 import MonthPicker, { type TakenMonth } from '@/components/MonthPicker';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 const FORMAT_EXTENSIONS: Record<string, string> = { PDF: '.pdf', XLSX: '.xlsx' };
-
-const BANKS = [
-  { id: 'ICICI', name: 'ICICI Bank', initials: 'IC', accent: 'from-orange-500 to-red-500' },
-  {
-    id: 'SBI',
-    name: 'State Bank of India',
-    initials: 'SBI',
-    accent: 'from-blue-500 to-indigo-600',
-  },
-];
 
 interface UploadResponse {
   success: boolean;
@@ -35,6 +26,8 @@ export default function FileUploadForm({
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [bank, setBank] = useState('');
+  const [availableBanks, setAvailableBanks] = useState<string[]>([]);
+  const [bankLabels, setBankLabels] = useState<Record<string, string>>({});
   const [statementMonth, setStatementMonth] = useState('');
   const [fileFormat, setFileFormat] = useState('');
   const [loading, setLoading] = useState(false);
@@ -57,7 +50,21 @@ export default function FileUploadForm({
 
   useEffect(() => {
     void Promise.resolve().then(loadTakenMonths);
+    return subscribeFinanceChanges(() => void loadTakenMonths());
   }, [loadTakenMonths]);
+  useEffect(() => {
+    const token = localStorage.getItem('token') ?? undefined;
+    void apiGet<{ selected: string[]; banks: { bank_code: string; name: string }[] }>(
+      `${API_BASE_URL}/api/banks`,
+      token,
+    )
+      .then((data) => {
+        setAvailableBanks(data.selected);
+        setBankLabels(Object.fromEntries(data.banks.map((bank) => [bank.bank_code, bank.name])));
+        if (data.selected.length === 1) setBank(data.selected[0]);
+      })
+      .catch(() => setAvailableBanks([]));
+  }, []);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [dragActive, setDragActive] = useState(false);
@@ -228,40 +235,54 @@ export default function FileUploadForm({
         </div>
 
         <Step n={1} title="Which bank?">
-          <div className="grid gap-3 sm:grid-cols-2">
-            {BANKS.map((option) => {
-              const selected = bank === option.id;
-              return (
-                <button
-                  key={option.id}
-                  type="button"
-                  disabled={loading}
-                  onClick={() => {
-                    setBank(option.id);
-                    // Taken months differ per bank, so a stale choice could now
-                    // point at a month that is already imported.
-                    setStatementMonth('');
-                  }}
-                  className={`flex items-center gap-3 rounded-xl border-2 p-4 text-left transition ${
-                    selected
-                      ? 'border-blue-600 bg-blue-50 shadow-sm'
-                      : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/40'
-                  } disabled:cursor-not-allowed disabled:opacity-60`}
-                >
-                  <span
-                    className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${option.accent} text-sm font-bold text-white`}
-                  >
-                    {option.initials}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block font-semibold text-gray-900">{option.id}</span>
-                    <span className="block truncate text-xs text-gray-500">{option.name}</span>
-                  </span>
-                  {selected && <span className="ml-auto text-lg text-blue-600">✓</span>}
-                </button>
-              );
-            })}
-          </div>
+          {availableBanks.length === 0 ? (
+            <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+              Add your banks in Settings before uploading a statement.
+            </p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {availableBanks
+                .map((name) => ({
+                  id: name,
+                  name: bankLabels[name] || name,
+                  initials: name.slice(0, 2),
+                  accent: 'from-blue-500 to-indigo-600',
+                }))
+                .map((option) => {
+                  const selected = bank === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      disabled={loading}
+                      onClick={() => {
+                        setBank(option.id);
+                        // Taken months differ per bank, so a stale choice could now
+                        // point at a month that is already imported.
+                        setStatementMonth('');
+                      }}
+                      className={`flex min-w-0 items-center gap-3 rounded-xl border-2 p-4 text-left transition ${
+                        selected
+                          ? 'border-blue-600 bg-blue-50 shadow-sm'
+                          : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/40'
+                      } disabled:cursor-not-allowed disabled:opacity-60`}
+                    >
+                      <span
+                        className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${option.accent} text-sm font-bold text-white`}
+                      >
+                        {option.initials}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block break-words font-semibold text-gray-900">
+                          {option.name}
+                        </span>
+                      </span>
+                      {selected && <span className="ml-auto text-lg text-blue-600">✓</span>}
+                    </button>
+                  );
+                })}
+            </div>
+          )}
         </Step>
 
         <Step n={2} title="Which month?" muted={!bank}>

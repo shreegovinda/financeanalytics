@@ -19,6 +19,7 @@ import {
 import AuthSessionGuard from '@/components/AuthSessionGuard';
 import BackButton from '@/components/BackButton';
 import { apiGet, getErrorMessage } from '@/lib/api';
+import { subscribeFinanceChanges } from '@/lib/financeRefresh';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -227,6 +228,7 @@ export default function AnalyticsPage() {
     }
 
     void Promise.resolve().then(() => fetchAnalytics(appliedRange));
+    return subscribeFinanceChanges(() => void fetchAnalytics(appliedRange));
   }, [appliedRange, fetchAnalytics, router]);
 
   const applyFilters = () => {

@@ -139,3 +139,42 @@ test('getInFlightStatement returns the newest processing statement for a user', 
     cleanup();
   }
 });
+
+test('confirm rejects an out-of-month legacy draft with HTTP 400 and rolls back', async () => {
+  const queries = [];
+  const client = {
+    async query(sql) {
+      queries.push(sql);
+      return {
+        rows: sql.includes('FROM statement_drafts')
+          ? [{ statement_month: '2026-01', payload: { transactions: [{ date: '2025-01-02' }] } }]
+          : [],
+      };
+    },
+    release() {},
+  };
+  const { router, cleanup } = loadUploadRouter({ connect: async () => client });
+  try {
+    const handler = router.stack
+      .find((layer) => layer.route?.path === '/:statementId/confirm')
+      .route.stack.at(-1).handle;
+    const res = {
+      statusCode: 200,
+      status(code) {
+        this.statusCode = code;
+        return this;
+      },
+      json(body) {
+        this.body = body;
+        return this;
+      },
+    };
+    await handler({ user: { id: 'owner' }, params: { statementId: 'draft' } }, res);
+    assert.equal(res.statusCode, 400);
+    assert.match(res.body.error, /outside 2026-01/);
+    assert.ok(queries.includes('ROLLBACK'));
+    assert.ok(!queries.some((sql) => sql.includes('INSERT INTO transactions')));
+  } finally {
+    cleanup();
+  }
+});

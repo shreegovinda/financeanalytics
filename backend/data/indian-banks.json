@@ -1,0 +1,567 @@
+{
+  "version": "2026-09-10",
+  "source": "https://www.rbi.org.in/scripts/banklinks.aspx",
+  "scope": "Domestic public, private, local area, small finance, payments and regional rural banks. Cooperative banks require a separate verified catalogue update.",
+  "banks": [
+    {
+      "id": "BANK_OF_BARODA",
+      "name": "Bank of Baroda",
+      "category": "Public sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "BANK_OF_INDIA",
+      "name": "Bank of India",
+      "category": "Public sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "BANK_OF_MAHARASHTRA",
+      "name": "Bank of Maharashtra",
+      "category": "Public sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "CANARA",
+      "name": "Canara Bank",
+      "category": "Public sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "CENTRAL_BANK_OF_INDIA",
+      "name": "Central Bank of India",
+      "category": "Public sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "INDIAN",
+      "name": "Indian Bank",
+      "category": "Public sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "INDIAN_OVERSEAS",
+      "name": "Indian Overseas Bank",
+      "category": "Public sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "PUNJAB_SIND",
+      "name": "Punjab & Sind Bank",
+      "category": "Public sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "PUNJAB_NATIONAL",
+      "name": "Punjab National Bank",
+      "category": "Public sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "SBI",
+      "name": "State Bank of India",
+      "category": "Public sector",
+      "aliases": ["SBI"],
+      "active": true
+    },
+    {
+      "id": "UCO",
+      "name": "UCO Bank",
+      "category": "Public sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "UNION_BANK_OF_INDIA",
+      "name": "Union Bank of India",
+      "category": "Public sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "AXIS",
+      "name": "Axis Bank",
+      "category": "Private sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "BANDHAN",
+      "name": "Bandhan Bank",
+      "category": "Private sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "CSB",
+      "name": "CSB Bank",
+      "category": "Private sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "CITY_UNION",
+      "name": "City Union Bank",
+      "category": "Private sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "DCB",
+      "name": "DCB Bank",
+      "category": "Private sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "DHANLAXMI",
+      "name": "Dhanlaxmi Bank",
+      "category": "Private sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "FEDERAL",
+      "name": "Federal Bank",
+      "category": "Private sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "HDFC",
+      "name": "HDFC Bank",
+      "category": "Private sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "ICICI",
+      "name": "ICICI Bank",
+      "category": "Private sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "INDUSIND",
+      "name": "IndusInd Bank",
+      "category": "Private sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "IDFC_FIRST",
+      "name": "IDFC FIRST Bank",
+      "category": "Private sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "JAMMU_KASHMIR",
+      "name": "Jammu & Kashmir Bank",
+      "category": "Private sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "KARNATAKA",
+      "name": "Karnataka Bank",
+      "category": "Private sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "KARUR_VYSYA",
+      "name": "Karur Vysya Bank",
+      "category": "Private sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "KOTAK_MAHINDRA",
+      "name": "Kotak Mahindra Bank",
+      "category": "Private sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "NAINITAL",
+      "name": "Nainital Bank",
+      "category": "Private sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "RBL",
+      "name": "RBL Bank",
+      "category": "Private sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "SOUTH_INDIAN",
+      "name": "South Indian Bank",
+      "category": "Private sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "TAMILNAD_MERCANTILE",
+      "name": "Tamilnad Mercantile Bank",
+      "category": "Private sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "YES",
+      "name": "YES Bank",
+      "category": "Private sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "IDBI",
+      "name": "IDBI Bank",
+      "category": "Private sector",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "COASTAL_LOCAL_AREA",
+      "name": "Coastal Local Area Bank",
+      "category": "Local area",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "KRISHNA_BHIMA_SAMRUDDHI_LOCAL_AREA",
+      "name": "Krishna Bhima Samruddhi Local Area Bank",
+      "category": "Local area",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "AU_SMALL_FINANCE",
+      "name": "AU Small Finance Bank",
+      "category": "Small finance",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "CAPITAL_SMALL_FINANCE",
+      "name": "Capital Small Finance Bank",
+      "category": "Small finance",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "EQUITAS_SMALL_FINANCE",
+      "name": "Equitas Small Finance Bank",
+      "category": "Small finance",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "ESAF_SMALL_FINANCE",
+      "name": "ESAF Small Finance Bank",
+      "category": "Small finance",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "SURYODAY_SMALL_FINANCE",
+      "name": "Suryoday Small Finance Bank",
+      "category": "Small finance",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "UJJIVAN_SMALL_FINANCE",
+      "name": "Ujjivan Small Finance Bank",
+      "category": "Small finance",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "UTKARSH_SMALL_FINANCE",
+      "name": "Utkarsh Small Finance Bank",
+      "category": "Small finance",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "SLICE_SMALL_FINANCE",
+      "name": "Slice Small Finance Bank",
+      "category": "Small finance",
+      "aliases": ["North East Small Finance Bank"],
+      "active": true
+    },
+    {
+      "id": "JANA_SMALL_FINANCE",
+      "name": "Jana Small Finance Bank",
+      "category": "Small finance",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "SHIVALIK_SMALL_FINANCE",
+      "name": "Shivalik Small Finance Bank",
+      "category": "Small finance",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "UNITY_SMALL_FINANCE",
+      "name": "Unity Small Finance Bank",
+      "category": "Small finance",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "AIRTEL_PAYMENTS",
+      "name": "Airtel Payments Bank",
+      "category": "Payments",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "INDIA_POST_PAYMENTS",
+      "name": "India Post Payments Bank",
+      "category": "Payments",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "FINO_PAYMENTS",
+      "name": "FINO Payments Bank",
+      "category": "Payments",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "PAYTM_PAYMENTS",
+      "name": "Paytm Payments Bank",
+      "category": "Payments",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "JIO_PAYMENTS",
+      "name": "Jio Payments Bank",
+      "category": "Payments",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "NSDL_PAYMENTS",
+      "name": "NSDL Payments Bank",
+      "category": "Payments",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "ANDHRA_PRADESH_GRAMEENA",
+      "name": "Andhra Pradesh Grameena Bank",
+      "category": "Regional rural",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "ASSAM_GRAMIN",
+      "name": "Assam Gramin Bank",
+      "category": "Regional rural",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "ARUNACHAL_PRADESH_RURAL",
+      "name": "Arunachal Pradesh Rural Bank",
+      "category": "Regional rural",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "BIHAR_GRAMIN",
+      "name": "Bihar Gramin Bank",
+      "category": "Regional rural",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "CHHATTISGARH_GRAMIN",
+      "name": "Chhattisgarh Gramin Bank",
+      "category": "Regional rural",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "GUJARAT_GRAMIN",
+      "name": "Gujarat Gramin Bank",
+      "category": "Regional rural",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "HARYANA_GRAMIN",
+      "name": "Haryana Gramin Bank",
+      "category": "Regional rural",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "HIMACHAL_PRADESH_GRAMIN",
+      "name": "Himachal Pradesh Gramin Bank",
+      "category": "Regional rural",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "JHARKHAND_GRAMIN",
+      "name": "Jharkhand Gramin Bank",
+      "category": "Regional rural",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "JAMMU_AND_KASHMIR_GRAMEEN",
+      "name": "Jammu and Kashmir Grameen Bank",
+      "category": "Regional rural",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "KARNATAKA_GRAMEENA",
+      "name": "Karnataka Grameena Bank",
+      "category": "Regional rural",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "KERALA_GRAMEENA",
+      "name": "Kerala Grameena Bank",
+      "category": "Regional rural",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "MAHARASHTRA_GRAMIN",
+      "name": "Maharashtra Gramin Bank",
+      "category": "Regional rural",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "MADHYA_PRADESH_GRAMIN",
+      "name": "Madhya Pradesh Gramin Bank",
+      "category": "Regional rural",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "MANIPUR_RURAL",
+      "name": "Manipur Rural Bank",
+      "category": "Regional rural",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "MEGHALAYA_RURAL",
+      "name": "Meghalaya Rural Bank",
+      "category": "Regional rural",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "MIZORAM_RURAL",
+      "name": "Mizoram Rural Bank",
+      "category": "Regional rural",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "NAGALAND_RURAL",
+      "name": "Nagaland Rural Bank",
+      "category": "Regional rural",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "ODISHA_GRAMEEN",
+      "name": "Odisha Grameen Bank",
+      "category": "Regional rural",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "PUNJAB_GRAMIN",
+      "name": "Punjab Gramin Bank",
+      "category": "Regional rural",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "PUDUCHERRY_GRAMA",
+      "name": "Puducherry Grama Bank",
+      "category": "Regional rural",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "RAJASTHAN_GRAMIN",
+      "name": "Rajasthan Gramin Bank",
+      "category": "Regional rural",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "TAMIL_NADU_GRAMA",
+      "name": "Tamil Nadu Grama Bank",
+      "category": "Regional rural",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "TELANGANA_GRAMEENA",
+      "name": "Telangana Grameena Bank",
+      "category": "Regional rural",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "TRIPURA_GRAMIN",
+      "name": "Tripura Gramin Bank",
+      "category": "Regional rural",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "UTTAR_PRADESH_GRAMIN",
+      "name": "Uttar Pradesh Gramin Bank",
+      "category": "Regional rural",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "UTTARAKHAND_GRAMIN",
+      "name": "Uttarakhand Gramin Bank",
+      "category": "Regional rural",
+      "aliases": [],
+      "active": true
+    },
+    {
+      "id": "WEST_BENGAL_GRAMIN",
+      "name": "West Bengal Gramin Bank",
+      "category": "Regional rural",
+      "aliases": [],
+      "active": true
+    }
+  ]
+}

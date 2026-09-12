@@ -6,6 +6,7 @@ import Link from 'next/link';
 import AuthSessionGuard from '@/components/AuthSessionGuard';
 import AiProviderSelect from '@/components/AiProviderSelect';
 import { apiGet, apiPut, getErrorMessage } from '@/lib/api';
+import { subscribeFinanceChanges } from '@/lib/financeRefresh';
 import { DashboardSkeleton } from '@/components/Skeleton';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -65,8 +66,8 @@ export default function DashboardPage() {
 
   const fetchAnalytics = async (token: string) => {
     const results = await Promise.allSettled([
-      apiGet<SummaryStats>('http://localhost:3001/api/transactions/stats/summary', token),
-      apiGet<CategoryData[]>('http://localhost:3001/api/analytics/pie', token),
+      apiGet<SummaryStats>(`${API_BASE_URL}/api/transactions/stats/summary`, token),
+      apiGet<CategoryData[]>(`${API_BASE_URL}/api/analytics/pie`, token),
     ]);
 
     if (results[0].status === 'fulfilled') setStats(results[0].value);
@@ -103,6 +104,7 @@ export default function DashboardPage() {
     };
 
     void checkAuth();
+    return subscribeFinanceChanges(() => void checkAuth());
   }, [router]);
 
   const handleLogout = (): void => {

@@ -1,6 +1,7 @@
 const fs = require('fs');
 const PDFParse = require('pdf-parse');
 const xlsx = require('xlsx');
+const UploadValidationError = require('../uploadValidationError');
 const {
   generateJsonObject,
   getProviderConfig,
@@ -84,6 +85,7 @@ ${expectedMonth}
 ${expectedFormat}
 
 Do not change the detected bank or statement month to match the selected metadata. Return what the statement actually contains so the server can validate it strictly.
+Extract ALL transaction rows, including those outside the expected month. Never filter rows to match the selection or silently omit transactions with unreadable dates.
 
 Bank Statement Text:
 ${fileText}
@@ -114,6 +116,8 @@ Extract every trustworthy posted transaction.`;
       responseSchema: STATEMENT_PARSE_SCHEMA,
     });
     const transactions = Array.isArray(parsed.transactions) ? parsed.transactions : [];
+    if (context.expectedMonth)
+      require('../statementDates').validateTransactionMonth(transactions, context.expectedMonth);
 
     return {
       bankName: normalizeBankName(parsed.bankName),
@@ -201,6 +205,7 @@ async function parseStatement(filePath, providerId, context = {}) {
     );
     return parsed;
   } catch (err) {
+    if (err instanceof UploadValidationError) throw err;
     throw new Error(`Statement parsing failed: ${err.message}`);
   }
 }

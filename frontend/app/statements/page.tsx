@@ -7,6 +7,7 @@ import BackButton from '@/components/BackButton';
 import FileUploadForm from '@/components/FileUploadForm';
 import ConfirmationDialog from '@/components/ConfirmationDialog';
 import { apiGet, getErrorMessage } from '@/lib/api';
+import { notifyFinanceChanged, subscribeFinanceChanges } from '@/lib/financeRefresh';
 import { formatDate } from '@/lib/date';
 import { TableSkeletonLoader } from '@/components/Skeleton';
 import StatementProcessingProgress, {
@@ -23,6 +24,9 @@ interface Statement {
   processing_progress?: number | null;
   processing_error?: string | null;
   processed_at?: string | null;
+  file_available?: boolean;
+  statement_month?: string;
+  file_format?: string;
 }
 
 export default function StatementsPage() {
@@ -30,6 +34,9 @@ export default function StatementsPage() {
   const [statements, setStatements] = useState<Statement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [uploadVersion, setUploadVersion] = useState(0);
+  const [downloading, setDownloading] = useState('');
+  const [notice, setNotice] = useState('');
   const [deleteDialog, setDeleteDialog] = useState({
     isOpen: false,
     statementId: '',
@@ -61,6 +68,9 @@ export default function StatementsPage() {
     }
 
     void Promise.resolve().then(fetchStatements);
+    return subscribeFinanceChanges(() => {
+      void fetchStatements();
+    });
   }, [router]);
 
   useEffect(() => {
@@ -117,9 +127,38 @@ export default function StatementsPage() {
 
       // Refresh the statements list
       await fetchStatements();
+      setUploadVersion((value) => value + 1);
+      notifyFinanceChanged();
+      setNotice(
+        'Statement and related transactions deleted. Totals are refreshed and this bank’s month is available again.',
+      );
     } catch (err) {
       setError(`Failed to delete statement: ${getErrorMessage(err)}`);
       console.error('Delete error:', err);
+    }
+  };
+
+  const downloadStatement = async (statement: Statement) => {
+    setDownloading(statement.id);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/upload/${statement.id}/file`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (!response.ok) throw new Error((await response.json()).error || 'Download failed');
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = statement.file_name;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 30000);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setDownloading('');
     }
   };
 
@@ -136,9 +175,14 @@ export default function StatementsPage() {
 
         <div className="bg-white rounded-lg shadow-md p-8 mb-8">
           <h2 className="text-xl font-semibold text-gray-900 mb-6">Upload New Statement</h2>
-          <FileUploadForm onUploadSuccess={handleUploadSuccess} />
+          <FileUploadForm key={uploadVersion} onUploadSuccess={handleUploadSuccess} />
         </div>
 
+        {notice && (
+          <p role="status" className="mb-4 rounded-lg bg-green-50 p-4 text-green-800">
+            {notice}
+          </p>
+        )}
         {loading ? (
           <TableSkeletonLoader rows={5} />
         ) : (
@@ -190,6 +234,9 @@ export default function StatementsPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                           {statement.file_name}
+                          <span className="block text-xs text-gray-500">
+                            {statement.statement_month} · {statement.file_format}
+                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span
@@ -211,7 +258,10 @@ export default function StatementsPage() {
                           {statement.status === 'pending_review' && (
                             <button
                               type="button"
-                              onClick={() => router.push(`/statements/${statement.id}/preview`)}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                router.push(`/statements/${statement.id}/preview`);
+                              }}
                               className="mt-1 block text-xs font-semibold text-blue-600 underline hover:text-blue-800"
                             >
                               Review now
@@ -228,6 +278,32 @@ export default function StatementsPage() {
                           className="px-6 py-4 whitespace-nowrap text-sm"
                           onClick={(e) => e.stopPropagation()}
                         >
+                          <button
+                            type="button"
+                            onClick={() =>
+                              router.push(
+                                statement.status === 'pending_review'
+                                  ? `/statements/${statement.id}/preview`
+                                  : `/statements/${statement.id}`,
+                              )
+                            }
+                            className="mr-3 font-medium text-blue-700"
+                          >
+                            Preview
+                          </button>
+                          <button
+                            type="button"
+                            disabled={!statement.file_available || downloading === statement.id}
+                            title={
+                              statement.file_available
+                                ? 'Download original file'
+                                : 'Original file was not retained for this older upload'
+                            }
+                            onClick={() => void downloadStatement(statement)}
+                            className="mr-3 font-medium text-blue-700 disabled:text-gray-400"
+                          >
+                            {downloading === statement.id ? 'Downloading…' : 'Download'}
+                          </button>
                           <button
                             onClick={() => openDeleteDialog(statement.id, statement.file_name)}
                             className="text-red-600 hover:text-red-800 font-medium transition-colors"

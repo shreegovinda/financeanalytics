@@ -237,6 +237,12 @@ chooses how:
   start on this provider when `NODE_ENV=production`, because verification codes
   would go to a log instead of a user.
 - `sendgrid` — real delivery. Requires `SENDGRID_API_KEY`.
+- `smtp` — real delivery through an authenticated mailbox. For GoDaddy
+  Professional Email, use `SMTP_HOST=smtpout.secureserver.net`, `SMTP_PORT=465`,
+  `SMTP_SECURE=true`, and your complete email address as `SMTP_USER`.
+  Set `SMTP_PASSWORD` to the mailbox password and `EMAIL_FROM` to the sender.
+  Keep credentials in ignored `backend/.env.local`, then restart the backend.
+  SMTP uses TLS with certificate validation; port 587 requires STARTTLS.
 
 Unset, it picks `sendgrid` when a key is present and `console` otherwise.
 

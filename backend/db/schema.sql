@@ -15,6 +15,25 @@ CREATE TABLE IF NOT EXISTS users (
 ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
 
+CREATE TABLE IF NOT EXISTS user_bank_accounts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  bank_code VARCHAR(20) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(user_id, bank_code)
+);
+CREATE INDEX IF NOT EXISTS idx_user_bank_accounts_user ON user_bank_accounts(user_id);
+ALTER TABLE user_bank_accounts ALTER COLUMN bank_code TYPE VARCHAR(100);
+CREATE TABLE IF NOT EXISTS bank_catalogue (
+  id TEXT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  category TEXT NOT NULL,
+  active BOOLEAN NOT NULL DEFAULT TRUE
+);
+ALTER TABLE user_bank_accounts ADD COLUMN IF NOT EXISTS catalogue_id TEXT REFERENCES bank_catalogue(id);
+ALTER TABLE user_bank_accounts ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE;
+CREATE UNIQUE INDEX IF NOT EXISTS user_bank_catalogue_unique ON user_bank_accounts(user_id, catalogue_id);
+
 -- Email verification.
 --
 -- The ADD COLUMN default is TRUE so that accounts which already existed before
@@ -104,6 +123,25 @@ ALTER TABLE statements ADD COLUMN IF NOT EXISTS statement_month DATE;
 ALTER TABLE statements ADD COLUMN IF NOT EXISTS file_format VARCHAR(10);
 ALTER TABLE statements ADD COLUMN IF NOT EXISTS detected_bank_name VARCHAR(100);
 ALTER TABLE statements ADD COLUMN IF NOT EXISTS processed_at TIMESTAMP;
+ALTER TABLE statements ALTER COLUMN bank_name TYPE VARCHAR(100);
+ALTER TABLE statements ADD COLUMN IF NOT EXISTS bank_account_id UUID REFERENCES user_bank_accounts(id);
+INSERT INTO user_bank_accounts (user_id, bank_code)
+SELECT DISTINCT user_id, UPPER(TRIM(bank_name)) FROM statements
+ON CONFLICT (user_id, bank_code) DO NOTHING;
+UPDATE statements s SET bank_account_id = b.id
+FROM user_bank_accounts b
+WHERE s.bank_account_id IS NULL AND s.user_id = b.user_id
+  AND UPPER(TRIM(s.bank_name)) = b.bank_code;
+CREATE UNIQUE INDEX IF NOT EXISTS statements_account_month_unique
+ON statements(user_id, bank_account_id, statement_month)
+WHERE status IN ('processing', 'pending_review', 'completed');
+
+-- Create transactions table
+CREATE TABLE IF NOT EXISTS statement_files (
+  statement_id UUID PRIMARY KEY REFERENCES statements(id) ON DELETE CASCADE,
+  content BYTEA NOT NULL,
+  content_type TEXT NOT NULL
+);
 
 -- Create transactions table
 CREATE TABLE IF NOT EXISTS transactions (
@@ -218,6 +256,17 @@ CREATE TABLE IF NOT EXISTS payments (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Persistent, user-scoped assistant conversations (financial data is not copied here).
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role VARCHAR(20) NOT NULL CHECK (role IN ('user', 'assistant')),
+  content TEXT NOT NULL,
+  result JSONB,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_user_created ON chat_messages(user_id, created_at DESC);
+
 -- Create indices for performance
 CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON transactions(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category_id);
@@ -235,3 +284,7 @@ CREATE INDEX IF NOT EXISTS idx_otp_codes_email_purpose_expires ON otp_codes(emai
 CREATE INDEX IF NOT EXISTS idx_payments_user_status ON payments(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_payments_order_id ON payments(razorpay_order_id);
 CREATE INDEX IF NOT EXISTS idx_payments_payment_id ON payments(razorpay_payment_id);
+
+ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS sequence BIGSERIAL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_sequence ON chat_messages(sequence);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS chat_history_version INTEGER NOT NULL DEFAULT 0;
