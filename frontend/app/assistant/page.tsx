@@ -193,7 +193,7 @@ export default function AssistantPage() {
           )}
           {loadingHistory && <span role="status">Loading history…</span>}
         </div>
-        {messages.length === 0 && !loadingHistory && (
+        {messages.length === 0 && !loadingHistory && !pendingQuestion && (
           <div className="my-6 grid gap-3 sm:grid-cols-2">
             {examples.map((question) => (
               <button
