@@ -13,6 +13,7 @@ const analyticsRoutes = require('./routes/analytics');
 const paymentRoutes = require('./routes/payments');
 const aiRoutes = require('./routes/ai');
 const billRoutes = require('./routes/bills');
+const bankRoutes = require('./routes/banks');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -33,6 +34,8 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/chat', require('./routes/chat'));
+app.use('/api/banks', bankRoutes);
 // Nested under a transaction: a bill only has meaning attached to one.
 app.use('/api/transactions/:transactionId/bills', billRoutes);
 

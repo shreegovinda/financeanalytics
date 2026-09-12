@@ -7,6 +7,7 @@ async function initializeDatabase() {
     const schemaPath = path.join(__dirname, 'schema.sql');
     const schema = fs.readFileSync(schemaPath, 'utf8');
     await pool.query(schema);
+    await require('../services/bankCatalogue').syncCatalogue(pool);
     console.log('✅ Database schema initialized');
   } catch (err) {
     console.error('❌ Database initialization failed:', err.message);

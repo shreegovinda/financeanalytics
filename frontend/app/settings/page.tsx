@@ -4,8 +4,11 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AuthSessionGuard from '@/components/AuthSessionGuard';
+import BankSettings from '@/components/BankSettings';
 import BackButton from '@/components/BackButton';
 import { apiGet, apiPost, apiPut, apiDelete, getErrorMessage } from '@/lib/api';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 interface Category {
   id: string;
@@ -67,7 +70,7 @@ export default function SettingsPage() {
 
   async function fetchCategories(token: string) {
     try {
-      const data = await apiGet<Category[]>('http://localhost:3001/api/categories', token);
+      const data = await apiGet<Category[]>(`${API_BASE_URL}/api/categories`, token);
       setCategories(data);
       setIsLoading(false);
     } catch (err) {
@@ -110,7 +113,7 @@ export default function SettingsPage() {
     try {
       const token = localStorage.getItem('token');
       const created = await apiPost<Category>(
-        'http://localhost:3001/api/categories',
+        `${API_BASE_URL}/api/categories`,
         { name, color, parent_id: parentId },
         token ?? undefined,
       );
@@ -157,7 +160,7 @@ export default function SettingsPage() {
     try {
       const token = localStorage.getItem('token');
       const updated = await apiPut<Category>(
-        `http://localhost:3001/api/categories/${id}`,
+        `${API_BASE_URL}/api/categories/${id}`,
         { name: editName, color: editColor },
         token ?? undefined,
       );
@@ -173,10 +176,7 @@ export default function SettingsPage() {
     if (!deleteConfirm) return;
     try {
       const token = localStorage.getItem('token');
-      await apiDelete(
-        `http://localhost:3001/api/categories/${deleteConfirm.id}`,
-        token ?? undefined,
-      );
+      await apiDelete(`${API_BASE_URL}/api/categories/${deleteConfirm.id}`, token ?? undefined);
       const deletedId = deleteConfirm.id;
       setCategories((prev) => {
         const removed = new Set<string>([deletedId]);
@@ -230,7 +230,7 @@ export default function SettingsPage() {
             <div className="relative flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm font-medium text-blue-100">Transaction setup</p>
-                <h1 className="mt-1 text-2xl font-bold">Manage Categories</h1>
+                <h1 className="mt-1 text-2xl font-bold">Settings</h1>
                 <p className="mt-2 max-w-xl text-sm text-blue-100">
                   Keep categories simple. Add parent categories and optional subcategories only when
                   they help you review spending faster.
@@ -249,6 +249,7 @@ export default function SettingsPage() {
           </section>
 
           <section className="max-h-[calc(100vh-12rem)] overflow-y-auto px-6 py-6">
+            <BankSettings />
             {error && (
               <div className="mb-4 flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 <span>{error}</span>

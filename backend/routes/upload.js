@@ -49,7 +49,6 @@ function uploadSingleStatement(req, res, next) {
   });
 }
 
-const ALLOWED_BANKS = new Set(['ICICI', 'SBI']);
 const ALLOWED_FORMATS = new Set(['PDF', 'XLSX']);
 
 class UploadValidationError extends Error {
@@ -64,10 +63,8 @@ function normalizeSelectedBank(value) {
     .trim()
     .toUpperCase();
 
-  if (!ALLOWED_BANKS.has(bank)) {
-    throw new UploadValidationError(
-      'Please select a valid bank before uploading. Allowed banks are ICICI and SBI.',
-    );
+  if (!bank || bank.length > 100) {
+    throw new UploadValidationError('Please select a saved bank before uploading.');
   }
 
   return bank;
@@ -107,13 +104,25 @@ function validateActualFileFormat(file, selectedFormat) {
 }
 
 function detectedBankMatches(detectedBankName, selectedBank) {
+  const { findBank } = require('../services/bankCatalogue');
+  const selected = findBank(selectedBank);
+  const detected = findBank(detectedBankName);
+  if (selected && detected) return selected.id === detected.id;
   const bankName = String(detectedBankName || '').toUpperCase();
 
   if (selectedBank === 'ICICI') {
     return bankName.includes('ICICI');
   }
 
-  return bankName.includes('SBI') || bankName.includes('STATE BANK OF INDIA');
+  if (selectedBank === 'SBI' || selectedBank === 'STATE BANK OF INDIA') {
+    return bankName.includes('SBI') || bankName.includes('STATE BANK OF INDIA');
+  }
+  const normalize = (name) =>
+    name
+      .toUpperCase()
+      .replace(/\b(BANK|LIMITED|LTD)\b/g, '')
+      .replace(/[^A-Z0-9]/g, '');
+  return Boolean(normalize(selectedBank)) && normalize(bankName) === normalize(selectedBank);
 }
 
 function toSqlDate(value) {
@@ -148,6 +157,10 @@ function transactionDuplicateKey(transaction) {
 }
 
 function validateParsedStatement(parsedStatement, selectedBank, selectedMonth) {
+  require('../services/statementDates').validateTransactionMonth(
+    parsedStatement.transactions,
+    selectedMonth,
+  );
   if (!detectedBankMatches(parsedStatement.bankName, selectedBank)) {
     throw new UploadValidationError(
       `Uploaded statement appears to be ${parsedStatement.bankName || 'an unknown bank'}, not ${selectedBank}.`,
@@ -179,7 +192,8 @@ function validateParsedStatement(parsedStatement, selectedBank, selectedMonth) {
 
 async function ensureMonthNotAlreadyUploaded(client, userId, selectedBank, selectedMonth) {
   const { start, nextMonth } = getMonthBounds(selectedMonth);
-  const bankPattern = selectedBank === 'ICICI' ? '%ICICI%' : '%SBI%';
+  const bankPattern =
+    selectedBank === 'ICICI' ? '%ICICI%' : selectedBank === 'SBI' ? '%SBI%' : selectedBank;
   const bankFullNamePattern = selectedBank === 'SBI' ? '%STATE BANK OF INDIA%' : bankPattern;
 
   const existing = await client.query(
@@ -198,8 +212,7 @@ async function ensureMonthNotAlreadyUploaded(client, userId, selectedBank, selec
        )
        AND (
          UPPER(s.bank_name) = $5
-         OR UPPER(s.bank_name) LIKE $6
-         OR UPPER(s.bank_name) LIKE $7
+         OR ($5 IN ('ICICI', 'SBI') AND (UPPER(s.bank_name) LIKE $6 OR UPPER(s.bank_name) LIKE $7))
        )
      LIMIT 1`,
     [
@@ -233,7 +246,7 @@ async function ensureMonthNotAlreadyUploaded(client, userId, selectedBank, selec
   }
 }
 
-async function ensureNoExistingDuplicateTransactions(client, userId, transactions) {
+async function ensureNoExistingDuplicateTransactions(client, userId, transactions, bankName) {
   if (transactions.length === 0) {
     return;
   }
@@ -265,9 +278,9 @@ async function ensureNoExistingDuplicateTransactions(client, userId, transaction
       AND t.amount = i.amount
       AND LOWER(TRIM(REGEXP_REPLACE(t.description, '\\s+', ' ', 'g'))) = i.description
       AND LOWER(t.type) = i.type
-     WHERE t.user_id = $1
+     WHERE t.user_id = $1 AND UPPER(s.bank_name) = $${values.length + 2}
      LIMIT 1`,
-    [userId, ...values],
+    [userId, ...values, bankName],
   );
 
   if (duplicateResult.rows.length > 0) {
@@ -616,6 +629,12 @@ router.post('/', auth, uploadSingleStatement, async (req, res) => {
 
   try {
     const selectedBank = normalizeSelectedBank(req.body.bank);
+    const accountResult = await pool.query(
+      'SELECT b.id FROM user_bank_accounts b JOIN bank_catalogue c ON c.id=b.catalogue_id WHERE b.user_id = $1 AND b.bank_code = $2 AND b.active AND c.active',
+      [userId, selectedBank],
+    );
+    const account = accountResult.rows[0];
+    if (!account) throw new UploadValidationError('Add this bank in Settings before uploading.');
     const selectedMonth = normalizeSelectedMonth(req.body.statementMonth);
     const selectedFormat = normalizeSelectedFormat(req.body.fileFormat);
     validateActualFileFormat(req.file, selectedFormat);
@@ -640,6 +659,7 @@ router.post('/', auth, uploadSingleStatement, async (req, res) => {
       expectedFormat: selectedFormat,
     });
     validateParsedStatement(parsedStatement, selectedBank, selectedMonth);
+    const originalContent = fs.readFileSync(filePath);
 
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
@@ -654,8 +674,16 @@ router.post('/', auth, uploadSingleStatement, async (req, res) => {
     try {
       await client.query('BEGIN');
       await lockUserUploads(client, userId);
+      const activeAccount = await client.query(
+        'SELECT b.id FROM user_bank_accounts b JOIN bank_catalogue c ON c.id=b.catalogue_id WHERE b.id=$1 AND b.user_id=$2 AND b.active AND c.active',
+        [account.id, userId],
+      );
+      if (!activeAccount.rows.length)
+        throw new UploadValidationError(
+          'This bank was removed or deactivated. Reactivate it before uploading.',
+        );
       await ensureMonthNotAlreadyUploaded(client, userId, selectedBank, selectedMonth);
-      await ensureNoExistingDuplicateTransactions(client, userId, transactions);
+      await ensureNoExistingDuplicateTransactions(client, userId, transactions, selectedBank);
 
       // Held for review rather than imported. The statements row still claims
       // the month, so a second upload of the same month is blocked while this
@@ -663,8 +691,8 @@ router.post('/', auth, uploadSingleStatement, async (req, res) => {
       const statementResult = await client.query(
         `INSERT INTO statements
          (user_id, bank_name, file_name, status, processing_stage, processing_progress,
-          upload_path, ai_provider, statement_month, file_format, detected_bank_name)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          upload_path, ai_provider, statement_month, file_format, detected_bank_name, bank_account_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
          RETURNING id, bank_name, file_name, to_char(uploaded_at, 'YYYY-MM-DD') as uploaded_at, status, processing_stage,
                    processing_progress, to_char(statement_month, 'YYYY-MM') as statement_month, file_format`,
         [
@@ -679,10 +707,21 @@ router.post('/', auth, uploadSingleStatement, async (req, res) => {
           `${selectedMonth}-01`,
           selectedFormat,
           parsedStatement.bankName,
+          account.id,
         ],
       );
 
       statement = statementResult.rows[0];
+      await client.query(
+        'INSERT INTO statement_files(statement_id,content,content_type) VALUES ($1,$2,$3)',
+        [
+          statement.id,
+          originalContent,
+          selectedFormat === 'PDF'
+            ? 'application/pdf'
+            : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ],
+      );
       draft = await createStatementDraft(client, statement.id, parsedStatement);
 
       await client.query('COMMIT');
@@ -817,7 +856,11 @@ router.post('/:statementId/confirm', auth, async (req, res) => {
     }
 
     const transactions = draft.payload.transactions;
-    await ensureNoExistingDuplicateTransactions(client, userId, transactions);
+    require('../services/statementDates').validateTransactionMonth(
+      transactions,
+      draft.statement_month,
+    );
+    await ensureNoExistingDuplicateTransactions(client, userId, transactions, draft.bank_name);
 
     const values = [];
     const placeholders = transactions.map((txn, index) => {
@@ -920,7 +963,8 @@ router.get('/', auth, async (req, res) => {
       `SELECT id, bank_name, file_name, to_char(uploaded_at, 'YYYY-MM-DD') as uploaded_at, status, processing_stage,
               processing_progress, processing_error, to_char(processed_at, 'YYYY-MM-DD') as processed_at,
               to_char(statement_month, 'YYYY-MM') as statement_month,
-              file_format, detected_bank_name
+              file_format, detected_bank_name,
+              EXISTS(SELECT 1 FROM statement_files f WHERE f.statement_id=statements.id) AS file_available
        FROM statements
        WHERE user_id = $1
        ORDER BY uploaded_at DESC`,
@@ -965,27 +1009,60 @@ router.get('/:statementId', auth, async (req, res) => {
 });
 
 router.delete('/:statementId', auth, async (req, res) => {
+  const client = await pool.connect();
   try {
+    await client.query('BEGIN');
+    await lockUserUploads(client, req.user.id);
     // First verify the statement belongs to this user
-    const statement = await pool.query(
+    const statement = await client.query(
       'SELECT id, file_name FROM statements WHERE id = $1 AND user_id = $2',
       [req.params.statementId, req.user.id],
     );
 
     if (statement.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Statement not found' });
     }
 
     // Delete the statement - cascades to transactions automatically due to foreign key constraints
-    await pool.query('DELETE FROM statements WHERE id = $1', [req.params.statementId]);
+    await client.query('DELETE FROM statements WHERE id = $1 AND user_id=$2', [
+      req.params.statementId,
+      req.user.id,
+    ]);
+    await client.query('COMMIT');
 
     res.json({
       success: true,
       message: `Statement "${statement.rows[0].file_name}" has been deleted along with its transactions`,
     });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error('Error deleting statement:', err);
     res.status(500).json({ error: 'Failed to delete statement' });
+  } finally {
+    client.release();
+  }
+});
+
+router.get('/:statementId/file', auth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT s.file_name,f.content,f.content_type FROM statements s JOIN statement_files f ON f.statement_id=s.id WHERE s.id=$1 AND s.user_id=$2',
+      [req.params.statementId, req.user.id],
+    );
+    if (!result.rows.length)
+      return res
+        .status(404)
+        .json({
+          error: 'Original file unavailable. Older uploads did not retain their original files.',
+        });
+    const file = result.rows[0];
+    res.set('Cache-Control', 'private, no-store');
+    res.set('X-Content-Type-Options', 'nosniff');
+    res.attachment(file.file_name);
+    res.type(file.content_type).send(file.content);
+  } catch {
+    res.status(500).json({ error: 'Failed to download statement' });
   }
 });
 

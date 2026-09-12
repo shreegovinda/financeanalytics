@@ -8,6 +8,7 @@ const nodemailer = require('nodemailer');
  *              the default in development so signup verification and OTP login
  *              are testable without an email account.
  *   sendgrid - real delivery over SendGrid SMTP. Requires SENDGRID_API_KEY.
+ *   smtp     - authenticated SMTP, including GoDaddy Professional Email.
  *
  * Production refuses to start on the console provider: silently "sending" a
  * verification code to a terminal nobody reads would let users lock themselves
@@ -17,6 +18,7 @@ const nodemailer = require('nodemailer');
 const PROVIDERS = {
   CONSOLE: 'console',
   SENDGRID: 'sendgrid',
+  SMTP: 'smtp',
 };
 
 const DEFAULT_FROM = 'admin@finlytix.in';
@@ -39,7 +41,7 @@ function resolveProviderId() {
 }
 
 function getFromAddress() {
-  return process.env.SENDGRID_FROM_EMAIL || DEFAULT_FROM;
+  return process.env.EMAIL_FROM || process.env.SENDGRID_FROM_EMAIL || DEFAULT_FROM;
 }
 
 let sendgridTransport;
@@ -133,9 +135,64 @@ const sendgridProvider = {
   },
 };
 
+function smtpOptions() {
+  const port = Number(process.env.SMTP_PORT || 465);
+  const secure = process.env.SMTP_SECURE || (port === 465 ? 'true' : 'false');
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error('SMTP_PORT must be a valid port number');
+  }
+  if (!['true', 'false'].includes(secure)) {
+    throw new Error('SMTP_SECURE must be true or false');
+  }
+  return {
+    host: process.env.SMTP_HOST,
+    port,
+    secure: secure === 'true',
+    requireTLS: secure === 'false',
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD },
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 30000,
+  };
+}
+
+const smtpProvider = {
+  id: PROVIDERS.SMTP,
+  label: 'SMTP',
+  isConfigured: () => {
+    smtpOptions();
+    return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASSWORD);
+  },
+  async send({ to, subject, html }) {
+    if (!smtpProvider.isConfigured()) {
+      throw new Error('SMTP requires SMTP_HOST, SMTP_USER, and SMTP_PASSWORD');
+    }
+    const transport = nodemailer.createTransport(smtpOptions());
+    try {
+      const result = await transport.sendMail({
+        from: getFromAddress(),
+        to,
+        subject,
+        html,
+        text: htmlToText(html),
+      });
+      if (!result.accepted?.length || result.rejected?.length) {
+        throw new Error('SMTP recipient rejected');
+      }
+      return { accepted: result.accepted, provider: PROVIDERS.SMTP };
+    } catch {
+      // Do not expose provider responses or authentication details in logs/API errors.
+      throw new Error('SMTP email delivery failed. Check mailbox credentials and SMTP access.');
+    } finally {
+      transport.close();
+    }
+  },
+};
+
 const PROVIDER_REGISTRY = {
   [PROVIDERS.CONSOLE]: consoleProvider,
   [PROVIDERS.SENDGRID]: sendgridProvider,
+  [PROVIDERS.SMTP]: smtpProvider,
 };
 
 function getProvider() {
@@ -172,14 +229,16 @@ function assertEmailConfigured() {
     throw new Error(
       'EMAIL_PROVIDER is "console" but NODE_ENV is production. Verification ' +
         'codes would be written to the server log instead of delivered. Set ' +
-        'EMAIL_PROVIDER=sendgrid and SENDGRID_API_KEY.',
+        'EMAIL_PROVIDER=smtp with SMTP credentials, or sendgrid with SENDGRID_API_KEY.',
     );
   }
 
   if (!provider.isConfigured()) {
     throw new Error(
       `Email provider "${provider.id}" is selected but not configured. ` +
-        'Set SENDGRID_API_KEY, or use EMAIL_PROVIDER=console for local development.',
+        (provider.id === PROVIDERS.SMTP
+          ? 'Set SMTP_HOST, SMTP_USER, and SMTP_PASSWORD.'
+          : 'Set SENDGRID_API_KEY, or use EMAIL_PROVIDER=console for local development.'),
     );
   }
 
