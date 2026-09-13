@@ -10,13 +10,15 @@ const {
   handleWhatsAppDocumentUpload,
   handleWhatsAppInteractiveReply,
 } = require('../services/whatsappUploadHandler');
+const authenticateToken = require('../middleware/auth');
+const requireAdmin = require('../middleware/admin');
 
 const router = express.Router();
 
 /**
  * WhatsApp Integration Status & Diagnostics (GET /api/whatsapp/status)
  */
-router.get('/status', (req, res) => {
+router.get('/status', authenticateToken, requireAdmin, (req, res) => {
   const isConfigured = Boolean(
     process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.WHATSAPP_ACCESS_TOKEN,
   );
@@ -26,7 +28,7 @@ router.get('/status', (req, res) => {
     phoneNumberIdConfigured: Boolean(process.env.WHATSAPP_PHONE_NUMBER_ID),
     accessTokenConfigured: Boolean(process.env.WHATSAPP_ACCESS_TOKEN),
     appSecretConfigured: Boolean(process.env.WHATSAPP_APP_SECRET),
-    webhookVerifyToken: WHATSAPP_WEBHOOK_VERIFY_TOKEN,
+    webhookVerifyTokenConfigured: Boolean(process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN),
     simulatedMessagesCount: simulatedMessages.length,
     latestSimulatedMessage:
       simulatedMessages.length > 0 ? simulatedMessages[simulatedMessages.length - 1] : null,
@@ -47,7 +49,7 @@ router.get('/status', (req, res) => {
 /**
  * WhatsApp Simulated Messages (GET /api/whatsapp/simulated) - for local testing
  */
-router.get('/simulated', (req, res) => {
+router.get('/simulated', authenticateToken, requireAdmin, (req, res) => {
   res.json({
     count: simulatedMessages.length,
     messages: simulatedMessages.slice(-20),
