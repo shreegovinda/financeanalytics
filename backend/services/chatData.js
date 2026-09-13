@@ -147,10 +147,28 @@ async function runTool(client, userId, input) {
       values,
     )
   )[0];
-  let grouped = await query(
-    `SELECT ${groups[args.groupBy || 'month']} AS label,count(*) AS count,${sums} ${from} GROUP BY 1 ORDER BY ${!args.groupBy || args.groupBy === 'month' ? '1 DESC' : 'expenses DESC,1'} LIMIT 100`,
-    values,
-  );
+  let grouped;
+  if (args.groupBy === 'merchant') {
+    const merchantRows = await query(`SELECT t.description, t.amount, t.type ${from}`, values);
+    const buckets = new Map();
+    for (const row of merchantRows) {
+      const label = safeDecrypt(row.description) || 'Unknown';
+      const bucket = buckets.get(label) || { label, count: 0, income: 0, expenses: 0 };
+      bucket.count += 1;
+      const amount = Number(row.amount);
+      if (row.type === 'credit') bucket.income += amount;
+      else bucket.expenses += Math.abs(amount);
+      buckets.set(label, bucket);
+    }
+    grouped = [...buckets.values()]
+      .sort((a, b) => b.expenses - a.expenses || a.label.localeCompare(b.label))
+      .slice(0, 100);
+  } else {
+    grouped = await query(
+      `SELECT ${groups[args.groupBy || 'month']} AS label,count(*) AS count,${sums} ${from} GROUP BY 1 ORDER BY ${!args.groupBy || args.groupBy === 'month' ? '1 DESC' : 'expenses DESC,1'} LIMIT 100`,
+      values,
+    );
+  }
   const order =
     args.sort === 'largest'
       ? 'ABS(t.amount) DESC,t.id'
@@ -215,6 +233,21 @@ async function runTool(client, userId, input) {
         first_date: decryptedMatches[0]?.date || null,
         last_date: decryptedMatches[decryptedMatches.length - 1]?.date || null,
       };
+      if (args.groupBy === 'merchant') {
+        const buckets = new Map();
+        for (const row of decryptedMatches) {
+          const label = row.description || 'Unknown';
+          const bucket = buckets.get(label) || { label, count: 0, income: 0, expenses: 0 };
+          bucket.count += 1;
+          const amount = Number(row.amount);
+          if (row.type === 'credit') bucket.income += amount;
+          else bucket.expenses += Math.abs(amount);
+          buckets.set(label, bucket);
+        }
+        grouped = [...buckets.values()]
+          .sort((a, b) => b.expenses - a.expenses || a.label.localeCompare(b.label))
+          .slice(0, 100);
+      }
     }
   }
 

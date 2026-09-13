@@ -156,7 +156,11 @@ async function sendWhatsAppOTP(phone, magicLink = '', purpose = OTP_PURPOSES.WHA
   const otp = generateOTP();
 
   await storePhoneOTP(normalizedPhone, otp, purpose);
-  await sendOtpTemplate(normalizedPhone, otp, magicLink);
+  const frontendBaseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const loginLink =
+    magicLink ||
+    `${frontendBaseUrl}/auth?wa_token=${otp}&phone=${encodeURIComponent(normalizedPhone)}`;
+  await sendOtpTemplate(normalizedPhone, otp, loginLink);
 
   return { success: true, message: 'WhatsApp OTP dispatched successfully', code: otp };
 }

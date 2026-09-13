@@ -1,7 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const pool = require('../config/db');
-const crypto = require('crypto');
 const authenticateToken = require('../middleware/auth');
 const {
   OTP_PURPOSES,
@@ -9,7 +8,6 @@ const {
   verifyOTP,
   sendWhatsAppOTP,
   verifyPhoneOTP,
-  storePhoneOTP,
 } = require('../services/otp');
 const { normalizePhoneNumber } = require('../services/whatsappService');
 const { issueAuthToken } = require('../services/authToken');
@@ -800,12 +798,7 @@ router.post('/whatsapp/send-otp', async (req, res) => {
       });
     }
 
-    const frontendBaseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const magicToken = crypto.randomBytes(24).toString('hex');
-    await storePhoneOTP(normalized, magicToken.slice(0, 6), `${purpose}_magic`);
-    const magicLink = `${frontendBaseUrl}/auth?wa_token=${magicToken}&phone=${encodeURIComponent(normalized)}`;
-
-    await sendWhatsAppOTP(normalized, magicLink, purpose);
+    await sendWhatsAppOTP(normalized, '', purpose);
 
     const maskedPhone = '+' + normalized.slice(0, 2) + '••••' + normalized.slice(-4);
     res.json({
@@ -837,7 +830,7 @@ router.post('/whatsapp/verify-otp', async (req, res) => {
 
     const phoneHash = computeBlindIndex(normalized);
     const userRes = await pool.query(
-      `SELECT id, email, name, phone, phone_verified, token_version, role, currency, timezone, date_format, time_format
+      `SELECT id, email, name, phone, phone_verified, email_verified, token_version, role, currency, timezone, date_format, time_format
        FROM users
        WHERE phone_hash = $1
        LIMIT 1`,
@@ -851,12 +844,21 @@ router.post('/whatsapp/verify-otp', async (req, res) => {
       });
     }
 
-    const user = sanitizeUser(userRes.rows[0]);
+    const rawUser = userRes.rows[0];
     await pool.query(
       'UPDATE users SET phone_verified = TRUE, phone_verified_at = NOW() WHERE id = $1',
-      [user.id],
+      [rawUser.id],
     );
 
+    if (!rawUser.email_verified) {
+      return res.status(403).json({
+        error: 'Please verify your email before signing in.',
+        requiresVerification: true,
+        email: rawUser.email,
+      });
+    }
+
+    const user = sanitizeUser(rawUser);
     const token = issueAuthToken(user);
     res.json({
       success: true,

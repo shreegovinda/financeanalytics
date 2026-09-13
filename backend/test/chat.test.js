@@ -108,7 +108,7 @@ test('assistant uses retrieved evidence and drops invented sources', async () =>
     'owner',
     'How do I delete?',
     [],
-    'gemini',
+    { providerId: 'gemini', model: null, apiKey: null },
     generate,
   );
   assert.equal(result.sources.length, 1);
@@ -138,7 +138,7 @@ test('assistant provides accurate context for mobile app and whatsapp feature qu
     'owner',
     'Do we have any mobile app?',
     [],
-    'gemini',
+    { providerId: 'gemini', model: null, apiKey: null },
     generate,
   );
   assert.equal(result.sources.length, 1);

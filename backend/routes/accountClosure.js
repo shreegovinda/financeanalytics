@@ -75,18 +75,30 @@ router.post('/delete', authenticateToken, async (req, res) => {
     const transactionCount = parseInt(txnCountRes.rows[0].count, 10);
     const anonymizedUserId = crypto.createHash('sha256').update(userId).digest('hex');
 
-    // Minimal audit log (zero personal financial or identity information)
-    await pool.query(
-      `INSERT INTO account_deletion_logs (anonymized_user_id, statement_count, transaction_count)
-       VALUES ($1, $2, $3)`,
-      [anonymizedUserId, statementCount, transactionCount],
-    );
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      // Minimal audit log (zero personal financial or identity information)
+      await client.query(
+        `INSERT INTO account_deletion_logs (anonymized_user_id, statement_count, transaction_count)
+         VALUES ($1, $2, $3)`,
+        [anonymizedUserId, statementCount, transactionCount],
+      );
 
-    // Invalidate active session tokens by incrementing token version
-    await pool.query('UPDATE users SET token_version = token_version + 1 WHERE id = $1', [userId]);
+      // Invalidate active session tokens by incrementing token version
+      await client.query('UPDATE users SET token_version = token_version + 1 WHERE id = $1', [
+        userId,
+      ]);
 
-    // Cascade delete user row (deletes bank accounts, statements, drafts, transactions, chat, keys)
-    await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+      // Cascade delete user row (deletes bank accounts, statements, drafts, transactions, chat, keys)
+      await client.query('DELETE FROM users WHERE id = $1', [userId]);
+      await client.query('COMMIT');
+    } catch (txErr) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw txErr;
+    } finally {
+      client.release();
+    }
 
     res.json({
       success: true,

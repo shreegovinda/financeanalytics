@@ -96,17 +96,9 @@ async function answerQuestion(
   if (providerId && typeof providerId === 'object') {
     aiConfig = providerId;
   } else {
-    try {
-      aiConfig = await getUserAiExecutionConfig(pool, userId);
-      if (typeof providerId === 'string' && providerId) {
-        aiConfig.providerId = providerId;
-      }
-    } catch (e) {
-      if (typeof providerId === 'string' && providerId) {
-        aiConfig = { providerId, model: null, apiKey: null };
-      } else {
-        throw e;
-      }
+    aiConfig = await getUserAiExecutionConfig(pool, userId);
+    if (typeof providerId === 'string' && providerId) {
+      aiConfig.providerId = providerId;
     }
   }
 

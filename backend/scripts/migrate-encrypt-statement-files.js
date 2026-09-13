@@ -13,26 +13,36 @@ async function migrateStatementFiles(options = {}, customPool = null) {
       : '🔒 [MIGRATION] Encrypting statement files with application-level AES-256-GCM...',
   );
 
-  let offset = 0;
+  let cursor = null;
   const batchSize = 50;
   let processedCount = 0;
   let errorCount = 0;
 
   while (true) {
-    const batch = await db.query(
-      `SELECT statement_id, content, content_type
-       FROM statement_files
-       WHERE is_encrypted = $1
-       ORDER BY statement_id
-       LIMIT $2`,
-      [targetIsEncrypted, batchSize],
-    );
+    const batch = cursor
+      ? await db.query(
+          `SELECT statement_id, content, content_type
+           FROM statement_files
+           WHERE is_encrypted = $1 AND statement_id > $2
+           ORDER BY statement_id
+           LIMIT $3`,
+          [targetIsEncrypted, cursor, batchSize],
+        )
+      : await db.query(
+          `SELECT statement_id, content, content_type
+           FROM statement_files
+           WHERE is_encrypted = $1
+           ORDER BY statement_id
+           LIMIT $2`,
+          [targetIsEncrypted, batchSize],
+        );
 
     if (batch.rows.length === 0) {
       break;
     }
 
     for (const row of batch.rows) {
+      cursor = row.statement_id;
       try {
         let transformed;
         if (rollback) {

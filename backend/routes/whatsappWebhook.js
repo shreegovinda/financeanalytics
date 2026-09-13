@@ -33,15 +33,12 @@ router.get('/webhook', (req, res) => {
  * Meta WhatsApp Cloud API & Twilio Inbound Webhook (POST)
  */
 router.post('/webhook', async (req, res) => {
-  // 1. Signature validation for Meta Webhooks
+  // 1. Signature validation for Meta Webhooks — missing or unsigned requests are rejected
   const signature = req.headers['x-hub-signature-256'];
-  if (signature) {
-    const rawBody = req.rawBody || Buffer.from(JSON.stringify(req.body));
-    const isValid = verifyWebhookSignature(rawBody, signature);
-    if (!isValid) {
-      console.warn('❌ Invalid WhatsApp webhook signature rejected');
-      return res.status(403).json({ error: 'Invalid signature' });
-    }
+  const rawBody = req.rawBody || Buffer.from(JSON.stringify(req.body));
+  if (!verifyWebhookSignature(rawBody, signature)) {
+    console.warn('❌ Invalid WhatsApp webhook signature rejected');
+    return res.status(403).json({ error: 'Invalid signature' });
   }
 
   // Acknowledge receipt immediately so WhatsApp/Twilio doesn't time out or retry

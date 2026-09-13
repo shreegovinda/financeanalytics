@@ -62,10 +62,10 @@ router.get('/metrics', async (req, res) => {
         FROM crash_reports
       `),
       pool.query(`
-        SELECT consent_version, COUNT(*)::int AS user_count
+        SELECT policy_version AS consent_version, COUNT(*)::int AS user_count
         FROM user_consents
-        GROUP BY consent_version
-        ORDER BY consent_version DESC
+        GROUP BY policy_version
+        ORDER BY policy_version DESC
       `),
       pool.query(`
         SELECT COUNT(*)::int AS total_deletions

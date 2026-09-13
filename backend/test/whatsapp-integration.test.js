@@ -70,6 +70,8 @@ describe('WhatsApp Platform Integration Suite', () => {
       assert.equal(verifyWebhookSignature(body, validHeader, secret), true);
       assert.equal(verifyWebhookSignature(body, 'sha256=invalid_hex_string', secret), false);
       assert.equal(verifyWebhookSignature(body, 'wrong_format', secret), false);
+      assert.equal(verifyWebhookSignature(body, validHeader, ''), false);
+      assert.equal(verifyWebhookSignature(body, undefined, secret), false);
     });
   });
 

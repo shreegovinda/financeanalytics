@@ -44,8 +44,7 @@ function formatForWhatsApp(text) {
  * Validates Meta X-Hub-Signature-256 header against the raw body buffer
  */
 function verifyWebhookSignature(rawBody, signatureHeader, secret = WHATSAPP_APP_SECRET) {
-  if (!secret) return true; // Bypass in dev if secret not configured
-  if (!signatureHeader || !signatureHeader.startsWith('sha256=')) {
+  if (!secret || !signatureHeader || !signatureHeader.startsWith('sha256=')) {
     return false;
   }
 

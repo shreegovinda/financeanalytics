@@ -152,6 +152,12 @@ test('POST /api/account/delete successfully deletes user, increments token_versi
       }
       return { rows: [] };
     },
+    async connect() {
+      return {
+        query: (sql, params) => mockPool.query(sql, params),
+        release() {},
+      };
+    },
   };
 
   const { router, cleanup } = loadAccountRouter(mockPool);

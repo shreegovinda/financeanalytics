@@ -20,6 +20,7 @@ const {
 } = require('./crypto');
 const { toSqlDate } = require('../utils/formatters');
 const { validateTransactionMonth } = require('./statementDates');
+const uploadRouter = require('../routes/upload');
 
 const uploadDir = path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadDir)) {
@@ -242,6 +243,15 @@ async function handleWhatsAppDocumentUpload(fromPhone, document, messageId) {
 
       try {
         await client.query('BEGIN');
+        await uploadRouter.lockUserUploads(client, user.id);
+        if (bankCode && detectedMonth) {
+          await uploadRouter.ensureMonthNotAlreadyUploaded(
+            client,
+            user.id,
+            bankCode,
+            detectedMonth,
+          );
+        }
 
         const stmtInsert = await client.query(
           `INSERT INTO statements
@@ -492,8 +502,11 @@ async function handleWhatsAppInteractiveReply(fromPhone, buttonId, messageId) {
       );
     } else if (action === 'view') {
       const draftRes = await pool.query(
-        `SELECT payload, total_debit, total_credit, transaction_count FROM statement_drafts WHERE statement_id = $1`,
-        [statementId],
+        `SELECT d.payload, d.total_debit, d.total_credit, d.transaction_count
+         FROM statement_drafts d
+         JOIN statements s ON s.id = d.statement_id
+         WHERE d.statement_id = $1 AND s.user_id = $2`,
+        [statementId, user.id],
       );
       if (draftRes.rows.length === 0) {
         await sendTextMessage(normalizedPhone, '⚠️ No pending draft found.');
@@ -526,10 +539,18 @@ async function handleWhatsAppInteractiveReply(fromPhone, buttonId, messageId) {
         { id: `btn_discard_${statementId}`, title: '❌ Discard' },
       ]);
     } else if (action === 'discard') {
+      const owned = await pool.query('SELECT id FROM statements WHERE id = $1 AND user_id = $2', [
+        statementId,
+        user.id,
+      ]);
+      if (owned.rows.length === 0) {
+        await sendTextMessage(normalizedPhone, '⚠️ No pending draft found.');
+        return;
+      }
       await pool.query('DELETE FROM statement_drafts WHERE statement_id = $1', [statementId]);
       await pool.query(
-        `UPDATE statements SET status = 'failed', processing_stage = 'discarded', processed_at = NOW() WHERE id = $1`,
-        [statementId],
+        `UPDATE statements SET status = 'failed', processing_stage = 'discarded', processed_at = NOW() WHERE id = $1 AND user_id = $2`,
+        [statementId, user.id],
       );
       await pool.query(
         'UPDATE whatsapp_conversations SET current_draft_id = NULL, updated_at = NOW() WHERE user_id = $1',
