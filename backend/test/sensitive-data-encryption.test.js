@@ -33,7 +33,10 @@ describe('Sensitive Data Encryption At Rest & Blind Indexing Suite', () => {
     try {
       await pool.query('SELECT 1');
     } catch (err) {
-      if (err.code === 'ECONNREFUSED' || err.message?.includes('ECONNREFUSED')) {
+      if (
+        (err.code === 'ECONNREFUSED' || err.message?.includes('ECONNREFUSED')) &&
+        !process.env.CI
+      ) {
         console.warn('⚠️ Skipping real DB tests: PostgreSQL is not available.');
         dbAvailable = false;
         return;

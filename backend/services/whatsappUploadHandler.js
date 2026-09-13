@@ -539,23 +539,34 @@ async function handleWhatsAppInteractiveReply(fromPhone, buttonId, messageId) {
         { id: `btn_discard_${statementId}`, title: '❌ Discard' },
       ]);
     } else if (action === 'discard') {
-      const owned = await pool.query('SELECT id FROM statements WHERE id = $1 AND user_id = $2', [
-        statementId,
-        user.id,
-      ]);
-      if (owned.rows.length === 0) {
-        await sendTextMessage(normalizedPhone, '⚠️ No pending draft found.');
-        return;
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const owned = await client.query(
+          'SELECT id FROM statements WHERE id = $1 AND user_id = $2 FOR UPDATE',
+          [statementId, user.id],
+        );
+        if (owned.rows.length === 0) {
+          await client.query('ROLLBACK');
+          await sendTextMessage(normalizedPhone, '⚠️ No pending draft found.');
+          return;
+        }
+        await client.query('DELETE FROM statement_drafts WHERE statement_id = $1', [statementId]);
+        await client.query(
+          `UPDATE statements SET status = 'failed', processing_stage = 'discarded', processed_at = NOW() WHERE id = $1 AND user_id = $2`,
+          [statementId, user.id],
+        );
+        await client.query(
+          'UPDATE whatsapp_conversations SET current_draft_id = NULL, updated_at = NOW() WHERE user_id = $1',
+          [user.id],
+        );
+        await client.query('COMMIT');
+      } catch (discardErr) {
+        await client.query('ROLLBACK').catch(() => {});
+        throw discardErr;
+      } finally {
+        client.release();
       }
-      await pool.query('DELETE FROM statement_drafts WHERE statement_id = $1', [statementId]);
-      await pool.query(
-        `UPDATE statements SET status = 'failed', processing_stage = 'discarded', processed_at = NOW() WHERE id = $1 AND user_id = $2`,
-        [statementId, user.id],
-      );
-      await pool.query(
-        'UPDATE whatsapp_conversations SET current_draft_id = NULL, updated_at = NOW() WHERE user_id = $1',
-        [user.id],
-      );
       await sendTextMessage(
         normalizedPhone,
         '❌ Statement draft discarded. No transactions were imported.',
