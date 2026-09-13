@@ -3,6 +3,7 @@ const {
   verifyWebhookSignature,
   WHATSAPP_WEBHOOK_VERIFY_TOKEN,
   normalizePhoneNumber,
+  simulatedMessages,
 } = require('../services/whatsappService');
 const { handleWhatsAppChatMessage } = require('../services/whatsappChatHandler');
 const {
@@ -11,6 +12,47 @@ const {
 } = require('../services/whatsappUploadHandler');
 
 const router = express.Router();
+
+/**
+ * WhatsApp Integration Status & Diagnostics (GET /api/whatsapp/status)
+ */
+router.get('/status', (req, res) => {
+  const isConfigured = Boolean(
+    process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.WHATSAPP_ACCESS_TOKEN,
+  );
+  res.json({
+    mode: isConfigured ? 'live' : 'simulation',
+    configured: isConfigured,
+    phoneNumberIdConfigured: Boolean(process.env.WHATSAPP_PHONE_NUMBER_ID),
+    accessTokenConfigured: Boolean(process.env.WHATSAPP_ACCESS_TOKEN),
+    appSecretConfigured: Boolean(process.env.WHATSAPP_APP_SECRET),
+    webhookVerifyToken: WHATSAPP_WEBHOOK_VERIFY_TOKEN,
+    simulatedMessagesCount: simulatedMessages.length,
+    latestSimulatedMessage:
+      simulatedMessages.length > 0 ? simulatedMessages[simulatedMessages.length - 1] : null,
+    setupGuide: !isConfigured
+      ? {
+          step1:
+            'Register a Meta Developer account at https://developers.facebook.com and create a Business App',
+          step2: 'Add WhatsApp product to your App',
+          step3: 'In WhatsApp -> API Setup, copy Phone Number ID and Access Token',
+          step4: 'Add WHATSAPP_PHONE_NUMBER_ID and WHATSAPP_ACCESS_TOKEN to backend/.env.local',
+          step5:
+            'Add your test mobile number to the "To" allowlist in Meta WhatsApp API Setup to permit sending',
+        }
+      : undefined,
+  });
+});
+
+/**
+ * WhatsApp Simulated Messages (GET /api/whatsapp/simulated) - for local testing
+ */
+router.get('/simulated', (req, res) => {
+  res.json({
+    count: simulatedMessages.length,
+    messages: simulatedMessages.slice(-20),
+  });
+});
 
 /**
  * Meta WhatsApp Cloud API Webhook Challenge Verification (GET)

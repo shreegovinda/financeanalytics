@@ -80,6 +80,20 @@ async function sendTextMessage(toPhone, text) {
       id: 'sim_msg_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
     };
     simulatedMessages.push(messageRecord);
+    if (process.env.NODE_ENV !== 'test') {
+      console.log(
+        `\n============================================================\n` +
+          `💬 [WHATSAPP SIMULATOR] Outgoing Message Dispatched\n` +
+          `📱 To: +${normalizedPhone}\n` +
+          `🕒 Time: ${new Date().toLocaleTimeString()}\n` +
+          `------------------------------------------------------------\n` +
+          `${formattedText}\n` +
+          `============================================================\n` +
+          `💡 Notice: WHATSAPP_ACCESS_TOKEN or WHATSAPP_PHONE_NUMBER_ID is not configured in backend/.env.local.\n` +
+          `   Messages are captured in simulation mode. Configure Meta Cloud API credentials to receive on physical devices.\n` +
+          `============================================================\n`,
+      );
+    }
     return { success: true, simulated: true, messageId: messageRecord.id };
   }
 
@@ -128,6 +142,18 @@ async function sendInteractiveButtons(toPhone, bodyText, buttons = []) {
       id: 'sim_btn_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
     };
     simulatedMessages.push(messageRecord);
+    if (process.env.NODE_ENV !== 'test') {
+      console.log(
+        `\n============================================================\n` +
+          `💬 [WHATSAPP SIMULATOR] Interactive Buttons Dispatched\n` +
+          `📱 To: +${normalizedPhone}\n` +
+          `🕒 Time: ${new Date().toLocaleTimeString()}\n` +
+          `------------------------------------------------------------\n` +
+          `${formattedBody}\n` +
+          `🔘 Options: ${buttons.map((b) => `[${b.title}]`).join('  ')}\n` +
+          `============================================================\n`,
+      );
+    }
     return { success: true, simulated: true, messageId: messageRecord.id };
   }
 

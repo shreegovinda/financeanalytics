@@ -409,12 +409,12 @@ async function updateStatementProgress(statementId, stage, progress, extra = {})
     `UPDATE statements
      SET processing_stage = $1,
          processing_progress = $2,
-         status = COALESCE($3, status),
-         processing_error = COALESCE($4, processing_error),
-         processed_at = COALESCE($5, processed_at),
+         status = COALESCE($3::text, status),
+         processing_error = COALESCE($4::text, processing_error),
+         processed_at = COALESCE($5::timestamptz, processed_at),
          upload_path = CASE
-           WHEN $6 THEN NULL
-           WHEN $7 IS NOT NULL THEN $7
+           WHEN $6::boolean THEN NULL
+           WHEN $7::text IS NOT NULL THEN $7::text
            ELSE upload_path
          END
      WHERE id = $8`,
