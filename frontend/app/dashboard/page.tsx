@@ -4,8 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AuthSessionGuard from '@/components/AuthSessionGuard';
-import AiProviderSelect from '@/components/AiProviderSelect';
-import { apiGet, apiPut, getErrorMessage } from '@/lib/api';
+import { apiGet, getErrorMessage } from '@/lib/api';
 import { subscribeFinanceChanges } from '@/lib/financeRefresh';
 import { DashboardSkeleton } from '@/components/Skeleton';
 
@@ -16,6 +15,8 @@ interface User {
   email: string;
   name: string;
   phone?: string | null;
+  needsPhone?: boolean;
+  role?: string;
 }
 
 interface CategoryData {
@@ -50,19 +51,6 @@ export default function DashboardPage() {
     transaction_count: 0,
   });
   const [categoryData, setCategoryData] = useState<CategoryData[]>([]);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [profileName, setProfileName] = useState('');
-  const [profilePhone, setProfilePhone] = useState('');
-  const [isSavingProfile, setIsSavingProfile] = useState(false);
-  const [profileError, setProfileError] = useState('');
-  const [profileSuccess, setProfileSuccess] = useState('');
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmNewPassword, setConfirmNewPassword] = useState('');
-  const [isSavingPassword, setIsSavingPassword] = useState(false);
-  const [passwordError, setPasswordError] = useState('');
-  const [passwordSuccess, setPasswordSuccess] = useState('');
-  const [showPasswordForm, setShowPasswordForm] = useState(false);
 
   const fetchAnalytics = async (token: string) => {
     const results = await Promise.allSettled([
@@ -100,6 +88,15 @@ export default function DashboardPage() {
 
       setUser(userData);
       await fetchAnalytics(token);
+      try {
+        const profileRes = await apiGet<{ user: User }>(`${API_BASE_URL}/api/auth/me`, token);
+        if (profileRes?.user) {
+          setUser(profileRes.user);
+          localStorage.setItem('user', JSON.stringify(profileRes.user));
+        }
+      } catch {
+        // Fall back to stored session user
+      }
       setIsLoading(false);
     };
 
@@ -115,92 +112,6 @@ export default function DashboardPage() {
     window.location.replace('/auth');
   };
 
-  const openProfile = (): void => {
-    if (!user) return;
-    setProfileName(user.name || '');
-    setProfilePhone(user.phone || '');
-    setProfileError('');
-    setProfileSuccess('');
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmNewPassword('');
-    setPasswordError('');
-    setPasswordSuccess('');
-    setShowPasswordForm(false);
-    setIsProfileOpen(true);
-  };
-
-  const handleProfileSave = async (): Promise<void> => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      window.location.replace('/auth');
-      return;
-    }
-
-    if (!user || (profileName.trim() === user.name && profilePhone.trim() === (user.phone || ''))) {
-      return;
-    }
-
-    setIsSavingProfile(true);
-    setProfileError('');
-    setProfileSuccess('');
-
-    try {
-      const response = await apiPut<{ user: User }>(
-        `${API_BASE_URL}/api/auth/me`,
-        { name: profileName, phone: profilePhone },
-        token,
-      );
-      localStorage.setItem('user', JSON.stringify(response.user));
-      setUser(response.user);
-      setProfileSuccess('Profile updated successfully.');
-    } catch (err) {
-      setProfileError(getErrorMessage(err));
-    } finally {
-      setIsSavingProfile(false);
-    }
-  };
-
-  const handlePasswordSave = async (): Promise<void> => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      window.location.replace('/auth');
-      return;
-    }
-
-    if (newPassword.length < 8) {
-      setPasswordError('New password must be at least 8 characters long.');
-      return;
-    }
-
-    if (newPassword !== confirmNewPassword) {
-      setPasswordError('New passwords do not match.');
-      return;
-    }
-
-    setIsSavingPassword(true);
-    setPasswordError('');
-    setPasswordSuccess('');
-
-    try {
-      const response = await apiPut<{ success: boolean; token: string }>(
-        `${API_BASE_URL}/api/auth/password`,
-        { currentPassword, newPassword },
-        token,
-      );
-      localStorage.setItem('token', response.token);
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmNewPassword('');
-      setPasswordSuccess('Password updated successfully.');
-      setShowPasswordForm(false);
-    } catch (err) {
-      setPasswordError(getErrorMessage(err));
-    } finally {
-      setIsSavingPassword(false);
-    }
-  };
-
   if (isLoading || !user) {
     return <DashboardSkeleton />;
   }
@@ -213,10 +124,6 @@ export default function DashboardPage() {
     totalIncome > 0 ? Math.max(0, Math.round((netBalance / totalIncome) * 100)) : 0;
   const topCategory = categoryData[0]?.name || 'No category yet';
   const formatCurrency = (value: number): string => `₹${Number(value || 0).toFixed(2)}`;
-  const hasProfileChanges =
-    profileName.trim() !== user.name || profilePhone.trim() !== (user.phone || '');
-  const canSavePassword =
-    currentPassword.length > 0 && newPassword.length > 0 && confirmNewPassword.length > 0;
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_34%),linear-gradient(180deg,#f8fafc_0%,#eef2ff_48%,#f8fafc_100%)]">
@@ -238,19 +145,26 @@ export default function DashboardPage() {
             <span className="rounded-full bg-blue-50 px-4 py-2 text-sm font-medium text-blue-800">
               Welcome, {user.name}
             </span>
-            <button
-              type="button"
-              onClick={openProfile}
+            <Link
+              href="/settings?tab=profile"
               aria-label="Edit profile"
               className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 border border-blue-200 hover:bg-blue-200 transition flex items-center justify-center font-semibold cursor-pointer"
             >
               {user.name?.trim().charAt(0).toUpperCase() || 'U'}
-            </button>
+            </Link>
+            {user.role === 'admin' && (
+              <Link
+                href="/admin"
+                className="px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition cursor-pointer text-sm font-medium shadow-sm"
+              >
+                Admin
+              </Link>
+            )}
             <Link
               href="/settings"
-              className="px-4 py-2 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition cursor-pointer"
+              className="px-4 py-2 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition cursor-pointer text-sm font-medium"
             >
-              Categories
+              Settings
             </Link>
             <button
               onClick={handleLogout}
@@ -261,6 +175,29 @@ export default function DashboardPage() {
           </div>
         </div>
       </header>
+
+      {user && (!user.phone || user.needsPhone) && (
+        <div className="mx-auto max-w-7xl px-4 pt-4">
+          <div className="flex flex-col gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-900 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="text-xl">⚠️</span>
+              <div>
+                <p className="text-sm font-semibold">Complete your profile</p>
+                <p className="mt-0.5 text-xs text-amber-800">
+                  A mobile number with country code is required for your account. Please update your
+                  profile to keep your contact details up to date.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/settings?tab=profile"
+              className="self-start rounded-xl bg-amber-700 px-3.5 py-1.5 text-xs font-semibold text-white shadow transition hover:bg-amber-800 cursor-pointer sm:self-center"
+            >
+              Add mobile number
+            </Link>
+          </div>
+        </div>
+      )}
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         <section className="mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-blue-950 to-indigo-900 p-6 text-white shadow-2xl sm:p-8">
@@ -395,221 +332,6 @@ export default function DashboardPage() {
           </div>
         </div>
       </main>
-
-      {isProfileOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/60 px-4 py-6 backdrop-blur-sm sm:py-10">
-          <div className="mx-auto w-full max-w-2xl overflow-hidden rounded-3xl border border-white/20 bg-white shadow-2xl">
-            <div className="relative bg-gradient-to-br from-blue-600 via-indigo-600 to-slate-900 px-6 py-6 text-white">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.22),transparent_32%)]" />
-              <div className="relative flex items-start justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/25 bg-white/15 text-2xl font-bold shadow-lg">
-                    {user.name?.trim().charAt(0).toUpperCase() || 'U'}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-blue-100">Account settings</p>
-                    <h2 className="text-2xl font-bold">{user.name || 'Your Profile'}</h2>
-                    <p className="mt-1 text-sm text-blue-100">{user.email}</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsProfileOpen(false)}
-                  className="rounded-full bg-white/10 px-3 py-1.5 text-sm text-white hover:bg-white/20 cursor-pointer"
-                  aria-label="Close profile editor"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-
-            <div className="max-h-[calc(100vh-12rem)] overflow-y-auto px-6 py-6">
-              {profileError && (
-                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {profileError}
-                </div>
-              )}
-              {profileSuccess && (
-                <div className="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-                  {profileSuccess}
-                </div>
-              )}
-              {passwordError && (
-                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {passwordError}
-                </div>
-              )}
-              {passwordSuccess && (
-                <div className="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-                  {passwordSuccess}
-                </div>
-              )}
-
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-                    Profile
-                  </p>
-                  <p className="mt-2 text-sm text-blue-950">Manage your name and contact number.</p>
-                </div>
-                <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">
-                    AI Model
-                  </p>
-                  <p className="mt-2 text-sm text-indigo-950">Choose the model used for parsing.</p>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
-                    Security
-                  </p>
-                  <p className="mt-2 text-sm text-slate-700">
-                    Password settings stay hidden by default.
-                  </p>
-                </div>
-              </div>
-
-              <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Personal details</h3>
-                  <p className="text-sm text-gray-500">Keep your profile information up to date.</p>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="block">
-                    <span className="mb-1 block text-sm font-medium text-gray-700">Name</span>
-                    <input
-                      type="text"
-                      value={profileName}
-                      onChange={(event) => setProfileName(event.target.value)}
-                      className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </label>
-                  <label className="block">
-                    <span className="mb-1 block text-sm font-medium text-gray-700">Phone</span>
-                    <input
-                      type="tel"
-                      value={profilePhone}
-                      onChange={(event) => setProfilePhone(event.target.value)}
-                      placeholder="+91 98765 43210"
-                      className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </label>
-                  <label className="block sm:col-span-2">
-                    <span className="mb-1 block text-sm font-medium text-gray-700">Email</span>
-                    <input
-                      type="email"
-                      value={user.email}
-                      disabled
-                      className="w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-100 px-3 py-2.5 text-gray-500"
-                    />
-                    <span className="mt-1 block text-xs text-gray-500">
-                      Email cannot be changed.
-                    </span>
-                  </label>
-                </div>
-
-                <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setIsProfileOpen(false)}
-                    className="rounded-xl border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50 cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleProfileSave()}
-                    disabled={isSavingProfile || !hasProfileChanges}
-                    className="rounded-xl bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-60 cursor-pointer"
-                  >
-                    {isSavingProfile ? 'Saving...' : 'Save Changes'}
-                  </button>
-                </div>
-              </section>
-
-              <section className="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                <div className="mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">AI preferences</h3>
-                  <p className="text-sm text-gray-500">
-                    Select the model used for statement parsing and categorization.
-                  </p>
-                </div>
-                <AiProviderSelect embedded />
-              </section>
-
-              <section className="mt-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Security</h3>
-                    <p className="text-sm text-gray-500">
-                      Update your password only when you need to rotate it.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowPasswordForm((current) => !current);
-                      setPasswordError('');
-                      setPasswordSuccess('');
-                    }}
-                    className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
-                  >
-                    {showPasswordForm ? 'Hide Password Form' : 'Change Password'}
-                  </button>
-                </div>
-
-                {showPasswordForm && (
-                  <div className="mt-5 space-y-4 rounded-2xl bg-slate-50 p-4">
-                    <label className="block">
-                      <span className="mb-1 block text-sm font-medium text-gray-700">
-                        Current Password
-                      </span>
-                      <input
-                        type="password"
-                        value={currentPassword}
-                        onChange={(event) => setCurrentPassword(event.target.value)}
-                        className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="mb-1 block text-sm font-medium text-gray-700">
-                        New Password
-                      </span>
-                      <input
-                        type="password"
-                        value={newPassword}
-                        onChange={(event) => setNewPassword(event.target.value)}
-                        className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="mb-1 block text-sm font-medium text-gray-700">
-                        Confirm New Password
-                      </span>
-                      <input
-                        type="password"
-                        value={confirmNewPassword}
-                        onChange={(event) => setConfirmNewPassword(event.target.value)}
-                        className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </label>
-                    <div className="flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => void handlePasswordSave()}
-                        disabled={isSavingPassword || !canSavePassword}
-                        className="rounded-xl bg-gray-900 px-4 py-2 text-white hover:bg-gray-800 disabled:opacity-60 cursor-pointer"
-                      >
-                        {isSavingPassword ? 'Updating...' : 'Update Password'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </section>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

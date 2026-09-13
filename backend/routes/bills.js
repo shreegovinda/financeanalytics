@@ -5,7 +5,8 @@ const fs = require('fs');
 const pool = require('../config/db');
 const auth = require('../middleware/auth');
 const { parseBill } = require('../services/parsers/bill');
-const { getProviderFromRequest } = require('../services/ai');
+const { getProviderFromRequest, getUserAiExecutionConfig } = require('../services/ai');
+const { encrypt, safeDecrypt, encryptJson, decryptJson } = require('../services/crypto');
 
 /**
  * Merchant bills attached to a single transaction.
@@ -65,7 +66,12 @@ async function loadOwnedTransaction(queryable, transactionId, userId) {
      WHERE id = $1 AND user_id = $2`,
     [transactionId, userId],
   );
-  return result.rows[0] || null;
+  if (result.rows.length === 0) return null;
+  const row = result.rows[0];
+  return {
+    ...row,
+    description: safeDecrypt(row.description),
+  };
 }
 
 /**
@@ -98,16 +104,28 @@ function buildMismatch(transaction, billTotal) {
 }
 
 function serializeBill(row, lineItems) {
+  let payload = row.payload;
+  if (payload && payload.encrypted) {
+    try {
+      payload = decryptJson(payload.encrypted);
+    } catch (e) {
+      console.error('Failed to decrypt bill payload:', e);
+    }
+  }
+  const rawLineItems = lineItems ?? payload?.lineItems ?? [];
   return {
     id: row.id,
     transactionId: row.transaction_id,
-    fileName: row.file_name,
-    merchantName: row.merchant_name,
+    fileName: safeDecrypt(row.file_name),
+    merchantName: safeDecrypt(row.merchant_name),
     billTotal: row.bill_total === null ? null : Number(row.bill_total),
     billDate: row.bill_date,
     status: row.status,
     createdAt: row.created_at,
-    lineItems: lineItems ?? row.payload?.lineItems ?? [],
+    lineItems: rawLineItems.map((item) => ({
+      ...item,
+      description: safeDecrypt(item.description),
+    })),
   };
 }
 
@@ -129,7 +147,15 @@ router.post('/', auth, uploadSingleBill, async (req, res) => {
       return res.status(404).json({ error: 'Transaction not found' });
     }
 
-    const parsed = await parseBill(filePath, getProviderFromRequest(req));
+    const aiConfig = await getUserAiExecutionConfig(pool, userId, getProviderFromRequest(req));
+    const parsed = await parseBill(filePath, aiConfig.providerId, {
+      apiKey: aiConfig.apiKey,
+      model: aiConfig.model,
+    });
+
+    const encFileName = encrypt(req.file.originalname);
+    const encMerchantName = parsed.merchantName ? encrypt(parsed.merchantName) : null;
+    const encPayload = JSON.stringify({ encrypted: encryptJson(parsed) });
 
     const result = await pool.query(
       `INSERT INTO transaction_bills
@@ -141,11 +167,11 @@ router.post('/', auth, uploadSingleBill, async (req, res) => {
       [
         transaction.id,
         userId,
-        req.file.originalname,
-        parsed.merchantName,
+        encFileName,
+        encMerchantName,
         parsed.total,
         parsed.billDate,
-        JSON.stringify(parsed),
+        encPayload,
       ],
     );
 
@@ -195,7 +221,15 @@ router.post('/:billId/confirm', auth, async (req, res) => {
     }
 
     const bill = billResult.rows[0];
-    const lineItems = Array.isArray(bill.payload?.lineItems) ? bill.payload.lineItems : [];
+    let payload = bill.payload;
+    if (payload && payload.encrypted) {
+      try {
+        payload = decryptJson(payload.encrypted);
+      } catch (e) {
+        console.error('Failed to decrypt bill payload on confirm:', e);
+      }
+    }
+    const lineItems = Array.isArray(payload?.lineItems) ? payload.lineItems : [];
 
     if (lineItems.length > 0) {
       const values = [];
@@ -204,7 +238,7 @@ router.post('/:billId/confirm', auth, async (req, res) => {
         values.push(
           bill.id,
           bill.transaction_id,
-          item.description,
+          encrypt(item.description || ''),
           item.quantity,
           item.unitPrice,
           item.amount,
@@ -306,7 +340,7 @@ router.get('/', auth, async (req, res) => {
     for (const item of items.rows) {
       const list = itemsByBill.get(item.transaction_bill_id) || [];
       list.push({
-        description: item.description,
+        description: safeDecrypt(item.description),
         quantity: item.quantity === null ? null : Number(item.quantity),
         unitPrice: item.unit_price === null ? null : Number(item.unit_price),
         amount: Number(item.amount),

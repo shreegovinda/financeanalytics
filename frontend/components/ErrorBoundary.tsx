@@ -1,6 +1,7 @@
 'use client';
 
 import { Component, ReactNode } from 'react';
+import CrashReportModal from './CrashReportModal';
 
 interface Props {
   children: ReactNode;
@@ -9,6 +10,8 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
+  componentStack: string | null;
+  showCrashModal: boolean;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
@@ -17,10 +20,12 @@ export class ErrorBoundary extends Component<Props, State> {
     this.state = {
       hasError: false,
       error: null,
+      componentStack: null,
+      showCrashModal: false,
     };
   }
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): Partial<State> {
     return {
       hasError: true,
       error,
@@ -29,6 +34,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: { componentStack: string }) {
     console.error('Error caught by boundary:', error, errorInfo);
+    this.setState({ componentStack: errorInfo.componentStack });
   }
 
   render() {
@@ -64,20 +70,34 @@ export class ErrorBoundary extends Component<Props, State> {
                 <pre className="mt-2 overflow-auto max-h-40">{this.state.error?.message}</pre>
               </details>
             )}
-            <div className="mt-6 flex gap-2">
+            <div className="mt-6 flex flex-col gap-2">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => (window.location.href = '/dashboard')}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
+                >
+                  Go to Dashboard
+                </button>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition text-sm font-medium"
+                >
+                  Refresh
+                </button>
+              </div>
               <button
-                onClick={() => (window.location.href = '/dashboard')}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
+                onClick={() => this.setState({ showCrashModal: true })}
+                className="w-full px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition text-xs font-medium text-center"
               >
-                Go to Dashboard
-              </button>
-              <button
-                onClick={() => window.location.reload()}
-                className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition text-sm font-medium"
-              >
-                Refresh
+                Send Diagnostic Report
               </button>
             </div>
+            <CrashReportModal
+              isOpen={this.state.showCrashModal}
+              onClose={() => this.setState({ showCrashModal: false })}
+              error={this.state.error}
+              componentStack={this.state.componentStack}
+            />
           </div>
         </div>
       );

@@ -9,8 +9,31 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: financeanalytics
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     env:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: password
+      DB_NAME: financeanalytics
+      APP_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      BLIND_INDEX_SALT: test_blind_index_salt_for_ci
+      JWT_SECRET: test_jwt_secret_32_bytes_long_ci_secure
 
     strategy:
       matrix:
@@ -29,6 +52,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Initialize Database Schema
+        run: node backend/db/init.js
+
       - name: Lint
         run: npm run lint
         continue-on-error: false
@@ -37,8 +63,16 @@ jobs:
         run: npm run format:check
         continue-on-error: false
 
-      - name: Test
+      - name: Security & Backend Tests
         run: npm test
+        continue-on-error: false
+
+      - name: Mobile TypeScript Verification
+        run: npm run typecheck:mobile
+        continue-on-error: false
+
+      - name: Frontend Production Build
+        run: npm run build
         continue-on-error: false
 
       - name: SonarCloud Scan

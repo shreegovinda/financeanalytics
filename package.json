@@ -5,7 +5,9 @@
   "private": true,
   "workspaces": [
     "backend",
-    "frontend"
+    "frontend",
+    "shared",
+    "mobile"
   ],
   "scripts": {
     "lint": "npm run lint --workspace=backend && npm run lint --workspace=frontend",
@@ -13,7 +15,13 @@
     "format": "npm run format --workspace=backend && npm run format --workspace=frontend",
     "format:check": "npm run format:check --workspace=backend && npm run format:check --workspace=frontend",
     "test": "npm run test --workspace=backend",
-    "build": "npm run build --workspace=frontend"
+    "test:security": "node --test backend/test/crypto.test.js backend/test/sensitive-data-encryption.test.js",
+    "typecheck:mobile": "tsc --noEmit --project mobile/tsconfig.json",
+    "typecheck:shared": "npm run build --workspace=shared",
+    "build": "npm run build --workspace=frontend",
+    "hardening:check": "npm run lint && npm run format:check && npm test && npm run typecheck:mobile && npm run build",
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend"
   },
   "devDependencies": {
     "@types/react": "^19",

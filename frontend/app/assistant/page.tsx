@@ -6,6 +6,7 @@ import AuthSessionGuard from '@/components/AuthSessionGuard';
 import BackButton from '@/components/BackButton';
 import { apiFetch, getErrorMessage } from '@/lib/api';
 import { getAiProviderHeaders } from '@/lib/aiProvider';
+import { formatCurrency } from '@/lib/formatters';
 interface Evidence {
   income: string;
   expenses: string;
@@ -33,8 +34,7 @@ const examples = [
   'Compare my spending by category.',
   'How do I delete a statement?',
 ];
-const money = (value: string) =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(Number(value));
+const money = (value: string) => formatCurrency(value);
 export default function AssistantPage() {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -169,6 +169,9 @@ export default function AssistantPage() {
         <header className="rounded-2xl bg-gradient-to-br from-indigo-700 to-slate-900 p-6 text-white">
           <p className="text-sm text-indigo-200">Your data. Your questions.</p>
           <h1 className="mt-1 text-3xl font-bold">Ask Finlytix</h1>
+          <Link href="/help" className="mt-2 inline-block text-sm text-indigo-100 underline">
+            Help, privacy and security FAQs
+          </Link>
           <p className="mt-3 text-sm text-indigo-100">
             Explore your statements, spending and product features. Relevant records are sent to
             your configured AI provider to answer. This assistant cannot change your data.

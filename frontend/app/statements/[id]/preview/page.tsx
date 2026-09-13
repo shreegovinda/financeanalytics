@@ -142,9 +142,18 @@ export default function StatementPreviewPage() {
         <div className="mt-6">
           <h1 className="text-3xl font-bold text-gray-900">Review before importing</h1>
           <p className="mt-1 text-gray-600">
-            Nothing has been saved yet. Check the extracted transactions, then confirm.
+            Your statement and extracted transactions are saved as a draft. Review now or return
+            from Bank Statements later. Analytics update only after you confirm the import.
           </p>
         </div>
+
+        <button
+          type="button"
+          onClick={() => router.push('/statements')}
+          className="mt-4 rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900"
+        >
+          Review later
+        </button>
 
         <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           These {draft.transactionCount} transactions are held for review and are not in your

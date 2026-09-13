@@ -104,10 +104,10 @@ function normalizeLineItems(lineItems) {
     .filter(Boolean);
 }
 
-async function parseBill(filePath, providerId) {
+async function parseBill(filePath, providerId, context = {}) {
   const provider = normalizeProviderId(providerId);
 
-  if (!isProviderConfigured(provider)) {
+  if (!context.apiKey && !isProviderConfigured(provider)) {
     throw new Error(notConfiguredMessage(provider));
   }
 
@@ -143,6 +143,8 @@ Respond ONLY with one valid JSON object in this exact shape:
       providerId: provider,
       maxTokens: 8192,
       responseSchema: BILL_PARSE_SCHEMA,
+      apiKey: context.apiKey,
+      model: context.model,
     });
 
     const total = Number.parseFloat(parsed.total);

@@ -235,6 +235,9 @@ CREATE TABLE IF NOT EXISTS otp_codes (
 );
 
 ALTER TABLE otp_codes ADD COLUMN IF NOT EXISTS purpose VARCHAR(50) DEFAULT 'login';
+ALTER TABLE otp_codes ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
+ALTER TABLE otp_codes ALTER COLUMN email DROP NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_otp_codes_phone ON otp_codes(phone);
 
 -- Create payments table for Razorpay integration
 CREATE TABLE IF NOT EXISTS payments (
@@ -288,3 +291,111 @@ CREATE INDEX IF NOT EXISTS idx_payments_payment_id ON payments(razorpay_payment_
 ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS sequence BIGSERIAL;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_sequence ON chat_messages(sequence);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS chat_history_version INTEGER NOT NULL DEFAULT 0;
+
+-- Versioned consent capture at signup
+CREATE TABLE IF NOT EXISTS user_consents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  policy_version VARCHAR(20) NOT NULL,
+  ip_address VARCHAR(45),
+  user_agent TEXT,
+  consented_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_user_consents_user ON user_consents(user_id);
+
+-- International foundation (Step 6)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS locale VARCHAR(20) NOT NULL DEFAULT 'en-IN';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone VARCHAR(50) NOT NULL DEFAULT 'Asia/Kolkata';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS currency VARCHAR(3) NOT NULL DEFAULT 'INR';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS language VARCHAR(10) NOT NULL DEFAULT 'en';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS date_format VARCHAR(20) NOT NULL DEFAULT 'DD/MM/YYYY';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS time_format VARCHAR(10) NOT NULL DEFAULT '12h';
+
+ALTER TABLE statements ADD COLUMN IF NOT EXISTS currency VARCHAR(3) NOT NULL DEFAULT 'INR';
+ALTER TABLE statement_drafts ADD COLUMN IF NOT EXISTS currency VARCHAR(3) NOT NULL DEFAULT 'INR';
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS currency VARCHAR(3) NOT NULL DEFAULT 'INR';
+
+-- AI Provider Preferences & Encrypted BYOK Keys (Step 7 & 8)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS selected_ai_provider VARCHAR(50) NOT NULL DEFAULT 'gemini';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS selected_ai_model VARCHAR(100) NOT NULL DEFAULT 'gemini-2.5-flash';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_key_mode VARCHAR(20) NOT NULL DEFAULT 'admin';
+
+CREATE TABLE IF NOT EXISTS user_ai_keys (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  provider VARCHAR(50) NOT NULL,
+  encrypted_key TEXT NOT NULL,
+  key_hint VARCHAR(20) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(user_id, provider)
+);
+CREATE INDEX IF NOT EXISTS idx_user_ai_keys_user ON user_ai_keys(user_id);
+
+-- Account Closure Minimal Retention Audit (Step 10)
+CREATE TABLE IF NOT EXISTS account_deletion_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  anonymized_user_id VARCHAR(64) NOT NULL,
+  statement_count INTEGER NOT NULL DEFAULT 0,
+  transaction_count INTEGER NOT NULL DEFAULT 0,
+  closed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Admin Roles & Crash Reports (Step 11)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'user';
+
+CREATE TABLE IF NOT EXISTS crash_reports (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  app_version VARCHAR(50) NOT NULL DEFAULT '1.0.0',
+  page_url VARCHAR(255) NOT NULL,
+  browser VARCHAR(100),
+  device_class VARCHAR(50),
+  error_summary VARCHAR(500) NOT NULL,
+  error_details JSONB NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'open',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_crash_reports_status ON crash_reports(status);
+CREATE INDEX IF NOT EXISTS idx_crash_reports_created ON crash_reports(created_at DESC);
+
+-- Statement Files Application-Level Encryption (Step 12)
+ALTER TABLE statement_files ADD COLUMN IF NOT EXISTS is_encrypted BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- WhatsApp Platform Integration (Phase 4)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified_at TIMESTAMP;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_opt_in BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_session_updated_at TIMESTAMP;
+CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone);
+
+CREATE TABLE IF NOT EXISTS whatsapp_conversations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  phone VARCHAR(50) NOT NULL,
+  last_message_id TEXT,
+  current_draft_id UUID REFERENCES statement_drafts(id) ON DELETE SET NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(user_id, phone)
+);
+CREATE INDEX IF NOT EXISTS idx_whatsapp_conversations_phone ON whatsapp_conversations(phone);
+
+-- Sensitive Data Encryption at Rest & Blind Indexing (PLAN-05)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_hash VARCHAR(64);
+ALTER TABLE users ALTER COLUMN name TYPE TEXT;
+ALTER TABLE users ALTER COLUMN phone TYPE TEXT;
+CREATE INDEX IF NOT EXISTS idx_users_phone_hash ON users(phone_hash);
+
+ALTER TABLE otp_codes ADD COLUMN IF NOT EXISTS phone_hash VARCHAR(64);
+ALTER TABLE otp_codes ALTER COLUMN phone TYPE TEXT;
+CREATE INDEX IF NOT EXISTS idx_otp_codes_phone_hash ON otp_codes(phone_hash);
+
+ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS phone_hash VARCHAR(64);
+ALTER TABLE whatsapp_conversations ALTER COLUMN phone TYPE TEXT;
+CREATE INDEX IF NOT EXISTS idx_whatsapp_conversations_phone_hash ON whatsapp_conversations(phone_hash);
+
+ALTER TABLE transactions ALTER COLUMN description TYPE TEXT;
+ALTER TABLE transaction_bills ALTER COLUMN merchant_name TYPE TEXT;
+ALTER TABLE transaction_bills ALTER COLUMN file_name TYPE TEXT;
+ALTER TABLE transaction_line_items ALTER COLUMN description TYPE TEXT;

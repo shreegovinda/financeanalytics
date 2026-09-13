@@ -80,6 +80,12 @@ export default function StatementDetailsPage() {
     return () => window.clearInterval(intervalId);
   }, [fetchStatementDetails, statement]);
 
+  useEffect(() => {
+    if (statement && statement.status === 'pending_review') {
+      router.replace(`/statements/${statement.id}/preview`);
+    }
+  }, [statement, router]);
+
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
@@ -92,6 +98,29 @@ export default function StatementDetailsPage() {
 
   if (!statement) {
     return <div className="min-h-screen flex items-center justify-center">Statement not found</div>;
+  }
+
+  if (statement.status === 'pending_review') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl p-6 shadow-md text-center">
+          <div className="mx-auto w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 text-xl mb-4">
+            ⏳
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Pending Review</h2>
+          <p className="text-sm text-gray-600 mb-6">
+            This statement draft is awaiting confirmation. Transactions will appear here once
+            approved.
+          </p>
+          <button
+            onClick={() => router.push(`/statements/${statement.id}/preview`)}
+            className="w-full bg-blue-600 text-white py-2.5 px-4 rounded-xl font-medium hover:bg-blue-700 transition cursor-pointer"
+          >
+            Review and Confirm Import
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const totalDebit = transactions

@@ -6,7 +6,15 @@ const pool = require('../config/db');
 const auth = require('../middleware/auth');
 const { parseStatement } = require('../services/parsers/generic');
 const { categorizeBatch } = require('../services/claude');
-const { getProviderFromRequest } = require('../services/ai');
+const { getProviderFromRequest, getUserAiExecutionConfig } = require('../services/ai');
+const {
+  encrypt,
+  safeDecrypt,
+  encryptJson,
+  decryptJson,
+  encryptBuffer,
+  decryptBuffer,
+} = require('../services/crypto');
 
 const router = express.Router();
 
@@ -246,40 +254,38 @@ async function ensureNoExistingDuplicateTransactions(client, userId, transaction
     return;
   }
 
-  const values = [];
-  const placeholders = transactions.map((transaction, index) => {
-    const offset = index * 4;
-    values.push(
-      toSqlDate(transaction.date),
-      Number(transaction.amount).toFixed(2),
-      String(transaction.description || '')
-        .trim()
-        .replace(/\s+/g, ' ')
-        .toLowerCase(),
-      String(transaction.type || '').toLowerCase(),
-    );
-    return `($${offset + 2}::date, $${offset + 3}::numeric, $${offset + 4}::text, $${offset + 5}::text)`;
-  });
-
+  const dates = Array.from(new Set(transactions.map((t) => toSqlDate(t.date))));
   const duplicateResult = await client.query(
-    `WITH incoming(date, amount, description, type) AS (
-       VALUES ${placeholders.join(', ')}
-     )
-     SELECT t.id
+    `SELECT t.id, to_char(t.date, 'YYYY-MM-DD') AS date, t.amount, t.description, t.type
      FROM transactions t
      JOIN statements s ON s.id = t.statement_id
-     JOIN incoming i
-       ON t.date = i.date
-      AND t.amount = i.amount
-      AND LOWER(TRIM(REGEXP_REPLACE(t.description, '\\s+', ' ', 'g'))) = i.description
-      AND LOWER(t.type) = i.type
-     WHERE t.user_id = $1 AND UPPER(s.bank_name) = $${values.length + 2}
-     LIMIT 1`,
-    [userId, ...values, bankName],
+     WHERE t.user_id = $1 AND UPPER(s.bank_name) = $2 AND t.date = ANY($3::date[])`,
+    [userId, bankName.toUpperCase(), dates],
   );
 
-  if (duplicateResult.rows.length > 0) {
-    throw new UploadValidationError('Duplicate entries already exist in your transactions.');
+  if (duplicateResult.rows.length === 0) {
+    return;
+  }
+
+  function normalizeDesc(desc) {
+    return String(safeDecrypt(desc) || '')
+      .trim()
+      .replace(/\s+/g, ' ')
+      .toLowerCase();
+  }
+
+  const existingMap = new Set(
+    duplicateResult.rows.map(
+      (r) =>
+        `${r.date}|${Number(r.amount).toFixed(2)}|${normalizeDesc(r.description)}|${String(r.type || '').toLowerCase()}`,
+    ),
+  );
+
+  for (const txn of transactions) {
+    const key = `${toSqlDate(txn.date)}|${Number(txn.amount).toFixed(2)}|${normalizeDesc(txn.description)}|${String(txn.type || '').toLowerCase()}`;
+    if (existingMap.has(key)) {
+      throw new UploadValidationError('Duplicate entries already exist in your transactions.');
+    }
   }
 }
 
@@ -346,6 +352,8 @@ async function createStatementDraft(client, statementId, parsedStatement) {
     transactions,
   };
 
+  const encryptedPayload = { encrypted: encryptJson(payload) };
+
   const result = await client.query(
     `INSERT INTO statement_drafts
        (statement_id, payload, transaction_count, total_debit, total_credit)
@@ -354,7 +362,7 @@ async function createStatementDraft(client, statementId, parsedStatement) {
                to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS') AS created_at`,
     [
       statementId,
-      JSON.stringify(payload),
+      JSON.stringify(encryptedPayload),
       transactions.length,
       totals.debit.toFixed(2),
       totals.credit.toFixed(2),
@@ -381,7 +389,19 @@ async function loadStatementDraft(queryable, statementId, userId) {
     [statementId, userId],
   );
 
-  return result.rows[0] || null;
+  const row = result.rows[0];
+  if (!row) return null;
+
+  let payload = row.payload;
+  if (payload && payload.encrypted) {
+    try {
+      payload = decryptJson(payload.encrypted);
+    } catch (e) {
+      console.error('Failed to decrypt statement draft payload:', e);
+    }
+  }
+
+  return { ...row, payload };
 }
 
 async function updateStatementProgress(statementId, stage, progress, extra = {}) {
@@ -389,12 +409,12 @@ async function updateStatementProgress(statementId, stage, progress, extra = {})
     `UPDATE statements
      SET processing_stage = $1,
          processing_progress = $2,
-         status = COALESCE($3, status),
-         processing_error = COALESCE($4, processing_error),
-         processed_at = COALESCE($5, processed_at),
+         status = COALESCE($3::text, status),
+         processing_error = COALESCE($4::text, processing_error),
+         processed_at = COALESCE($5::timestamptz, processed_at),
          upload_path = CASE
-           WHEN $6 THEN NULL
-           WHEN $7 IS NOT NULL THEN $7
+           WHEN $6::boolean THEN NULL
+           WHEN $7::text IS NOT NULL THEN $7::text
            ELSE upload_path
          END
      WHERE id = $8`,
@@ -426,12 +446,32 @@ async function categorizeStatementInBackground({
   transactions,
   txnIds,
   aiProvider,
+  userId,
 }) {
   try {
     await updateStatementProgress(statementId, 'categorizing_transactions', 80);
 
     if (txnIds.length > 0) {
-      const results = await categorizeBatch(transactions, aiProvider);
+      let aiConfig = null;
+      let effectiveUserId = userId;
+      if (!effectiveUserId) {
+        const stmtRes = await pool.query('SELECT user_id FROM statements WHERE id = $1', [
+          statementId,
+        ]);
+        effectiveUserId = stmtRes.rows[0]?.user_id;
+      }
+      if (effectiveUserId) {
+        aiConfig = await getUserAiExecutionConfig(pool, effectiveUserId, aiProvider);
+      }
+
+      const results = await categorizeBatch(
+        transactions,
+        aiConfig ? aiConfig.providerId : aiProvider,
+        {
+          apiKey: aiConfig ? aiConfig.apiKey : null,
+          model: aiConfig ? aiConfig.model : null,
+        },
+      );
       const updateClient = await pool.connect();
       try {
         for (const result of results) {
@@ -472,7 +512,11 @@ async function processStatementInBackground({
   try {
     await updateStatementProgress(statementId, 'extracting_text', 20);
 
-    const parsedStatement = await parseStatement(filePath, aiProvider);
+    const aiConfig = await getUserAiExecutionConfig(pool, userId, aiProvider);
+    const parsedStatement = await parseStatement(filePath, aiConfig.providerId, {
+      apiKey: aiConfig.apiKey,
+      model: aiConfig.model,
+    });
     const bankName = (parsedStatement.bankName || 'Unknown Bank').slice(0, 50).toUpperCase();
     const transactions = parsedStatement.transactions;
 
@@ -493,7 +537,14 @@ async function processStatementInBackground({
         const values = [];
         const placeholders = transactions.map((txn, index) => {
           const offset = index * 6;
-          values.push(userId, statementId, txn.date, txn.amount, txn.description, txn.type);
+          values.push(
+            userId,
+            statementId,
+            txn.date,
+            txn.amount,
+            encrypt(txn.description),
+            txn.type,
+          );
           return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
         });
 
@@ -527,7 +578,8 @@ async function processStatementInBackground({
       originalName,
       transactions,
       txnIds,
-      aiProvider,
+      aiProvider: aiConfig.providerId,
+      userId,
     });
   } catch (err) {
     console.error('Background statement processing failed:', err);
@@ -555,7 +607,7 @@ async function loadStatementTransactionsForResume(statementId) {
     transactions: result.rows.map((row) => ({
       date: row.date,
       amount: Number(row.amount),
-      description: row.description,
+      description: safeDecrypt(row.description),
       type: row.type,
     })),
   };
@@ -583,6 +635,7 @@ async function resumeProcessingStatements() {
             transactions,
             txnIds,
             aiProvider: statement.ai_provider,
+            userId: statement.user_id,
           });
         });
         continue;
@@ -620,7 +673,7 @@ router.post('/', auth, uploadSingleStatement, async (req, res) => {
 
   const filePath = req.file.path;
   const userId = req.user.id;
-  const aiProvider = getProviderFromRequest(req);
+  const requestedProvider = getProviderFromRequest(req);
 
   try {
     const selectedBank = normalizeSelectedBank(req.body.bank);
@@ -648,10 +701,13 @@ router.post('/', auth, uploadSingleStatement, async (req, res) => {
 
     await ensureMonthNotAlreadyUploaded(pool, userId, selectedBank, selectedMonth);
 
-    const parsedStatement = await parseStatement(filePath, aiProvider, {
+    const aiConfig = await getUserAiExecutionConfig(pool, userId, requestedProvider);
+    const parsedStatement = await parseStatement(filePath, aiConfig.providerId, {
       expectedBank: selectedBank,
       expectedMonth: selectedMonth,
       expectedFormat: selectedFormat,
+      apiKey: aiConfig.apiKey,
+      model: aiConfig.model,
     });
     validateParsedStatement(parsedStatement, selectedBank, selectedMonth);
     const originalContent = fs.readFileSync(filePath);
@@ -698,7 +754,7 @@ router.post('/', auth, uploadSingleStatement, async (req, res) => {
           'awaiting_confirmation',
           90,
           null,
-          aiProvider,
+          aiConfig.providerId,
           `${selectedMonth}-01`,
           selectedFormat,
           parsedStatement.bankName,
@@ -707,14 +763,16 @@ router.post('/', auth, uploadSingleStatement, async (req, res) => {
       );
 
       statement = statementResult.rows[0];
+      const encryptedContent = encryptBuffer(originalContent);
       await client.query(
-        'INSERT INTO statement_files(statement_id,content,content_type) VALUES ($1,$2,$3)',
+        'INSERT INTO statement_files(statement_id,content,content_type,is_encrypted) VALUES ($1,$2,$3,$4)',
         [
           statement.id,
-          originalContent,
+          encryptedContent,
           selectedFormat === 'PDF'
             ? 'application/pdf'
             : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          true,
         ],
       );
       draft = await createStatementDraft(client, statement.id, parsedStatement);
@@ -865,7 +923,7 @@ router.post('/:statementId/confirm', auth, async (req, res) => {
         draft.statement_id,
         toSqlDate(txn.date),
         txn.amount,
-        txn.description,
+        encrypt(txn.description),
         txn.type,
       );
       return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`;
@@ -901,6 +959,7 @@ router.post('/:statementId/confirm', auth, async (req, res) => {
         transactions,
         txnIds,
         aiProvider: draft.ai_provider,
+        userId,
       });
     });
 
@@ -1042,7 +1101,7 @@ router.delete('/:statementId', auth, async (req, res) => {
 router.get('/:statementId/file', auth, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT s.file_name,f.content,f.content_type FROM statements s JOIN statement_files f ON f.statement_id=s.id WHERE s.id=$1 AND s.user_id=$2',
+      'SELECT s.file_name,f.content,f.content_type,f.is_encrypted FROM statements s JOIN statement_files f ON f.statement_id=s.id WHERE s.id=$1 AND s.user_id=$2',
       [req.params.statementId, req.user.id],
     );
     if (!result.rows.length)
@@ -1050,10 +1109,19 @@ router.get('/:statementId/file', auth, async (req, res) => {
         error: 'Original file unavailable. Older uploads did not retain their original files.',
       });
     const file = result.rows[0];
+    let fileBuffer = file.content;
+    if (file.is_encrypted) {
+      try {
+        fileBuffer = decryptBuffer(file.content);
+      } catch (decryptErr) {
+        console.error('Error decrypting statement file:', decryptErr);
+        return res.status(500).json({ error: 'Failed to decrypt statement file' });
+      }
+    }
     res.set('Cache-Control', 'private, no-store');
     res.set('X-Content-Type-Options', 'nosniff');
     res.attachment(file.file_name);
-    res.type(file.content_type).send(file.content);
+    res.type(file.content_type).send(fileBuffer);
   } catch {
     res.status(500).json({ error: 'Failed to download statement' });
   }
@@ -1063,5 +1131,6 @@ router.resumeProcessingStatements = resumeProcessingStatements;
 router.getInFlightStatement = getInFlightStatement;
 router.toSqlDate = toSqlDate;
 router.lockUserUploads = lockUserUploads;
+router.ensureMonthNotAlreadyUploaded = ensureMonthNotAlreadyUploaded;
 
 module.exports = router;

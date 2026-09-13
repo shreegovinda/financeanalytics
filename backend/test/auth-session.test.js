@@ -16,7 +16,7 @@ function loadMiddleware(tokenVersion) {
     loaded: true,
     exports: {
       query: async (query, params) => {
-        assert.match(query, /SELECT token_version FROM users/);
+        assert.match(query, /SELECT token_version.*FROM users/);
         assert.deepEqual(params, ['user-1']);
         return { rows: tokenVersion === null ? [] : [{ token_version: tokenVersion }] };
       },

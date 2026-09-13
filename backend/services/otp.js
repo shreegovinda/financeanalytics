@@ -2,6 +2,8 @@ const pool = require('../config/db');
 const { randomInt } = require('crypto');
 const { sendMail } = require('./email');
 const { otpEmail } = require('./emailTemplates');
+const { sendOtpTemplate, normalizePhoneNumber } = require('./whatsappService');
+const { encrypt, computeBlindIndex } = require('./crypto');
 
 const OTP_TTL_MINUTES = 5;
 // Signup verification is not something the user is sitting and waiting for, so
@@ -16,6 +18,8 @@ const OTP_PURPOSES = {
   LOGIN: 'login',
   PASSWORD_RESET: 'password_reset',
   EMAIL_VERIFY: 'email_verify',
+  WHATSAPP_LOGIN: 'whatsapp_login',
+  PHONE_VERIFY: 'phone_verify',
 };
 
 // Generate a random 6-digit OTP
@@ -114,6 +118,89 @@ async function verifyOTP(email, otp, purpose = OTP_PURPOSES.LOGIN) {
   }
 }
 
+// Store phone OTP in database
+async function storePhoneOTP(phone, otp, purpose = OTP_PURPOSES.WHATSAPP_LOGIN) {
+  const normalizedPhone = normalizePhoneNumber(phone);
+  const phoneHash = computeBlindIndex(normalizedPhone);
+  const encPhone = encrypt(normalizedPhone);
+  const expiresAt = new Date(Date.now() + ttlForPurpose(purpose) * 60 * 1000);
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+    await client.query(
+      'UPDATE otp_codes SET is_used = TRUE WHERE (phone_hash = $1 OR phone = $2) AND purpose = $3 AND is_used = FALSE',
+      [phoneHash, normalizedPhone, purpose],
+    );
+    await client.query(
+      'INSERT INTO otp_codes (phone, phone_hash, code, purpose, expires_at) VALUES ($1, $2, $3, $4, $5)',
+      [encPhone, phoneHash, otp, purpose, expiresAt],
+    );
+    await client.query('COMMIT');
+    console.log(`✅ Phone OTP stored for ${normalizedPhone}, expires at ${expiresAt}`);
+    return true;
+  } catch (error) {
+    await client.query('ROLLBACK').catch((rollbackError) => {
+      console.error('❌ Failed to roll back phone OTP storage:', rollbackError);
+    });
+    console.error('❌ Failed to store phone OTP:', error);
+    throw new Error('Failed to store phone OTP');
+  } finally {
+    client.release();
+  }
+}
+
+// Send OTP via WhatsApp
+async function sendWhatsAppOTP(phone, magicLink = '', purpose = OTP_PURPOSES.WHATSAPP_LOGIN) {
+  const normalizedPhone = normalizePhoneNumber(phone);
+  const otp = generateOTP();
+
+  await storePhoneOTP(normalizedPhone, otp, purpose);
+  const frontendBaseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const loginLink =
+    magicLink ||
+    `${frontendBaseUrl}/auth?wa_token=${otp}&phone=${encodeURIComponent(normalizedPhone)}`;
+  await sendOtpTemplate(normalizedPhone, otp, loginLink);
+
+  return { success: true, message: 'WhatsApp OTP dispatched successfully', code: otp };
+}
+
+// Verify phone OTP
+async function verifyPhoneOTP(phone, otp, purpose = OTP_PURPOSES.WHATSAPP_LOGIN) {
+  const normalizedPhone = normalizePhoneNumber(phone);
+  const phoneHash = computeBlindIndex(normalizedPhone);
+  try {
+    const result = await pool.query(
+      `WITH candidate AS (
+        SELECT id
+        FROM otp_codes
+        WHERE (phone_hash = $1 OR phone = $2)
+          AND code = $3
+          AND purpose = $4
+          AND is_used = FALSE
+          AND expires_at > NOW()
+        ORDER BY created_at DESC
+        LIMIT 1
+      )
+      UPDATE otp_codes
+      SET is_used = TRUE
+      WHERE id IN (SELECT id FROM candidate)
+        AND is_used = FALSE
+      RETURNING id`,
+      [phoneHash, normalizedPhone, otp, purpose],
+    );
+
+    if (result.rows.length === 0) {
+      return { success: false, message: 'Invalid or expired OTP' };
+    }
+
+    return { success: true, message: 'Phone OTP verified successfully' };
+  } catch (error) {
+    console.error('❌ Error in verifyPhoneOTP:', error);
+    throw error;
+  }
+}
+
 // Clean up expired OTPs (optional maintenance)
 async function cleanupExpiredOTPs() {
   try {
@@ -128,6 +215,9 @@ module.exports = {
   generateOTP,
   sendOTP,
   verifyOTP,
+  storePhoneOTP,
+  sendWhatsAppOTP,
+  verifyPhoneOTP,
   sendOTPEmail,
   storeOTP,
   cleanupExpiredOTPs,

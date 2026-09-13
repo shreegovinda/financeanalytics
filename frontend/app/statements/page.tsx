@@ -227,7 +227,13 @@ export default function StatementsPage() {
                       <tr
                         key={statement.id}
                         className="hover:bg-gray-50 cursor-pointer"
-                        onClick={() => router.push(`/statements/${statement.id}`)}
+                        onClick={() =>
+                          router.push(
+                            statement.status === 'pending_review'
+                              ? `/statements/${statement.id}/preview`
+                              : `/statements/${statement.id}`,
+                          )
+                        }
                       >
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           {statement.bank_name}

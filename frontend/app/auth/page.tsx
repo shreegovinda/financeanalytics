@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { authAPI } from '@/lib/api';
 import axios from 'axios';
 
@@ -18,13 +19,14 @@ interface APIError {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-type AuthStep = 'email' | 'login' | 'signup' | 'forgotPassword' | 'verifyEmail';
+type AuthStep = 'email' | 'login' | 'signup' | 'forgotPassword' | 'verifyEmail' | 'whatsapp';
 
 export default function UnifiedAuthPage() {
   const [step, setStep] = useState<AuthStep>('email');
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [consentGiven, setConsentGiven] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -42,6 +44,13 @@ export default function UnifiedAuthPage() {
   const [resetConfirmPassword, setResetConfirmPassword] = useState('');
   const [verifyCode, setVerifyCode] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
+
+  // WhatsApp Auth state
+  const [waPhone, setWaPhone] = useState('');
+  const [waOtpCode, setWaOtpCode] = useState('');
+  const [waOtpSent, setWaOtpSent] = useState(false);
+  const [maskedWaPhone, setMaskedWaPhone] = useState('');
+
   const router = useRouter();
 
   // Throttles the resend button so users cannot hammer the endpoint into its
@@ -55,6 +64,47 @@ export default function UnifiedAuthPage() {
   useEffect(() => {
     if (localStorage.getItem('token')) {
       router.replace('/dashboard');
+    }
+  }, [router]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const waToken = params.get('wa_token');
+      const waPhoneParam = params.get('phone');
+      if (waToken && waPhoneParam) {
+        let isMounted = true;
+        const timer = setTimeout(async () => {
+          setLoading(true);
+          setStep('whatsapp');
+          setWaPhone(waPhoneParam);
+          try {
+            const res = await authAPI.verifyWhatsAppOtp(
+              waPhoneParam,
+              waToken.slice(0, 6),
+              'whatsapp_login',
+            );
+            if (isMounted && res.token) {
+              localStorage.setItem('token', res.token);
+              if (res.user) localStorage.setItem('user', JSON.stringify(res.user));
+              router.replace('/dashboard');
+            }
+          } catch {
+            if (isMounted) {
+              setError('WhatsApp magic link expired or invalid. Please request a new code.');
+            }
+          } finally {
+            if (isMounted) {
+              setLoading(false);
+            }
+          }
+        }, 0);
+
+        return () => {
+          isMounted = false;
+          clearTimeout(timer);
+        };
+      }
     }
   }, [router]);
 
@@ -187,10 +237,17 @@ export default function UnifiedAuthPage() {
       return;
     }
 
+    if (!consentGiven) {
+      setError(
+        'You must agree to the Terms of Service, Privacy Policy, and Cookie Policy before creating an account.',
+      );
+      return;
+    }
+
     setLoading(true);
 
     try {
-      await authAPI.register(email, password, name, phone);
+      await authAPI.register(email, password, name, phone, consentGiven);
       // No session is issued until the address is verified.
       setStep('verifyEmail');
       setResendCooldown(30);
@@ -347,6 +404,67 @@ export default function UnifiedAuthPage() {
     }
   };
 
+  const handleSendWhatsAppOtp = async (e: React.FormEvent): Promise<void> => {
+    e.preventDefault();
+    if (!waPhone.trim()) {
+      setError('Please enter your mobile number with country code (e.g. +919876543210)');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const res = await authAPI.sendWhatsAppOtp(waPhone.trim(), 'whatsapp_login');
+      setWaOtpSent(true);
+      setMaskedWaPhone(res.phone || waPhone);
+      setSuccess(`Security code sent to your WhatsApp (${res.phone || waPhone})!`);
+      setResendCooldown(60);
+    } catch (err: unknown) {
+      const apiError = err as APIError;
+      setError(
+        apiError.response?.data?.error ||
+          (err instanceof Error ? err.message : 'Failed to send WhatsApp code'),
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyWhatsAppOtp = async (e: React.FormEvent): Promise<void> => {
+    e.preventDefault();
+    if (!waOtpCode.trim()) {
+      setError('Please enter the 6-digit code received on WhatsApp');
+      return;
+    }
+    setLoading(true);
+    setError('');
+
+    try {
+      const res = await authAPI.verifyWhatsAppOtp(
+        waPhone.trim(),
+        waOtpCode.trim(),
+        'whatsapp_login',
+      );
+      if (res.token) {
+        localStorage.setItem('token', res.token);
+        if (res.user) {
+          localStorage.setItem('user', JSON.stringify(res.user));
+        }
+        router.replace('/dashboard');
+      } else {
+        setError(res.message || 'Verification failed');
+      }
+    } catch (err: unknown) {
+      const apiError = err as APIError;
+      setError(
+        apiError.response?.data?.error || (err instanceof Error ? err.message : 'Invalid code'),
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center px-4 py-8 relative overflow-hidden">
       {/* Decorative background */}
@@ -438,7 +556,153 @@ export default function UnifiedAuthPage() {
                   </>
                 )}
               </button>
+
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-white/20" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-slate-900/80 px-2 text-gray-400">or</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setStep('whatsapp');
+                  setError('');
+                  setSuccess('');
+                }}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-lg transition transform hover:scale-105 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span className="text-lg">💬</span>
+                Sign in with WhatsApp
+              </button>
             </form>
+          )}
+
+          {/* STEP: WhatsApp Authentication */}
+          {step === 'whatsapp' && (
+            <div className="space-y-5">
+              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4 mb-2">
+                <p className="text-xs text-emerald-200 leading-relaxed">
+                  Fast, passwordless sign-in with your mobile number. We will send a 6-digit
+                  security code and one-tap instant login link to your WhatsApp.
+                </p>
+              </div>
+
+              {!waOtpSent ? (
+                <form onSubmit={handleSendWhatsAppOtp} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-200 mb-2">
+                      WhatsApp Mobile Number
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-emerald-400 font-semibold">
+                        📱
+                      </div>
+                      <input
+                        type="tel"
+                        value={waPhone}
+                        onChange={(e) => setWaPhone(e.target.value)}
+                        required
+                        className="w-full pl-12 pr-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition"
+                        placeholder="+919876543210"
+                        autoFocus
+                      />
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1.5">
+                      Include country code (e.g. +91 for India, +1 for US).
+                    </p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold py-3 rounded-lg hover:from-emerald-600 hover:to-teal-700 transition transform hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Sending to WhatsApp...
+                      </>
+                    ) : (
+                      <>
+                        <span>💬</span> Send Security Code
+                      </>
+                    )}
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={handleVerifyWhatsAppOtp} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-200 mb-2">
+                      6-Digit Security Code
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      value={waOtpCode}
+                      onChange={(e) => setWaOtpCode(e.target.value.replace(/\D/g, ''))}
+                      required
+                      className="w-full text-center tracking-[0.5em] text-2xl font-mono py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition"
+                      placeholder="••••••"
+                      autoFocus
+                    />
+                    <p className="text-xs text-gray-400 mt-1.5 text-center">
+                      Sent to {maskedWaPhone || waPhone}. Or tap the link inside WhatsApp!
+                    </p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading || waOtpCode.length < 6}
+                    className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold py-3 rounded-lg hover:from-emerald-600 hover:to-teal-700 transition transform hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Verifying...
+                      </>
+                    ) : (
+                      'Verify & Sign In'
+                    )}
+                  </button>
+
+                  <div className="flex justify-between items-center text-xs pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setWaOtpSent(false)}
+                      className="text-gray-400 hover:text-white transition cursor-pointer"
+                    >
+                      Change Number
+                    </button>
+                    <button
+                      type="button"
+                      disabled={resendCooldown > 0 || loading}
+                      onClick={handleSendWhatsAppOtp}
+                      className="text-emerald-400 hover:text-emerald-300 font-semibold disabled:opacity-50 transition cursor-pointer"
+                    >
+                      {resendCooldown > 0
+                        ? `Resend code (${resendCooldown}s)`
+                        : 'Resend WhatsApp code'}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  setStep('email');
+                  setError('');
+                  setSuccess('');
+                }}
+                className="w-full text-sm text-gray-400 hover:text-white transition text-center pt-2 cursor-pointer"
+              >
+                ← Back to email sign in
+              </button>
+            </div>
           )}
 
           {/* STEP 2A: Password Login */}
@@ -802,10 +1066,10 @@ export default function UnifiedAuthPage() {
                 </div>
               </div>
 
-              {/* Phone (optional) */}
+              {/* Mobile number includes a country calling code. */}
               <div>
                 <label className="block text-sm font-medium text-gray-200 mb-2">
-                  Phone (Optional)
+                  Mobile number (required)
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -815,10 +1079,13 @@ export default function UnifiedAuthPage() {
                   </div>
                   <input
                     type="tel"
+                    required
+                    pattern="\+[1-9][0-9]{7,14}"
+                    autoComplete="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     className="w-full pl-12 pr-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition"
-                    placeholder="+91 98765 43210"
+                    placeholder="+919876543210"
                   />
                 </div>
               </div>
@@ -926,9 +1193,51 @@ export default function UnifiedAuthPage() {
                 </div>
               </div>
 
+              {/* Consent to policies */}
+              <div className="mt-4 flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  id="consent"
+                  required
+                  checked={consentGiven}
+                  onChange={(e) => setConsentGiven(e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-white/30 bg-white/10 text-blue-500 focus:ring-2 focus:ring-blue-400 cursor-pointer"
+                />
+                <label
+                  htmlFor="consent"
+                  className="text-xs text-gray-300 leading-relaxed cursor-pointer"
+                >
+                  I agree to the{' '}
+                  <Link
+                    href="/terms"
+                    target="_blank"
+                    className="text-blue-400 underline hover:text-blue-300"
+                  >
+                    Terms of Service
+                  </Link>
+                  ,{' '}
+                  <Link
+                    href="/privacy"
+                    target="_blank"
+                    className="text-blue-400 underline hover:text-blue-300"
+                  >
+                    Privacy Policy
+                  </Link>
+                  , and{' '}
+                  <Link
+                    href="/cookies"
+                    target="_blank"
+                    className="text-blue-400 underline hover:text-blue-300"
+                  >
+                    Cookie Policy
+                  </Link>
+                  .
+                </label>
+              </div>
+
               <button
                 type="submit"
-                disabled={loading || !name || !passwordsMatch}
+                disabled={loading || !name || !passwordsMatch || !consentGiven}
                 className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold py-3 rounded-lg hover:from-blue-600 hover:to-indigo-700 transition disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-6"
               >
                 {loading ? (
