@@ -88,8 +88,11 @@ describe('WhatsApp Platform Integration Suite', () => {
   });
 
   describe('2. WhatsApp OTP & Phone Verification Lifecycle', () => {
-    test('sendWhatsAppOTP stores code and dispatches WhatsApp template', async () => {
-      if (!dbAvailable) return;
+    test('sendWhatsAppOTP stores code and dispatches WhatsApp template', async (t) => {
+      if (!dbAvailable) {
+        t.skip('PostgreSQL is not available');
+        return;
+      }
       const initialCount = simulatedMessages.length;
       const res = await sendWhatsAppOTP(
         testPhone,
@@ -107,8 +110,11 @@ describe('WhatsApp Platform Integration Suite', () => {
       assert.ok(lastMsg.text.includes('Finlytix Security Code'));
     });
 
-    test('verifyPhoneOTP succeeds with valid code and rejects invalid/reused codes', async () => {
-      if (!dbAvailable) return;
+    test('verifyPhoneOTP succeeds with valid code and rejects invalid/reused codes', async (t) => {
+      if (!dbAvailable) {
+        t.skip('PostgreSQL is not available');
+        return;
+      }
       const testCode = '654321';
       await storePhoneOTP(normalizedTestPhone, testCode, OTP_PURPOSES.PHONE_VERIFY);
 
@@ -157,8 +163,11 @@ describe('WhatsApp Platform Integration Suite', () => {
       assert.equal(res4.month, null);
     });
 
-    test('handleWhatsAppDocumentUpload creates statement draft and dispatches interactive buttons', async () => {
-      if (!dbAvailable) return;
+    test('handleWhatsAppDocumentUpload creates statement draft and dispatches interactive buttons', async (t) => {
+      if (!dbAvailable) {
+        t.skip('PostgreSQL is not available');
+        return;
+      }
       const initialCount = simulatedMessages.length;
       const mockDoc = {
         id: 'mock_media_12345',
@@ -223,8 +232,11 @@ describe('WhatsApp Platform Integration Suite', () => {
   });
 
   describe('4. WhatsApp Conversational AI Financial Assistant', () => {
-    test('handleWhatsAppChatMessage handles unrecognized phone with onboarding link', async () => {
-      if (!dbAvailable) return;
+    test('handleWhatsAppChatMessage handles unrecognized phone with onboarding link', async (t) => {
+      if (!dbAvailable) {
+        t.skip('PostgreSQL is not available');
+        return;
+      }
       const unregPhone = '+919999999999';
       const initialCount = simulatedMessages.length;
 
@@ -237,8 +249,11 @@ describe('WhatsApp Platform Integration Suite', () => {
       assert.ok(reply.text.includes('not yet linked'));
     });
 
-    test('handleWhatsAppChatMessage answers financial queries for verified user', async () => {
-      if (!dbAvailable) return;
+    test('handleWhatsAppChatMessage answers financial queries for verified user', async (t) => {
+      if (!dbAvailable) {
+        t.skip('PostgreSQL is not available');
+        return;
+      }
       const initialCount = simulatedMessages.length;
 
       await handleWhatsAppChatMessage(

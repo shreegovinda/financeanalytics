@@ -16,7 +16,7 @@ async function initializeDatabase() {
 }
 
 if (require.main === module) {
-  initializeDatabase();
+  initializeDatabase().then(() => pool.end());
 }
 
 module.exports = { initializeDatabase };

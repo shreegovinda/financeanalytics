@@ -122,8 +122,11 @@ describe('Sensitive Data Encryption At Rest & Blind Indexing Suite', () => {
   });
 
   describe('1. Direct PostgreSQL Inspection (Zero Plaintext at Rest)', () => {
-    test('users table stores name and phone as AES-256-GCM ciphertexts', async () => {
-      if (!dbAvailable) return;
+    test('users table stores name and phone as AES-256-GCM ciphertexts', async (t) => {
+      if (!dbAvailable) {
+        t.skip('PostgreSQL is not available');
+        return;
+      }
       const row = (
         await pool.query('SELECT name, phone, phone_hash FROM users WHERE id = $1', [testUserId])
       ).rows[0];
@@ -138,8 +141,11 @@ describe('Sensitive Data Encryption At Rest & Blind Indexing Suite', () => {
       assert.equal(row.phone_hash, expectedBlindIndex, 'phone_hash must match HMAC blind index');
     });
 
-    test('statement_drafts table stores payload as encrypted JSON ciphertext', async () => {
-      if (!dbAvailable) return;
+    test('statement_drafts table stores payload as encrypted JSON ciphertext', async (t) => {
+      if (!dbAvailable) {
+        t.skip('PostgreSQL is not available');
+        return;
+      }
       const row = (
         await pool.query('SELECT payload FROM statement_drafts WHERE statement_id = $1', [
           testStatementId,
@@ -155,8 +161,11 @@ describe('Sensitive Data Encryption At Rest & Blind Indexing Suite', () => {
       );
     });
 
-    test('transactions table stores description as AES-256-GCM ciphertext', async () => {
-      if (!dbAvailable) return;
+    test('transactions table stores description as AES-256-GCM ciphertext', async (t) => {
+      if (!dbAvailable) {
+        t.skip('PostgreSQL is not available');
+        return;
+      }
       const row = (
         await pool.query('SELECT description FROM transactions WHERE id = $1', [testTransactionId])
       ).rows[0];
@@ -168,8 +177,11 @@ describe('Sensitive Data Encryption At Rest & Blind Indexing Suite', () => {
       );
     });
 
-    test('chat_messages table stores content and result as ciphertexts', async () => {
-      if (!dbAvailable) return;
+    test('chat_messages table stores content and result as ciphertexts', async (t) => {
+      if (!dbAvailable) {
+        t.skip('PostgreSQL is not available');
+        return;
+      }
       const rows = (
         await pool.query(
           'SELECT role, content, result FROM chat_messages WHERE user_id = $1 ORDER BY sequence ASC',
@@ -200,8 +212,11 @@ describe('Sensitive Data Encryption At Rest & Blind Indexing Suite', () => {
       assert.ok(isEncrypted(assistantMsg.result.encrypted));
     });
 
-    test('transaction_bills and line_items store file_name, merchant_name, and items as ciphertexts', async () => {
-      if (!dbAvailable) return;
+    test('transaction_bills and line_items store file_name, merchant_name, and items as ciphertexts', async (t) => {
+      if (!dbAvailable) {
+        t.skip('PostgreSQL is not available');
+        return;
+      }
       const billRow = (
         await pool.query(
           'SELECT file_name, merchant_name, payload FROM transaction_bills WHERE id = $1',
@@ -226,8 +241,11 @@ describe('Sensitive Data Encryption At Rest & Blind Indexing Suite', () => {
   });
 
   describe('2. Authorized Decryption & Blind Index Querying', () => {
-    test('blind index finds user by normalized phone number without decrypting all rows', async () => {
-      if (!dbAvailable) return;
+    test('blind index finds user by normalized phone number without decrypting all rows', async (t) => {
+      if (!dbAvailable) {
+        t.skip('PostgreSQL is not available');
+        return;
+      }
       const lookupHash = computeBlindIndex(normalizePhoneNumber(rawUserPhone));
       const result = await pool.query('SELECT id, name, phone FROM users WHERE phone_hash = $1', [
         lookupHash,
@@ -239,8 +257,11 @@ describe('Sensitive Data Encryption At Rest & Blind Indexing Suite', () => {
       assert.equal(safeDecrypt(result.rows[0].phone), rawUserPhone);
     });
 
-    test('chatHistory.page transparently decrypts questions and answers for caller', async () => {
-      if (!dbAvailable) return;
+    test('chatHistory.page transparently decrypts questions and answers for caller', async (t) => {
+      if (!dbAvailable) {
+        t.skip('PostgreSQL is not available');
+        return;
+      }
       const history = await chatHistory.page(pool, testUserId);
       assert.equal(history.messages.length, 2);
 
@@ -255,8 +276,11 @@ describe('Sensitive Data Encryption At Rest & Blind Indexing Suite', () => {
       assert.equal(assistantMsg.result.answer, rawChatAnswer);
     });
 
-    test('getUserDataExport provides clean, decrypted data for GDPR export & PDF generation', async () => {
-      if (!dbAvailable) return;
+    test('getUserDataExport provides clean, decrypted data for GDPR export & PDF generation', async (t) => {
+      if (!dbAvailable) {
+        t.skip('PostgreSQL is not available');
+        return;
+      }
       const archive = await getUserDataExport(pool, testUserId);
 
       assert.equal(archive.profile.name, rawUserName);

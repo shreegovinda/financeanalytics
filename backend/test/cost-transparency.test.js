@@ -92,8 +92,11 @@ describe('User Cost & Infrastructure Transparency Service', () => {
     }
   });
 
-  test('getUserCostTransparency aggregates usage and computes costs for platform-managed AI user', async () => {
-    if (!dbAvailable) return;
+  test('getUserCostTransparency aggregates usage and computes costs for platform-managed AI user', async (t) => {
+    if (!dbAvailable) {
+      t.skip('PostgreSQL is not available');
+      return;
+    }
     const data = await getUserCostTransparency(testUserId);
 
     assert.equal(data.currency, 'INR');
@@ -121,8 +124,11 @@ describe('User Cost & Infrastructure Transparency Service', () => {
     assert.ok(data.disclosures.byok_notice.includes('Finlytix-managed AI keys'));
   });
 
-  test('getUserCostTransparency sets total_ai_cost to zero for Personal BYOK user', async () => {
-    if (!dbAvailable) return;
+  test('getUserCostTransparency sets total_ai_cost to zero for Personal BYOK user', async (t) => {
+    if (!dbAvailable) {
+      t.skip('PostgreSQL is not available');
+      return;
+    }
     const data = await getUserCostTransparency(byokUserId);
 
     assert.equal(data.currency, 'USD');
