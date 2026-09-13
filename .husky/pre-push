@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "🛡️  Running Finlytix Hardening Gates before push..."
+npm run hardening:check

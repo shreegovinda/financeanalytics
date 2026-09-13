@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "Finlytix",
+    "slug": "finlytix",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "finlytix",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#0f172a",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.finlytix.app",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Finlytix uses Face ID to protect and unlock your private financial data.",
+        "NSCameraUsageDescription": "Finlytix uses your camera to scan receipts and invoices for expense matching.",
+        "NSPhotoLibraryUsageDescription": "Finlytix accesses your photo library to attach bill and statement files."
+      }
+    },
+    "android": {
+      "package": "com.finlytix.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0f172a"
+      },
+      "permissions": [
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-local-authentication",
+      "expo-document-picker",
+      "expo-image-picker"
+    ]
+  }
+}

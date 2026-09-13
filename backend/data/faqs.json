@@ -1,0 +1,72 @@
+[
+  {
+    "id": "purpose",
+    "question": "What does Finlytix do?",
+    "answer": "Finlytix helps you review and analyse uploaded bank statements. It extracts transactions, lets you correct categories, and shows spending and cash-flow summaries. It does not connect directly to your bank or move money."
+  },
+  {
+    "id": "mobile-app",
+    "question": "Does Finlytix have an iOS and Android mobile app?",
+    "answer": "Yes. Finlytix has a full-featured cross-platform mobile application for iOS and Android built with React Native and Expo. It offers 100% feature parity with the web dashboard, including biometric login (Face ID, Touch ID, Fingerprint), secure keychain storage, receipt camera scanning, PDF/XLSX statement file upload, spending analytics, and full access to the Finlytix AI Copilot."
+  },
+  {
+    "id": "whatsapp-integration",
+    "question": "Can I use Finlytix through WhatsApp?",
+    "answer": "Yes. Finlytix is fully integrated with WhatsApp. You can forward or upload bank statements (PDF or XLSX) with optional captions (e.g. 'HDFC Jan 2026') directly to the Finlytix WhatsApp bot. You will receive an instant summary card with interactive buttons to review and confirm the import. You can also sign in passwordless using WhatsApp OTP or 1-tap Magic Links, verify your phone number, and chat directly with the 'Ask Finlytix' AI Copilot in WhatsApp."
+  },
+  {
+    "id": "review-later",
+    "question": "Can I review my statement later?",
+    "answer": "Yes. After extraction succeeds, the original file and extracted transactions are saved as a pending draft. Choose Review later, then open Bank Statements and select Review when ready. Pending transactions do not affect analytics until you approve the import. The bank and month remain reserved while the draft exists."
+  },
+  {
+    "id": "storage",
+    "question": "What information is stored?",
+    "answer": "The application stores account details, saved bank selections, uploaded statements, extracted transactions, categories, attached bills, and saved chatbot conversations. Newly uploaded original statement files are retained in the database with application-level AES-256-GCM encryption. Older uploads may not have an original file available. Application payment records may also be stored when payment features are used."
+  },
+  {
+    "id": "ai",
+    "question": "Is my information sent to an AI provider?",
+    "answer": "Statement parsing sends extracted statement content to the selected configured AI provider (Google Gemini or Anthropic Claude). Categorisation sends transaction details, and chat sends relevant retrieved records and recent conversation context. You can also configure your own personal API keys in BYOK mode with zero platform markup."
+  },
+  {
+    "id": "security",
+    "question": "Can someone with database access read my financial data?",
+    "answer": "Uploaded statement files and personal AI keys are protected at rest using application-level authenticated AES-256-GCM encryption with separately managed server keys. Personal keys are never stored in plaintext and masked in the UI. Passwords use bcrypt hashing (12 salt rounds), and JWT sessions enforce instant per-user revocation via token versions. Application queries strictly isolate data to the authenticated user."
+  },
+  {
+    "id": "chat",
+    "question": "Can the chatbot change my account or access other users?",
+    "answer": "The chatbot uses restricted read-only queries scoped to your signed-in account. It cannot run arbitrary SQL or change your records. Its answers can be incorrect; check supporting records and database totals. Saved answers reflect the data at the time of the answer and may become outdated after imports or deletions."
+  },
+  {
+    "id": "delete",
+    "question": "What can I delete today?",
+    "answer": "You can delete individual statements and saved chat history at any time. In addition, Finlytix provides a full self-service account closure feature in Settings that permanently purges your account, statements, transactions, encrypted files, and chat history with cascading deletion and an anonymized SHA-256 cryptographic audit record."
+  },
+  {
+    "id": "cost",
+    "question": "Who pays for AI requests, and how can I see my costs?",
+    "answer": "Finlytix features a dedicated Cost Transparency & Resource Footprint dashboard in Settings on Web and Mobile, detailing exact cloud and AI costs incurred for your account. You can use administrator-provided models or supply your own paid Gemini/Anthropic API credentials in BYOK mode. When using your own key, platform AI costs are $0.00."
+  },
+  {
+    "id": "data-export",
+    "question": "Can I export all my data and statements?",
+    "answer": "Yes. You can download a complete, machine-readable JSON archive of your entire account or generate a comprehensive, multi-page vector PDF ledger containing your transactions, statements, bank accounts, and attached merchant bills directly from Settings."
+  },
+  {
+    "id": "phone",
+    "question": "Why is a mobile number required, and can I verify it?",
+    "answer": "A mobile number with country code is used for your account profile and enables WhatsApp integration. You can verify your phone number using a single-use WhatsApp OTP, and use WhatsApp for passwordless 1-tap magic link login and statement uploads."
+  },
+  {
+    "id": "accuracy",
+    "question": "Are charts and transaction categories always accurate?",
+    "answer": "No. Review extracted transactions against the original statement before approving. Internal transfers can inflate income and expenses because cross-bank transfer reconciliation is not automatic. Net cash flow is income minus expenses, not a live bank balance."
+  },
+  {
+    "id": "roadmap",
+    "question": "What features are planned for future releases?",
+    "answer": "Features completed and live today include iOS & Android mobile apps, WhatsApp statement uploads and AI chat, Cost Transparency & Resource Footprint, BYOK API key encryption, full JSON/PDF data exports, and account closure. Future planned enhancements focus on cooperative banks, automatic recurring subscription detection, and custom budget push notifications."
+  }
+]

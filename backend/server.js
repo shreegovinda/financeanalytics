@@ -14,12 +14,46 @@ const paymentRoutes = require('./routes/payments');
 const aiRoutes = require('./routes/ai');
 const billRoutes = require('./routes/bills');
 const bankRoutes = require('./routes/banks');
+const exportRoutes = require('./routes/export');
+const accountClosureRoutes = require('./routes/accountClosure');
+const supportRoutes = require('./routes/support');
+const adminRoutes = require('./routes/admin');
+const whatsappWebhookRoutes = require('./routes/whatsappWebhook');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:3000' }));
-app.use(express.json({ limit: '50mb' }));
+const configuredOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (configuredOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      if (
+        process.env.NODE_ENV !== 'production' &&
+        /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
+      ) {
+        return callback(null, true);
+      }
+      return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+  }),
+);
+app.use(
+  express.json({
+    limit: '50mb',
+    verify: (req, res, buf) => {
+      req.rawBody = buf;
+    },
+  }),
+);
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 app.get('/health', (req, res) => {
@@ -38,6 +72,11 @@ app.use('/api/chat', require('./routes/chat'));
 app.use('/api/banks', bankRoutes);
 // Nested under a transaction: a bill only has meaning attached to one.
 app.use('/api/transactions/:transactionId/bills', billRoutes);
+app.use('/api/export', exportRoutes);
+app.use('/api/account', accountClosureRoutes);
+app.use('/api/support', supportRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/whatsapp', whatsappWebhookRoutes);
 
 async function startServer() {
   await initializeDatabase();

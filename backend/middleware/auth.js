@@ -16,7 +16,9 @@ const authMiddleware = async (req, res, next) => {
   }
 
   try {
-    const result = await pool.query('SELECT token_version FROM users WHERE id = $1', [decoded.id]);
+    const result = await pool.query('SELECT token_version, role, email FROM users WHERE id = $1', [
+      decoded.id,
+    ]);
     const user = result.rows[0];
 
     // Tokens issued before token versioning are version zero and remain valid
@@ -25,7 +27,17 @@ const authMiddleware = async (req, res, next) => {
       return res.status(401).json({ error: 'Invalid token' });
     }
 
-    req.user = decoded;
+    const adminEmails = (process.env.ADMIN_EMAILS || '')
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+    const isEnvAdmin = user.email && adminEmails.includes(user.email.toLowerCase());
+    const effectiveRole = isEnvAdmin ? 'admin' : user.role || 'user';
+
+    req.user = {
+      ...decoded,
+      role: effectiveRole,
+    };
     next();
   } catch (err) {
     console.error('Error validating token session:', err);

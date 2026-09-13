@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const history = require('../services/chatHistory');
+const { safeDecrypt, decryptJson } = require('../services/crypto');
 test('history pages newest first in storage and returns chronological messages with cursor', async () => {
   let bindings;
   const pool = {
@@ -40,7 +41,12 @@ test('saving keeps user and assistant together, with evidence', async () => {
   const result = { answer: 'answer', evidence: [{ expenses: 25 }] };
   assert.equal(await history.save(db, 'owner', 2, 'question', result), true);
   const insert = db.calls.find((c) => c.sql.startsWith('INSERT'));
-  assert.deepEqual(insert.values, ['owner', 'question', 'answer', JSON.stringify(result)]);
+  assert.equal(insert.values[0], 'owner');
+  assert.equal(safeDecrypt(insert.values[1]), 'question');
+  assert.equal(safeDecrypt(insert.values[2]), 'answer');
+  const storedJson = JSON.parse(insert.values[3]);
+  assert.ok(storedJson.encrypted);
+  assert.deepEqual(decryptJson(storedJson.encrypted), result);
   assert.ok(db.calls.some((c) => c.sql === 'COMMIT'));
 });
 test('delete is user scoped and rolls back generation changes on failure', async () => {

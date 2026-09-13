@@ -1,14 +1,42 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const pool = require('../config/db');
+const crypto = require('crypto');
 const authenticateToken = require('../middleware/auth');
-const { OTP_PURPOSES, sendOTP, verifyOTP } = require('../services/otp');
+const {
+  OTP_PURPOSES,
+  sendOTP,
+  verifyOTP,
+  sendWhatsAppOTP,
+  verifyPhoneOTP,
+  storePhoneOTP,
+} = require('../services/otp');
+const { normalizePhoneNumber } = require('../services/whatsappService');
 const { issueAuthToken } = require('../services/authToken');
 const {
   issueVerification,
   verifyWithToken,
   verifyWithOtp,
 } = require('../services/emailVerification');
+const {
+  isValidCurrency,
+  isValidTimezone,
+  isValidLocale,
+  isValidLanguage,
+  isValidDateFormat,
+  isValidTimeFormat,
+} = require('../utils/formatters');
+const { isValidProvider, isValidModel } = require('../config/aiCatalogue');
+const { encrypt, safeDecrypt, computeBlindIndex } = require('../services/crypto');
+
+function sanitizeUser(user) {
+  if (!user) return user;
+  return {
+    ...user,
+    name: safeDecrypt(user.name),
+    phone: safeDecrypt(user.phone),
+  };
+}
 
 const router = express.Router();
 const otpAttempts = new Map();
@@ -44,10 +72,23 @@ function clearOtpRateLimit(req, email, purpose) {
 
 // Register
 router.post('/register', async (req, res) => {
-  const { email, password, name, phone } = req.body;
+  const { email, password, name, phone, consentGiven } = req.body;
 
   if (!email || !password || !name) {
     return res.status(400).json({ error: 'Email, password, and name are required' });
+  }
+
+  if (typeof phone !== 'string' || !/^\+[1-9]\d{7,14}$/.test(phone.trim())) {
+    return res
+      .status(400)
+      .json({ error: 'A mobile number with country code is required, for example +919876543210.' });
+  }
+
+  if (consentGiven !== true) {
+    return res.status(400).json({
+      error:
+        'You must agree to the Terms of Service, Privacy Policy, and Cookie Policy before creating an account.',
+    });
   }
 
   try {
@@ -60,13 +101,23 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 8 characters long' });
     }
 
+    const normalizedPhone = phone.trim();
+    const encryptedName = encrypt(name.trim());
+    const encryptedPhone = encrypt(normalizedPhone);
+    const phoneHash = computeBlindIndex(normalizePhoneNumber(normalizedPhone));
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await pool.query(
-      'INSERT INTO users (email, password_hash, name, phone) VALUES ($1, $2, $3, $4) RETURNING id, email, name, phone, token_version, email_verified',
-      [email, hashedPassword, name, phone || null],
+      'INSERT INTO users (email, password_hash, name, phone, phone_hash) VALUES ($1, $2, $3, $4, $5) RETURNING id, email, name, phone, token_version, email_verified',
+      [email, hashedPassword, encryptedName, encryptedPhone, phoneHash],
     );
 
-    const user = result.rows[0];
+    const user = sanitizeUser(result.rows[0]);
+
+    const legal = require('../config/legal');
+    await pool.query(
+      'INSERT INTO user_consents (user_id, policy_version, ip_address, user_agent) VALUES ($1, $2, $3, $4)',
+      [user.id, legal.POLICY_VERSION, req.ip || null, req.get('User-Agent') || null],
+    );
 
     // No session until the address is proven. Returning a token here would make
     // verification cosmetic.
@@ -120,7 +171,7 @@ router.post('/verify-email', async (req, res) => {
 
     clearOtpRateLimit(req, email, OTP_PURPOSES.EMAIL_VERIFY);
 
-    const user = result.user;
+    const user = sanitizeUser(result.user);
     res.json({
       token: issueAuthToken(user),
       user: { id: user.id, email: user.email, name: user.name, phone: user.phone },
@@ -153,7 +204,7 @@ router.post('/verify-email/token', async (req, res) => {
       return res.status(status).json({ error: result.message, reason: result.reason });
     }
 
-    const user = result.user;
+    const user = sanitizeUser(result.user);
     res.json({
       token: issueAuthToken(user),
       user: { id: user.id, email: user.email, name: user.name, phone: user.phone },
@@ -200,7 +251,7 @@ router.post('/resend-verification', async (req, res) => {
     }
 
     const user = found.rows[0];
-    await issueVerification({ userId: user.id, email: user.email, name: user.name });
+    await issueVerification({ userId: user.id, email: user.email, name: safeDecrypt(user.name) });
 
     res.json(genericResponse);
   } catch (err) {
@@ -226,7 +277,7 @@ router.post('/check-email', async (req, res) => {
       return res.json({
         exists: true,
         verified: result.rows[0].email_verified,
-        user: { name: result.rows[0].name },
+        user: { name: safeDecrypt(result.rows[0].name) },
       });
     }
     res.json({ exists: false });
@@ -250,8 +301,8 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const user = result.rows[0];
-    const validPassword = await bcrypt.compare(password, user.password_hash);
+    const rawUser = result.rows[0];
+    const validPassword = await bcrypt.compare(password, rawUser.password_hash);
 
     if (!validPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -259,14 +310,15 @@ router.post('/login', async (req, res) => {
 
     // Checked only after the password is confirmed, so this cannot be used to
     // discover which addresses are registered.
-    if (!user.email_verified) {
+    if (!rawUser.email_verified) {
       return res.status(403).json({
         error: 'Please verify your email before signing in.',
         requiresVerification: true,
-        email: user.email,
+        email: rawUser.email,
       });
     }
 
+    const user = sanitizeUser(rawUser);
     const token = issueAuthToken(user);
 
     res.json({
@@ -292,7 +344,8 @@ router.post('/forgot-password/send-otp', async (req, res) => {
       return res.status(404).json({ error: 'No account found for this email' });
     }
 
-    await sendOTP(email, userResult.rows[0].name || 'User', OTP_PURPOSES.PASSWORD_RESET);
+    const name = (userResult.rows[0].name && safeDecrypt(userResult.rows[0].name)) || 'User';
+    await sendOTP(email, name, OTP_PURPOSES.PASSWORD_RESET);
     res.json({ success: true, message: 'Password reset OTP sent to email' });
   } catch (err) {
     console.error('Error sending password reset OTP:', err);
@@ -359,7 +412,7 @@ router.post('/send-otp', async (req, res) => {
   try {
     // Check if user exists to get name for email
     const userResult = await pool.query('SELECT name FROM users WHERE email = $1', [email]);
-    const name = userResult.rows.length > 0 ? userResult.rows[0].name : 'User';
+    const name = (userResult.rows.length > 0 && safeDecrypt(userResult.rows[0].name)) || 'User';
 
     // Send OTP
     await sendOTP(email, name, OTP_PURPOSES.LOGIN);
@@ -413,7 +466,7 @@ router.post('/verify-otp', async (req, res) => {
       return res.status(401).json({ error: 'User not found' });
     }
 
-    const user = userResult.rows[0];
+    const user = sanitizeUser(userResult.rows[0]);
     const token = issueAuthToken(user);
 
     clearOtpRateLimit(req, email, OTP_PURPOSES.LOGIN);
@@ -431,15 +484,36 @@ router.post('/verify-otp', async (req, res) => {
 
 router.get('/me', authenticateToken, async (req, res) => {
   try {
-    const result = await pool.query('SELECT id, email, name, phone FROM users WHERE id = $1', [
-      req.user.id,
-    ]);
+    const result = await pool.query(
+      `SELECT id, email, name, phone, role, locale, timezone, currency, language,
+              date_format, time_format,
+              selected_ai_provider, selected_ai_model, ai_key_mode
+       FROM users WHERE id = $1`,
+      [req.user.id],
+    );
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json({ user: result.rows[0] });
+    const user = sanitizeUser(result.rows[0]);
+    const keysResult = await pool.query(
+      'SELECT provider, key_hint, updated_at FROM user_ai_keys WHERE user_id = $1',
+      [req.user.id],
+    );
+
+    res.json({
+      user: {
+        ...user,
+        role: req.user.role || user.role || 'user',
+        needsPhone: !user.phone || !user.phone.trim(),
+        configuredAiKeys: keysResult.rows.map((r) => ({
+          provider: r.provider,
+          keyHint: r.key_hint,
+          updatedAt: r.updated_at,
+        })),
+      },
+    });
   } catch (err) {
     console.error('Error fetching profile:', err);
     res.status(500).json({ error: 'Failed to fetch profile' });
@@ -447,23 +521,205 @@ router.get('/me', authenticateToken, async (req, res) => {
 });
 
 router.put('/me', authenticateToken, async (req, res) => {
-  const { name, phone } = req.body;
+  const {
+    name,
+    phone,
+    locale,
+    timezone,
+    currency,
+    language,
+    date_format,
+    time_format,
+    selected_ai_provider,
+    selected_ai_model,
+    ai_key_mode,
+  } = req.body;
 
-  if (!name || !name.trim()) {
-    return res.status(400).json({ error: 'Name is required' });
+  if (name !== undefined && (!name || typeof name !== 'string' || !name.trim())) {
+    return res.status(400).json({ error: 'Name cannot be empty' });
   }
 
   try {
-    const result = await pool.query(
-      'UPDATE users SET name = $1, phone = $2 WHERE id = $3 RETURNING id, email, name, phone',
-      [name.trim(), phone?.trim() || null, req.user.id],
+    const currentUser = await pool.query(
+      `SELECT phone, name, locale, timezone, currency, language,
+              date_format, time_format,
+              selected_ai_provider, selected_ai_model, ai_key_mode
+       FROM users WHERE id = $1`,
+      [req.user.id],
     );
-
-    if (result.rows.length === 0) {
+    if (currentUser.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json({ user: result.rows[0] });
+    const current = sanitizeUser(currentUser.rows[0]);
+
+    let finalName = current.name;
+    if (name !== undefined) {
+      finalName = name.trim();
+    }
+
+    let finalPhone = current.phone;
+    if (phone !== undefined) {
+      if (typeof phone !== 'string' || !/^\+[1-9]\d{7,14}$/.test(phone.trim())) {
+        return res.status(400).json({
+          error: 'A mobile number with country code is required, for example +919876543210.',
+        });
+      }
+      finalPhone = phone.trim();
+    } else if (!finalPhone && (name !== undefined || phone !== undefined)) {
+      return res.status(400).json({
+        error: 'A mobile number with country code is required, for example +919876543210.',
+      });
+    }
+
+    let finalLocale = current.locale || 'en-IN';
+    if (locale !== undefined) {
+      if (!isValidLocale(locale)) {
+        return res.status(400).json({ error: 'Invalid locale tag, for example en-IN or en-US.' });
+      }
+      finalLocale = locale.trim();
+    }
+
+    let finalTimezone = current.timezone || 'Asia/Kolkata';
+    if (timezone !== undefined) {
+      if (!isValidTimezone(timezone)) {
+        return res
+          .status(400)
+          .json({ error: 'Invalid IANA timezone, for example Asia/Kolkata or UTC.' });
+      }
+      finalTimezone = timezone.trim();
+    }
+
+    let finalCurrency = current.currency || 'INR';
+    if (currency !== undefined) {
+      const upperCurr = String(currency).trim().toUpperCase();
+      if (!isValidCurrency(upperCurr)) {
+        return res
+          .status(400)
+          .json({ error: 'Invalid currency code, must be a 3-letter ISO code like INR or USD.' });
+      }
+      finalCurrency = upperCurr;
+    }
+
+    let finalLanguage = current.language || 'en';
+    if (language !== undefined) {
+      if (!isValidLanguage(language)) {
+        return res.status(400).json({ error: 'Invalid language code, for example en or hi.' });
+      }
+      finalLanguage = language.trim().toLowerCase();
+    }
+
+    let finalDateFormat = current.date_format || 'DD/MM/YYYY';
+    if (date_format !== undefined) {
+      if (!isValidDateFormat(date_format)) {
+        return res.status(400).json({ error: 'Invalid date format preference.' });
+      }
+      finalDateFormat = date_format.trim();
+    }
+
+    let finalTimeFormat = current.time_format || '12h';
+    if (time_format !== undefined) {
+      if (!isValidTimeFormat(time_format)) {
+        return res
+          .status(400)
+          .json({ error: 'Invalid time format preference, must be 12h or 24h.' });
+      }
+      finalTimeFormat = time_format.trim();
+    }
+
+    let finalAiProvider = current.selected_ai_provider || 'gemini';
+    if (selected_ai_provider !== undefined) {
+      if (!isValidProvider(selected_ai_provider)) {
+        return res.status(400).json({ error: 'Invalid AI provider selected.' });
+      }
+      finalAiProvider = selected_ai_provider;
+    }
+
+    let finalAiModel = current.selected_ai_model || 'gemini-2.5-flash';
+    if (selected_ai_model !== undefined) {
+      if (!isValidModel(finalAiProvider, selected_ai_model)) {
+        return res.status(400).json({ error: `Invalid model for provider ${finalAiProvider}.` });
+      }
+      finalAiModel = selected_ai_model;
+    }
+
+    let finalAiKeyMode = current.ai_key_mode || 'admin';
+    if (ai_key_mode !== undefined) {
+      if (ai_key_mode !== 'admin' && ai_key_mode !== 'personal') {
+        return res.status(400).json({ error: "ai_key_mode must be either 'admin' or 'personal'." });
+      }
+      finalAiKeyMode = ai_key_mode;
+    }
+
+    const hasPreferences =
+      locale !== undefined ||
+      timezone !== undefined ||
+      currency !== undefined ||
+      language !== undefined ||
+      date_format !== undefined ||
+      time_format !== undefined ||
+      selected_ai_provider !== undefined ||
+      selected_ai_model !== undefined ||
+      ai_key_mode !== undefined;
+
+    const encryptedName = encrypt(finalName);
+    const encryptedPhone = finalPhone ? encrypt(finalPhone) : null;
+    const phoneHash = finalPhone ? computeBlindIndex(normalizePhoneNumber(finalPhone)) : null;
+
+    let result;
+    if (hasPreferences) {
+      result = await pool.query(
+        `UPDATE users
+         SET name = $1, phone = $2, phone_hash = $3, locale = $4, timezone = $5, currency = $6, language = $7,
+             date_format = $8, time_format = $9,
+             selected_ai_provider = $10, selected_ai_model = $11, ai_key_mode = $12
+         WHERE id = $13
+         RETURNING id, email, name, phone, locale, timezone, currency, language,
+                   date_format, time_format,
+                   selected_ai_provider, selected_ai_model, ai_key_mode`,
+        [
+          encryptedName,
+          encryptedPhone,
+          phoneHash,
+          finalLocale,
+          finalTimezone,
+          finalCurrency,
+          finalLanguage,
+          finalDateFormat,
+          finalTimeFormat,
+          finalAiProvider,
+          finalAiModel,
+          finalAiKeyMode,
+          req.user.id,
+        ],
+      );
+    } else {
+      result = await pool.query(
+        `UPDATE users SET name = $1, phone = $2, phone_hash = $3 WHERE id = $4
+         RETURNING id, email, name, phone, locale, timezone, currency, language,
+                   date_format, time_format,
+                   selected_ai_provider, selected_ai_model, ai_key_mode`,
+        [encryptedName, encryptedPhone, phoneHash, req.user.id],
+      );
+    }
+
+    const keysResult = await pool.query(
+      'SELECT provider, key_hint, updated_at FROM user_ai_keys WHERE user_id = $1',
+      [req.user.id],
+    );
+
+    const updatedUser = sanitizeUser(result.rows[0]);
+    res.json({
+      user: {
+        ...updatedUser,
+        needsPhone: false,
+        configuredAiKeys: keysResult.rows.map((r) => ({
+          provider: r.provider,
+          keyHint: r.key_hint,
+          updatedAt: r.updated_at,
+        })),
+      },
+    });
   } catch (err) {
     console.error('Error updating profile:', err);
     res.status(500).json({ error: 'Failed to update profile' });
@@ -506,6 +762,118 @@ router.put('/password', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Error updating password:', err);
     res.status(500).json({ error: 'Failed to update password' });
+  }
+});
+
+/**
+ * Send WhatsApp OTP for Login or Mobile Verification
+ */
+router.post('/whatsapp/send-otp', async (req, res) => {
+  const { phone, purpose = OTP_PURPOSES.WHATSAPP_LOGIN } = req.body;
+  if (!phone || typeof phone !== 'string') {
+    return res.status(400).json({ error: 'Mobile number is required' });
+  }
+
+  const normalized = normalizePhoneNumber(phone);
+  if (!normalized || normalized.length < 10) {
+    return res.status(400).json({ error: 'Valid mobile number with country code is required' });
+  }
+
+  if (!checkOtpRateLimit(req, normalized, purpose)) {
+    return res
+      .status(429)
+      .json({ error: 'Too many requests. Please wait before requesting another code.' });
+  }
+
+  try {
+    const phoneHash = computeBlindIndex(normalized);
+    const userRes = await pool.query(
+      `SELECT id, email, name, phone, phone_verified, token_version FROM users
+       WHERE phone_hash = $1
+       LIMIT 1`,
+      [phoneHash],
+    );
+
+    if (purpose === OTP_PURPOSES.WHATSAPP_LOGIN && userRes.rows.length === 0) {
+      return res.status(404).json({
+        error: 'No account found matching this mobile number. Please register first.',
+      });
+    }
+
+    const frontendBaseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const magicToken = crypto.randomBytes(24).toString('hex');
+    await storePhoneOTP(normalized, magicToken.slice(0, 6), `${purpose}_magic`);
+    const magicLink = `${frontendBaseUrl}/auth?wa_token=${magicToken}&phone=${encodeURIComponent(normalized)}`;
+
+    await sendWhatsAppOTP(normalized, magicLink, purpose);
+
+    const maskedPhone = '+' + normalized.slice(0, 2) + '••••' + normalized.slice(-4);
+    res.json({
+      success: true,
+      message: 'Security code sent to your WhatsApp',
+      phone: maskedPhone,
+    });
+  } catch (err) {
+    console.error('Error sending WhatsApp OTP:', err);
+    res.status(500).json({ error: 'Failed to send WhatsApp security code' });
+  }
+});
+
+/**
+ * Verify WhatsApp OTP for Login or Mobile Verification
+ */
+router.post('/whatsapp/verify-otp', async (req, res) => {
+  const { phone, code, purpose = OTP_PURPOSES.WHATSAPP_LOGIN } = req.body;
+  if (!phone || !code) {
+    return res.status(400).json({ error: 'Mobile number and verification code are required' });
+  }
+
+  const normalized = normalizePhoneNumber(phone);
+  try {
+    const verifyRes = await verifyPhoneOTP(normalized, String(code).trim(), purpose);
+    if (!verifyRes.success) {
+      return res.status(400).json({ error: verifyRes.message });
+    }
+
+    const phoneHash = computeBlindIndex(normalized);
+    const userRes = await pool.query(
+      `SELECT id, email, name, phone, phone_verified, token_version, role, currency, timezone, date_format, time_format
+       FROM users
+       WHERE phone_hash = $1
+       LIMIT 1`,
+      [phoneHash],
+    );
+
+    if (userRes.rows.length === 0) {
+      return res.json({
+        success: true,
+        message: 'Phone number verified successfully',
+      });
+    }
+
+    const user = sanitizeUser(userRes.rows[0]);
+    await pool.query(
+      'UPDATE users SET phone_verified = TRUE, phone_verified_at = NOW() WHERE id = $1',
+      [user.id],
+    );
+
+    const token = issueAuthToken(user);
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        phone: user.phone,
+        phone_verified: true,
+        role: user.role,
+      },
+      message: 'Authenticated successfully with WhatsApp',
+    });
+  } catch (err) {
+    console.error('Error verifying WhatsApp OTP:', err);
+    res.status(500).json({ error: 'Failed to verify WhatsApp code' });
   }
 });
 

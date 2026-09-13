@@ -37,8 +37,16 @@ jobs:
         run: npm run format:check
         continue-on-error: false
 
-      - name: Test
+      - name: Security & Backend Tests
         run: npm test
+        continue-on-error: false
+
+      - name: Mobile TypeScript Verification
+        run: npm run typecheck:mobile
+        continue-on-error: false
+
+      - name: Frontend Production Build
+        run: npm run build
         continue-on-error: false
 
       - name: SonarCloud Scan

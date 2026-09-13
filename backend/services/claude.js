@@ -25,7 +25,7 @@ async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function categorizeWithRetry(transactions, providerId, attempt = 0) {
+async function categorizeWithRetry(transactions, providerId, options = {}, attempt = 0) {
   const provider = normalizeProviderId(providerId);
   try {
     const prompt = `You are a financial transaction categorizer. Categorize each transaction into one of these categories: ${CATEGORIES.join(', ')}.
@@ -50,7 +50,7 @@ Respond with a JSON array where each element has:
 
 Respond ONLY with valid JSON array, no other text.`;
 
-    if (!isProviderConfigured(provider)) {
+    if (!options.apiKey && !isProviderConfigured(provider)) {
       console.warn(
         `${getProviderConfig(provider).label} is not configured. Skipping AI categorization.`,
       );
@@ -60,6 +60,8 @@ Respond ONLY with valid JSON array, no other text.`;
     const categorizations = await generateJsonArray(prompt, {
       providerId: provider,
       maxTokens: 1024,
+      apiKey: options.apiKey,
+      model: options.model,
     });
 
     const results = categorizations.map((cat) => ({
@@ -72,13 +74,13 @@ Respond ONLY with valid JSON array, no other text.`;
   } catch (err) {
     if (attempt < MAX_RETRIES - 1) {
       await sleep(RETRY_DELAY * (attempt + 1));
-      return categorizeWithRetry(transactions, provider, attempt + 1);
+      return categorizeWithRetry(transactions, provider, options, attempt + 1);
     }
     throw err;
   }
 }
 
-async function categorizeBatch(transactions, providerId) {
+async function categorizeBatch(transactions, providerId, options = {}) {
   if (!transactions || transactions.length === 0) {
     return [];
   }
@@ -89,7 +91,7 @@ async function categorizeBatch(transactions, providerId) {
 
   for (let i = 0; i < transactions.length; i += BATCH_SIZE) {
     const batch = transactions.slice(i, i + BATCH_SIZE);
-    const batchResults = await categorizeWithRetry(batch, provider);
+    const batchResults = await categorizeWithRetry(batch, provider, options);
     results.push(
       ...batchResults
         .filter(

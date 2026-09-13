@@ -105,7 +105,7 @@ Respond ONLY with one valid JSON object in this exact shape:
 }
 Extract every trustworthy posted transaction.`;
 
-  if (!isProviderConfigured(provider)) {
+  if (!context.apiKey && !isProviderConfigured(provider)) {
     throw new Error(notConfiguredMessage(provider));
   }
 
@@ -114,6 +114,8 @@ Extract every trustworthy posted transaction.`;
       providerId: provider,
       maxTokens: 32768,
       responseSchema: STATEMENT_PARSE_SCHEMA,
+      apiKey: context.apiKey,
+      model: context.model,
     });
     const transactions = Array.isArray(parsed.transactions) ? parsed.transactions : [];
     if (context.expectedMonth)

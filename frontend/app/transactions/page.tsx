@@ -14,6 +14,7 @@ import AuthSessionGuard from '@/components/AuthSessionGuard';
 import BackButton from '@/components/BackButton';
 import { apiGet, apiPut, getErrorMessage } from '@/lib/api';
 import { formatDate } from '@/lib/date';
+import DateRangePicker from '@/components/DateRangePicker';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -322,11 +323,6 @@ export default function TransactionsPage() {
     setAppliedEnd(range?.end ?? '');
   };
 
-  const applyCustom = () => {
-    setAppliedStart(customStart);
-    setAppliedEnd(customEnd);
-  };
-
   // ── Category helpers ────────────────────────────────────────────────────────
   const rootCategories = useMemo(() => categories.filter((c) => !c.parent_id), [categories]);
   const subCatsFor = useMemo(
@@ -617,44 +613,36 @@ export default function TransactionsPage() {
           {filterMode === 'custom' && (
             <div className="flex flex-wrap gap-3 items-end pt-1">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">From</label>
-                <input
-                  type="date"
-                  max={today}
-                  value={customStart}
-                  onChange={(e) => setCustomStart(e.target.value)}
-                  className="px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer"
+                <label className="block text-xs font-medium text-gray-500 mb-1">
+                  Custom Date Range
+                </label>
+                <DateRangePicker
+                  startDate={customStart}
+                  endDate={customEnd}
+                  maxDate={today}
+                  onChange={(start, end) => {
+                    setCustomStart(start);
+                    setCustomEnd(end);
+                    setAppliedStart(start);
+                    setAppliedEnd(end);
+                  }}
+                  className="w-72 sm:w-80"
                 />
               </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">To</label>
-                <input
-                  type="date"
-                  max={today}
-                  min={customStart || undefined}
-                  value={customEnd}
-                  onChange={(e) => setCustomEnd(e.target.value)}
-                  className="px-3 py-2 text-sm text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer"
-                />
-              </div>
-              <button
-                onClick={applyCustom}
-                disabled={!customStart || !customEnd}
-                className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
-              >
-                Apply
-              </button>
-              <button
-                onClick={() => {
-                  setCustomStart('');
-                  setCustomEnd('');
-                  setAppliedStart('');
-                  setAppliedEnd('');
-                }}
-                className="px-4 py-2 bg-gray-100 text-gray-600 text-sm rounded-lg hover:bg-gray-200 transition cursor-pointer"
-              >
-                Clear
-              </button>
+              {(appliedStart || appliedEnd) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomStart('');
+                    setCustomEnd('');
+                    setAppliedStart('');
+                    setAppliedEnd('');
+                  }}
+                  className="px-3 py-2 bg-gray-100 text-gray-600 text-xs font-medium rounded-xl hover:bg-gray-200 transition cursor-pointer"
+                >
+                  Reset Range
+                </button>
+              )}
             </div>
           )}
         </div>

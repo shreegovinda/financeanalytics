@@ -94,6 +94,10 @@ test('assistant uses retrieved evidence and drops invented sources', async () =>
     call++;
     if (call === 1) return { requests: [{ tool: 'product' }] };
     assert.match(prompt, /No refund management/);
+    assert.match(prompt, /Uploaded statement files and personal AI keys are protected at rest/);
+    assert.match(prompt, /mobile application for iOS and Android/);
+    assert.match(prompt, /fully integrated with WhatsApp/);
+    assert.match(prompt, /saved as a pending draft/);
     return {
       answer: 'Use Statements to delete a statement.',
       sourceIds: ['product', 'https://evil.example'],
@@ -109,4 +113,35 @@ test('assistant uses retrieved evidence and drops invented sources', async () =>
   );
   assert.equal(result.sources.length, 1);
   assert.equal(result.sources[0].id, 'product');
+});
+
+test('assistant provides accurate context for mobile app and whatsapp feature queries', async () => {
+  const client = {
+    query: async () => ({ rows: [] }),
+    release() {},
+  };
+  let call = 0;
+  const generate = async (prompt) => {
+    call++;
+    if (call === 1) return { requests: [{ tool: 'product' }] };
+    assert.match(prompt, /React Native and Expo/);
+    assert.match(prompt, /WhatsApp/);
+    assert.match(prompt, /Cost Transparency/);
+    return {
+      answer:
+        'Yes, Finlytix provides a native mobile app for iOS and Android built with React Native and Expo.',
+      sourceIds: ['product'],
+    };
+  };
+  const result = await answerQuestion(
+    { connect: async () => client },
+    'owner',
+    'Do we have any mobile app?',
+    [],
+    'gemini',
+    generate,
+  );
+  assert.equal(result.sources.length, 1);
+  assert.equal(result.sources[0].id, 'product');
+  assert.ok(result.answer.includes('iOS and Android'));
 });

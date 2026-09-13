@@ -18,6 +18,7 @@ import {
 } from 'recharts';
 import AuthSessionGuard from '@/components/AuthSessionGuard';
 import BackButton from '@/components/BackButton';
+import DateRangePicker from '@/components/DateRangePicker';
 import { apiGet, getErrorMessage } from '@/lib/api';
 import { subscribeFinanceChanges } from '@/lib/financeRefresh';
 
@@ -453,26 +454,19 @@ export default function AnalyticsPage() {
               )}
 
               {periodMode === 'custom' && (
-                <div className="grid max-w-xl gap-4 sm:grid-cols-2">
-                  <label>
-                    <span className="mb-2 block text-sm font-medium text-gray-700">Start Date</span>
-                    <input
-                      type="date"
-                      value={customStart}
-                      onChange={(event) => setCustomStart(event.target.value)}
-                      className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                <div className="max-w-md">
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Custom Date Range
                   </label>
-                  <label>
-                    <span className="mb-2 block text-sm font-medium text-gray-700">End Date</span>
-                    <input
-                      type="date"
-                      min={customStart || undefined}
-                      value={customEnd}
-                      onChange={(event) => setCustomEnd(event.target.value)}
-                      className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </label>
+                  <DateRangePicker
+                    startDate={customStart}
+                    endDate={customEnd}
+                    onChange={(start, end) => {
+                      setCustomStart(start);
+                      setCustomEnd(end);
+                    }}
+                    className="w-full"
+                  />
                 </div>
               )}
             </div>

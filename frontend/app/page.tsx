@@ -73,6 +73,9 @@ export default function Home() {
               >
                 Get Started
               </Link>
+              <Link href="/help" className="mt-4 block text-sm text-blue-200 underline">
+                Help, privacy and security FAQs
+              </Link>
             </div>
           </div>
 

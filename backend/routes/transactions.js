@@ -2,7 +2,8 @@ const express = require('express');
 const pool = require('../config/db');
 const auth = require('../middleware/auth');
 const { categorizeBatch } = require('../services/claude');
-const { getProviderFromRequest } = require('../services/ai');
+const { getProviderFromRequest, getUserAiExecutionConfig } = require('../services/ai');
+const { encrypt, safeDecrypt } = require('../services/crypto');
 
 const router = express.Router();
 
@@ -72,7 +73,11 @@ router.get('/', auth, async (req, res) => {
     params.push(limit, offset);
 
     const result = await pool.query(query, params);
-    res.json(result.rows);
+    const rows = result.rows.map((r) => ({
+      ...r,
+      description: safeDecrypt(r.description),
+    }));
+    res.json(rows);
   } catch (err) {
     console.error('Error fetching transactions:', err);
     res.status(500).json({ error: 'Failed to fetch transactions' });
@@ -90,7 +95,11 @@ router.get('/:id', auth, async (req, res) => {
       return res.status(404).json({ error: 'Transaction not found' });
     }
 
-    res.json(result.rows[0]);
+    const row = result.rows[0];
+    res.json({
+      ...row,
+      description: safeDecrypt(row.description),
+    });
   } catch (err) {
     console.error('Error fetching transaction:', err);
     res.status(500).json({ error: 'Failed to fetch transaction' });
@@ -131,8 +140,9 @@ router.put('/:id', auth, async (req, res) => {
     }
 
     if (description !== undefined) {
+      const descVal = typeof description === 'string' ? description.trim() : '';
       updates.push(`description = $${paramIndex}`);
-      params.push(description);
+      params.push(encrypt(descVal));
       paramIndex++;
     }
 
@@ -146,7 +156,11 @@ router.put('/:id', auth, async (req, res) => {
     params.push(req.params.id, req.user.id);
 
     const result = await pool.query(updateQuery, params);
-    res.json(result.rows[0]);
+    const updated = result.rows[0];
+    res.json({
+      ...updated,
+      description: safeDecrypt(updated.description),
+    });
   } catch (err) {
     console.error('Error updating transaction:', err);
     res.status(500).json({ error: 'Failed to update transaction' });
@@ -196,12 +210,16 @@ router.post('/categorize', auth, async (req, res) => {
 
     const txns = result.rows.map((row) => ({
       date: row.date,
-      description: row.description,
+      description: safeDecrypt(row.description),
       amount: row.amount,
       type: row.type,
     }));
 
-    const categorizations = await categorizeBatch(txns, getProviderFromRequest(req));
+    const aiConfig = await getUserAiExecutionConfig(pool, req.user.id, getProviderFromRequest(req));
+    const categorizations = await categorizeBatch(txns, aiConfig.providerId, {
+      apiKey: aiConfig.apiKey,
+      model: aiConfig.model,
+    });
 
     const updatePromises = categorizations.map((cat) => {
       const txnIndex = cat.transactionIndex;

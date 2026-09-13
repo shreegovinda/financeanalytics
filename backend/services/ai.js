@@ -1,5 +1,6 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const { jsonrepair } = require('jsonrepair');
+const { decrypt } = require('./crypto');
 
 let anthropicClient = null;
 
@@ -20,7 +21,10 @@ const PROVIDERS = {
   },
 };
 
-function getAnthropicClient() {
+function getAnthropicClient(apiKey) {
+  if (apiKey) {
+    return new Anthropic.default({ apiKey });
+  }
   if (!anthropicClient) {
     anthropicClient = new Anthropic.default();
   }
@@ -111,9 +115,111 @@ function getProvidersStatus() {
   };
 }
 
-async function generateWithAnthropic(prompt, maxTokens) {
-  const message = await getAnthropicClient().messages.create({
-    model: getProviderModel('anthropic'),
+/**
+ * Resolves a user's execution configuration.
+ * If user selected 'personal' BYOK mode:
+ *   - fetches their encrypted key
+ *   - decrypts it in memory
+ *   - strictly guards against falling back to admin keys
+ */
+async function getUserAiExecutionConfig(pool, userId, requestedProviderId = null) {
+  if (!pool || !userId) {
+    const fallbackProvider = requestedProviderId
+      ? normalizeProviderId(requestedProviderId)
+      : getDefaultProviderId();
+    return {
+      providerId: fallbackProvider,
+      model: getProviderModel(fallbackProvider),
+      apiKey: null,
+      keyMode: 'admin',
+    };
+  }
+
+  const userResult = await pool.query(
+    'SELECT selected_ai_provider, selected_ai_model, ai_key_mode FROM users WHERE id = $1',
+    [userId],
+  );
+
+  const user = userResult.rows[0];
+  if (!user) {
+    const fallbackProvider = requestedProviderId
+      ? normalizeProviderId(requestedProviderId)
+      : getDefaultProviderId();
+    return {
+      providerId: fallbackProvider,
+      model: getProviderModel(fallbackProvider),
+      apiKey: null,
+      keyMode: 'admin',
+    };
+  }
+
+  const providerId = requestedProviderId
+    ? normalizeProviderId(requestedProviderId)
+    : user.selected_ai_provider || 'gemini';
+  const model = user.selected_ai_model || getProviderModel(providerId);
+  const keyMode = user.ai_key_mode || 'admin';
+
+  if (keyMode === 'personal') {
+    const keyResult = await pool.query(
+      'SELECT encrypted_key FROM user_ai_keys WHERE user_id = $1 AND provider = $2',
+      [userId, providerId],
+    );
+
+    if (keyResult.rows.length === 0) {
+      throw new Error(
+        `Personal API key mode is enabled for ${providerId}, but no personal key has been saved. Please add your key in Settings or switch to Admin mode.`,
+      );
+    }
+
+    try {
+      const decryptedKey = decrypt(keyResult.rows[0].encrypted_key);
+      return {
+        providerId,
+        model,
+        apiKey: decryptedKey,
+        keyMode: 'personal',
+      };
+    } catch {
+      throw new Error(
+        `Failed to decrypt personal API key for ${providerId}. Please re-enter your key in Settings.`,
+      );
+    }
+  }
+
+  // If keyMode is admin but provider is not configured in server env, check if user has a personal key configured
+  if (!isProviderConfigured(providerId)) {
+    const fallbackKeyResult = await pool.query(
+      'SELECT encrypted_key FROM user_ai_keys WHERE user_id = $1 AND provider = $2',
+      [userId, providerId],
+    );
+    if (fallbackKeyResult.rows.length > 0) {
+      try {
+        const decryptedKey = decrypt(fallbackKeyResult.rows[0].encrypted_key);
+        return {
+          providerId,
+          model,
+          apiKey: decryptedKey,
+          keyMode: 'personal',
+        };
+      } catch {
+        // Fall through to admin mode which will throw clear error
+      }
+    }
+  }
+
+  return {
+    providerId,
+    model,
+    apiKey: null,
+    keyMode: 'admin',
+  };
+}
+
+async function generateWithAnthropic(prompt, maxTokens, apiKey, model) {
+  const effectiveModel = model || getProviderModel('anthropic');
+  const client = getAnthropicClient(apiKey);
+  const message = await client.messages.create({
+    model: effectiveModel,
     max_tokens: maxTokens,
     messages: [
       {
@@ -126,9 +232,13 @@ async function generateWithAnthropic(prompt, maxTokens) {
   return message.content[0].type === 'text' ? message.content[0].text : '';
 }
 
-async function generateWithGemini(prompt, maxTokens, responseSchema) {
-  const model = getProviderModel('gemini');
-  const apiKey = process.env.GEMINI_API_KEY;
+async function generateWithGemini(prompt, maxTokens, responseSchema, apiKey, model) {
+  const effectiveModel = model || getProviderModel('gemini');
+  const effectiveKey = apiKey || process.env.GEMINI_API_KEY;
+  if (!effectiveKey) {
+    throw new Error('Gemini API key is not configured');
+  }
+
   const controller = new AbortController();
   const timeoutMs = Number(process.env.GEMINI_TIMEOUT_MS || 120000);
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -145,7 +255,7 @@ async function generateWithGemini(prompt, maxTokens, responseSchema) {
   let response;
   try {
     response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${effectiveModel}:generateContent?key=${effectiveKey}`,
       {
         method: 'POST',
         headers: {
@@ -233,32 +343,37 @@ function parseJsonResponse(responseText, expectedType, providerLabel) {
   throw new Error(`Unexpected JSON type from ${providerLabel}`);
 }
 
-async function generateJsonArray(prompt, { providerId, maxTokens }) {
+async function generateJsonArray(prompt, { providerId, maxTokens, apiKey, model } = {}) {
   const provider = normalizeProviderId(providerId);
 
-  if (!isProviderConfigured(provider)) {
+  if (!apiKey && !isProviderConfigured(provider)) {
     throw new Error(notConfiguredMessage(provider));
   }
 
+  const effectiveModel = model || getProviderModel(provider);
   const responseText =
     provider === 'gemini'
-      ? await generateWithGemini(prompt, maxTokens)
-      : await generateWithAnthropic(prompt, maxTokens);
+      ? await generateWithGemini(prompt, maxTokens, null, apiKey, effectiveModel)
+      : await generateWithAnthropic(prompt, maxTokens, apiKey, effectiveModel);
 
   return parseJsonResponse(responseText, 'array', getProviderConfig(provider).label);
 }
 
-async function generateJsonObject(prompt, { providerId, maxTokens, responseSchema }) {
+async function generateJsonObject(
+  prompt,
+  { providerId, maxTokens, responseSchema, apiKey, model } = {},
+) {
   const provider = normalizeProviderId(providerId);
 
-  if (!isProviderConfigured(provider)) {
+  if (!apiKey && !isProviderConfigured(provider)) {
     throw new Error(notConfiguredMessage(provider));
   }
 
+  const effectiveModel = model || getProviderModel(provider);
   const responseText =
     provider === 'gemini'
-      ? await generateWithGemini(prompt, maxTokens, responseSchema)
-      : await generateWithAnthropic(prompt, maxTokens);
+      ? await generateWithGemini(prompt, maxTokens, responseSchema, apiKey, effectiveModel)
+      : await generateWithAnthropic(prompt, maxTokens, apiKey, effectiveModel);
 
   return parseJsonResponse(responseText, 'object', getProviderConfig(provider).label);
 }
@@ -272,4 +387,5 @@ module.exports = {
   generateJsonObject,
   isProviderConfigured,
   normalizeProviderId,
+  getUserAiExecutionConfig,
 };
