@@ -31,23 +31,24 @@ const CACHE_TTL_MS = 30 * 60 * 1000;
 
 /**
  * Normalizes an external rates map into Finlytix supported currencies.
- * Ensures all supported currencies have positive numeric rates.
+ * Returns null when any supported currency is missing so callers never mix a
+ * live provider snapshot with leftover baseline quotes (Frankfurter/ECB omits
+ * INR, AED, and SGD).
  */
 function normalizeRates(rawRates) {
-  const normalized = { ...BASELINE_RATES };
   if (!rawRates || typeof rawRates !== 'object') {
-    return normalized;
+    return null;
   }
 
+  const normalized = { USD: 1.0 };
   for (const code of SUPPORTED_CURRENCY_CODES) {
+    if (code === 'USD') continue;
     const val = Number(rawRates[code]);
-    if (Number.isFinite(val) && val > 0) {
-      normalized[code] = val;
+    if (!Number.isFinite(val) || val <= 0) {
+      return null;
     }
+    normalized[code] = val;
   }
-
-  // USD benchmark is always 1.0
-  normalized.USD = 1.0;
   return normalized;
 }
 
@@ -85,20 +86,22 @@ async function getLiveRates({ forceRefresh = false } = {}) {
 
     if (res.data && res.data.result === 'success' && res.data.rates) {
       const liveRates = normalizeRates(res.data.rates);
-      const timestamp = new Date().toISOString();
-      memoryCache = {
-        base: 'USD',
-        rates: liveRates,
-        updatedAt: timestamp,
-        source: 'live:open.er-api.com',
-      };
+      if (liveRates) {
+        const timestamp = new Date().toISOString();
+        memoryCache = {
+          base: 'USD',
+          rates: liveRates,
+          updatedAt: timestamp,
+          source: 'live:open.er-api.com',
+        };
 
-      return {
-        base: 'USD',
-        rates: { ...memoryCache.rates },
-        updated_at: timestamp,
-        source: 'live',
-      };
+        return {
+          base: 'USD',
+          rates: { ...memoryCache.rates },
+          updated_at: timestamp,
+          source: 'live',
+        };
+      }
     }
   } catch (err) {
     console.warn(
@@ -116,20 +119,22 @@ async function getLiveRates({ forceRefresh = false } = {}) {
 
     if (res.data && res.data.rates) {
       const liveRates = normalizeRates(res.data.rates);
-      const timestamp = new Date().toISOString();
-      memoryCache = {
-        base: 'USD',
-        rates: liveRates,
-        updatedAt: timestamp,
-        source: 'live:frankfurter.dev',
-      };
+      if (liveRates) {
+        const timestamp = new Date().toISOString();
+        memoryCache = {
+          base: 'USD',
+          rates: liveRates,
+          updatedAt: timestamp,
+          source: 'live:frankfurter.dev',
+        };
 
-      return {
-        base: 'USD',
-        rates: { ...memoryCache.rates },
-        updated_at: timestamp,
-        source: 'live',
-      };
+        return {
+          base: 'USD',
+          rates: { ...memoryCache.rates },
+          updated_at: timestamp,
+          source: 'live',
+        };
+      }
     }
   } catch (err) {
     console.warn(

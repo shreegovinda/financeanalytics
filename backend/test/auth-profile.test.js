@@ -364,10 +364,10 @@ test('PUT /me rejects duplicate email with HTTP 400', async () => {
   }
 });
 
-test('PUT /me updates email successfully and returns refreshed token', async () => {
-  let updatedEmail = null;
+test('PUT /me rejects email change without ownership verification', async () => {
+  let updated = false;
   const pool = {
-    async query(sql, params) {
+    async query(sql) {
       if (sql.includes('SELECT phone')) {
         return {
           rows: [
@@ -383,24 +383,8 @@ test('PUT /me updates email successfully and returns refreshed token', async () 
       if (sql.includes('SELECT id FROM users WHERE LOWER(email)')) {
         return { rows: [] };
       }
-      if (sql.includes('SELECT id FROM users WHERE phone_hash')) {
-        return { rows: [] };
-      }
       if (sql.includes('UPDATE users')) {
-        updatedEmail = params[3];
-        return {
-          rows: [
-            {
-              id: 'user-1',
-              email: params[3],
-              name: 'Updated User',
-              phone: '+919876543210',
-              token_version: 0,
-            },
-          ],
-        };
-      }
-      if (sql.includes('SELECT provider')) {
+        updated = true;
         return { rows: [] };
       }
       return { rows: [] };
@@ -414,10 +398,9 @@ test('PUT /me updates email successfully and returns refreshed token', async () 
     const res = createMockRes();
 
     await handler(req, res);
-    assert.equal(res.statusCode, 200);
-    assert.equal(updatedEmail, 'newemail@example.com');
-    assert.equal(res.body.user.email, 'newemail@example.com');
-    assert.ok(res.body.token, 'A refreshed auth token should be returned');
+    assert.equal(res.statusCode, 400);
+    assert.match(res.body.error, /not been verified/);
+    assert.equal(updated, false);
   } finally {
     cleanup();
   }

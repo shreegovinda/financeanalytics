@@ -309,7 +309,6 @@ test('ExchangeRateService converts amounts properly and handles fallback', async
     getLiveRates,
     convertAmount,
     normalizeRates,
-    BASELINE_RATES,
   } = require('../services/exchangeRateService');
 
   const live = await getLiveRates();
@@ -324,10 +323,23 @@ test('ExchangeRateService converts amounts properly and handles fallback', async
   const convertedZero = convertAmount(0, 'USD', 'INR');
   assert.equal(convertedZero, 0);
 
-  // Normalize rates
-  const customNormalized = normalizeRates({ INR: 90, EUR: 0.9 });
-  assert.equal(customNormalized.USD, 1.0);
-  assert.equal(customNormalized.INR, 90);
-  assert.equal(customNormalized.EUR, 0.9);
-  assert.equal(customNormalized.GBP, BASELINE_RATES.GBP);
+  // Incomplete provider snapshots must not be mixed with baseline quotes
+  const incompleteNormalized = normalizeRates({ INR: 90, EUR: 0.9 });
+  assert.equal(incompleteNormalized, null);
+
+  const completeNormalized = normalizeRates({
+    INR: 90,
+    EUR: 0.9,
+    GBP: 0.8,
+    AED: 3.67,
+    SGD: 1.34,
+    CAD: 1.4,
+    AUD: 1.5,
+    JPY: 150,
+  });
+  assert.equal(completeNormalized.USD, 1.0);
+  assert.equal(completeNormalized.INR, 90);
+  assert.equal(completeNormalized.EUR, 0.9);
+  assert.equal(completeNormalized.GBP, 0.8);
+  assert.equal(completeNormalized.AED, 3.67);
 });

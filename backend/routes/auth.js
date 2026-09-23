@@ -611,6 +611,13 @@ router.put('/me', authenticateToken, async (req, res) => {
             .status(400)
             .json({ error: 'Email address is already in use by another account.' });
         }
+        // Do not persist a new inbox as the login/recovery address. A stolen
+        // session could otherwise redirect password reset and OTP delivery
+        // without proving the caller controls the new address.
+        return res.status(400).json({
+          error:
+            'Email cannot be changed from profile settings because the new address has not been verified.',
+        });
       }
     }
 
