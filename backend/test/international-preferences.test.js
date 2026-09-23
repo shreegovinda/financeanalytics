@@ -275,3 +275,59 @@ test('PUT /me rejects invalid currency, timezone, or locale formats', async () =
     cleanup();
   }
 });
+
+test('GET /exchange-rates returns live/benchmarked exchange rates', async () => {
+  const restoreAuth = mockModule('../middleware/auth', (req, _res, next) => next());
+  const analyticsPath = require.resolve('../routes/analytics');
+  delete require.cache[analyticsPath];
+  const analyticsRouter = require('../routes/analytics');
+
+  try {
+    const res = await invokeRoute(analyticsRouter, 'GET', '/exchange-rates', {
+      user: { id: 'test-user-id' },
+      headers: { authorization: 'Bearer test-token' },
+    });
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.base, 'USD');
+    assert.equal(res.body.rates.USD, 1.0);
+    assert.equal(typeof res.body.rates.INR, 'number');
+    assert.ok(res.body.rates.INR > 0);
+    assert.equal(typeof res.body.rates.EUR, 'number');
+    assert.ok(res.body.rates.EUR > 0);
+    assert.equal(typeof res.body.rates.GBP, 'number');
+    assert.ok(res.body.rates.GBP > 0);
+    assert.ok(res.body.updated_at);
+  } finally {
+    delete require.cache[analyticsPath];
+    restoreAuth();
+  }
+});
+
+test('ExchangeRateService converts amounts properly and handles fallback', async () => {
+  const {
+    getLiveRates,
+    convertAmount,
+    normalizeRates,
+    BASELINE_RATES,
+  } = require('../services/exchangeRateService');
+
+  const live = await getLiveRates();
+  assert.equal(live.base, 'USD');
+  assert.equal(live.rates.USD, 1.0);
+  assert.ok(live.rates.INR > 0);
+
+  // Conversion tests
+  const convertedUsdToUsd = convertAmount(100, 'USD', 'USD');
+  assert.equal(convertedUsdToUsd, 100);
+
+  const convertedZero = convertAmount(0, 'USD', 'INR');
+  assert.equal(convertedZero, 0);
+
+  // Normalize rates
+  const customNormalized = normalizeRates({ INR: 90, EUR: 0.9 });
+  assert.equal(customNormalized.USD, 1.0);
+  assert.equal(customNormalized.INR, 90);
+  assert.equal(customNormalized.EUR, 0.9);
+  assert.equal(customNormalized.GBP, BASELINE_RATES.GBP);
+});

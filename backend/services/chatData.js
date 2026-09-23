@@ -1,5 +1,6 @@
 const guide = require('./productGuide');
 const { safeDecrypt } = require('./crypto');
+const { getActivitySummary } = require('./activityLogService');
 const tools = new Set([
   'finance',
   'statements',
@@ -8,6 +9,7 @@ const tools = new Set([
   'bills',
   'payments',
   'product',
+  'activity',
 ]);
 const groups = {
   month: "to_char(t.date,'YYYY-MM')",
@@ -28,6 +30,8 @@ function validateRequest(input) {
     'groupBy',
     'sort',
     'offset',
+    'action',
+    'limit',
   ]);
   if (
     typeof args !== 'object' ||
@@ -45,7 +49,7 @@ function validateRequest(input) {
   }
   if (args.startDate && args.endDate && args.startDate > args.endDate)
     throw new Error('Invalid date range');
-  for (const key of ['bank', 'search', 'category'])
+  for (const key of ['bank', 'search', 'category', 'action'])
     if (args[key] !== undefined && (typeof args[key] !== 'string' || args[key].length > 120))
       throw new Error('Invalid search filter');
   if (args.type && !['debit', 'credit'].includes(args.type))
@@ -65,12 +69,36 @@ async function runTool(client, userId, input) {
   const { tool, args } = validateRequest(input);
   const query = async (sql, params = [userId]) => (await client.query(sql, params)).rows;
   if (tool === 'product') return { tool, data: guide };
+  if (tool === 'activity') {
+    const summary = await getActivitySummary(client, userId);
+    return {
+      tool,
+      summary: {
+        total_logs_count: summary.total_logs,
+        password_changes_count: summary.password_changes_count,
+        last_password_change: summary.last_password_change,
+        password_change_timestamps: summary.password_change_timestamps,
+        password_changes: summary.password_changes,
+        email_changes_count: summary.email_changes_count,
+        last_email_change: summary.last_email_change,
+        email_changes: summary.email_changes,
+        phone_changes_count: summary.phone_changes_count,
+        last_phone_change: summary.last_phone_change,
+        phone_changes: summary.phone_changes,
+        preferences_changes_count: summary.preferences_changes_count,
+        last_preferences_change: summary.last_preferences_change,
+        preferences_changes: summary.preferences_changes,
+      },
+      recent_logs: summary.recent_logs,
+      notice: 'Audit logs do not store or expose passwords, hashes, salts, or credentials.',
+    };
+  }
   if (tool === 'profile')
     return {
       tool,
       data: (
         await query(
-          "SELECT name,email,phone,email_verified,to_char(created_at,'YYYY-MM-DD') AS joined FROM users WHERE id=$1",
+          "SELECT name,email,phone,email_verified,currency,locale,timezone,date_format,time_format,to_char(created_at,'YYYY-MM-DD') AS joined FROM users WHERE id=$1",
         )
       ).map((u) => ({
         ...u,

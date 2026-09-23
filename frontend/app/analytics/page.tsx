@@ -21,6 +21,9 @@ import BackButton from '@/components/BackButton';
 import DateRangePicker from '@/components/DateRangePicker';
 import { apiGet, getErrorMessage } from '@/lib/api';
 import { subscribeFinanceChanges } from '@/lib/financeRefresh';
+import { formatCurrency as formatCurrencyUtil } from '@/lib/formatters';
+import { useUserPreferences } from '@/lib/date';
+import { useTranslation } from '@/lib/translations';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -125,19 +128,17 @@ function getCurrentFyStartYear(): string {
   return String(now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1);
 }
 
-function formatCurrency(value: number): string {
-  return `₹${Number(value || 0).toLocaleString('en-IN', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
-
 function toNumber(value: number | string | null | undefined): number {
   return Number(value || 0);
 }
 
 export default function AnalyticsPage() {
   const router = useRouter();
+  const prefs = useUserPreferences();
+  const { t } = useTranslation();
+  const formatCurrency = (value: number | string): string => prefs.formatMoney(value);
+  const formatChartCurrency = (value: number | string): string =>
+    formatCurrencyUtil(Number(value || 0), prefs.currency, prefs.locale);
   const [periodMode, setPeriodMode] = useState<PeriodMode>('all');
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [fyStartYear, setFyStartYear] = useState(getCurrentFyStartYear());
@@ -280,6 +281,21 @@ export default function AnalyticsPage() {
   const topTrends = trendData.slice(0, 8);
   const periodLabel = appliedRange?.label || 'All time';
 
+  const convertedCategoryData = useMemo(() => {
+    return categoryData.map((c) => ({
+      ...c,
+      value: prefs.convertMoney(toNumber(c.value)),
+    }));
+  }, [categoryData, prefs]);
+
+  const convertedMonthlyData = useMemo(() => {
+    return monthlyData.map((m) => ({
+      ...m,
+      income: prefs.convertMoney(toNumber(m.income)),
+      expenses: prefs.convertMoney(toNumber(m.expenses)),
+    }));
+  }, [monthlyData, prefs]);
+
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_34%),linear-gradient(180deg,#f8fafc_0%,#eef2ff_48%,#f8fafc_100%)]">
       <AuthSessionGuard />
@@ -308,14 +324,25 @@ export default function AnalyticsPage() {
         <section className="overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-blue-950 to-indigo-900 text-white shadow-2xl">
           <div className="grid gap-6 p-6 lg:grid-cols-[1.2fr_0.8fr] lg:p-8">
             <div>
-              <p className="mb-3 inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-blue-100">
-                Analytics controls
-              </p>
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                <span className="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-blue-100">
+                  Analytics Hub
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/40 bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-300">
+                  <span>⚡</span>
+                  <span>
+                    {prefs.currency} ({t('liveRatesActive', 'Live Rates Active')})
+                  </span>
+                </span>
+              </div>
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                Slice your money data by any period.
+                {t('analyticsTitle', 'Financial Analytics')}
               </h2>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100 sm:text-base">
-                View spending by month, financial year, multiple months, or exact custom dates.
+                {t(
+                  'analyticsSubtitle',
+                  'View spending by month, financial year, multiple months, or exact custom dates.',
+                )}
               </p>
             </div>
             <div className="rounded-3xl border border-white/15 bg-white/10 p-5 backdrop-blur">
@@ -481,15 +508,30 @@ export default function AnalyticsPage() {
 
         <section className="grid grid-cols-1 gap-4 md:grid-cols-4">
           {[
-            ['Income', formatCurrency(totals.income), 'text-emerald-600', 'bg-emerald-50'],
-            ['Expenses', formatCurrency(totals.expenses), 'text-red-600', 'bg-red-50'],
             [
-              'Net',
+              t('income', 'Income'),
+              formatCurrency(totals.income),
+              'text-emerald-600',
+              'bg-emerald-50',
+            ],
+            [
+              t('expense', 'Expenses'),
+              formatCurrency(totals.expenses),
+              'text-red-600',
+              'bg-red-50',
+            ],
+            [
+              t('netBalance', 'Net'),
               formatCurrency(totals.net),
               totals.net >= 0 ? 'text-blue-600' : 'text-red-600',
               'bg-blue-50',
             ],
-            ['Transactions', String(totals.count), 'text-slate-800', 'bg-slate-50'],
+            [
+              t('transactions', 'Transactions'),
+              String(totals.count),
+              'text-slate-800',
+              'bg-slate-50',
+            ],
           ].map(([label, value, textClass, bgClass]) => (
             <div key={label} className="rounded-3xl border border-white bg-white/90 p-5 shadow-sm">
               <p className="text-sm font-semibold text-gray-500">{label}</p>
@@ -502,7 +544,7 @@ export default function AnalyticsPage() {
         <section className="grid gap-4 md:grid-cols-3">
           <div className="rounded-3xl border border-blue-100 bg-white p-5 shadow-sm">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">
-              Top Category
+              {t('category', 'Top Category')}
             </p>
             <p className="mt-2 text-xl font-bold text-gray-900">{topCategory?.name || 'No data'}</p>
             <p className="mt-1 text-sm text-gray-500">
@@ -513,7 +555,7 @@ export default function AnalyticsPage() {
           </div>
           <div className="rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-600">
-              Savings Rate
+              {t('savingsRate', 'Savings Rate')}
             </p>
             <p className="mt-2 text-xl font-bold text-gray-900">{totals.savingsRate}%</p>
             <p className="mt-1 text-sm text-gray-500">Income retained in this period.</p>
@@ -537,7 +579,9 @@ export default function AnalyticsPage() {
           <div className="rounded-[1.75rem] border border-gray-100 bg-white/95 p-5 shadow-sm">
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Category Breakdown</h3>
+                <h3 className="text-lg font-bold text-gray-900">
+                  {t('spendingByCategory', 'Category Breakdown')}
+                </h3>
                 <p className="text-sm text-gray-500">Expense mix for {periodLabel}.</p>
               </div>
               <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
@@ -546,11 +590,11 @@ export default function AnalyticsPage() {
             </div>
 
             <div className="flex min-h-96 items-center justify-center">
-              {categoryData.length > 0 ? (
+              {convertedCategoryData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={330}>
                   <PieChart>
                     <Pie
-                      data={categoryData}
+                      data={convertedCategoryData}
                       cx="50%"
                       cy="50%"
                       innerRadius={62}
@@ -561,12 +605,12 @@ export default function AnalyticsPage() {
                       fill="#8884d8"
                       dataKey="value"
                     >
-                      {categoryData.map((_, index) => (
+                      {convertedCategoryData.map((_, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={(value) => formatCurrency(Number(value))}
+                      formatter={(value) => formatChartCurrency(Number(value))}
                       contentStyle={{
                         border: '1px solid #e2e8f0',
                         borderRadius: '16px',
@@ -587,9 +631,9 @@ export default function AnalyticsPage() {
               )}
             </div>
 
-            {categoryData.length > 0 && (
+            {convertedCategoryData.length > 0 && (
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                {categoryData.slice(0, 8).map((item, index) => (
+                {convertedCategoryData.slice(0, 8).map((item, index) => (
                   <div
                     key={item.name}
                     className="flex items-center justify-between rounded-2xl bg-slate-50 px-3 py-2 text-sm"
@@ -602,7 +646,7 @@ export default function AnalyticsPage() {
                       <span className="truncate">{item.name}</span>
                     </span>
                     <span className="font-semibold text-gray-900">
-                      {formatCurrency(toNumber(item.value))}
+                      {formatChartCurrency(toNumber(item.value))}
                     </span>
                   </div>
                 ))}
@@ -613,7 +657,9 @@ export default function AnalyticsPage() {
           <div className="rounded-[1.75rem] border border-gray-100 bg-white/95 p-5 shadow-sm">
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Monthly Flow</h3>
+                <h3 className="text-lg font-bold text-gray-900">
+                  {t('monthlyTrends', 'Monthly Flow')}
+                </h3>
                 <p className="text-sm text-gray-500">Income and expenses over time.</p>
               </div>
               <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
@@ -622,14 +668,14 @@ export default function AnalyticsPage() {
             </div>
 
             <div className="flex min-h-96 items-center justify-center">
-              {monthlyData.length > 0 ? (
+              {convertedMonthlyData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={360}>
-                  <BarChart data={monthlyData} barGap={8}>
+                  <BarChart data={convertedMonthlyData} barGap={8}>
                     <CartesianGrid stroke="#e2e8f0" strokeDasharray="4 4" vertical={false} />
                     <XAxis dataKey="month" axisLine={false} tickLine={false} />
                     <YAxis axisLine={false} tickLine={false} width={72} />
                     <Tooltip
-                      formatter={(value) => formatCurrency(Number(value))}
+                      formatter={(value) => formatChartCurrency(Number(value))}
                       contentStyle={{
                         border: '1px solid #e2e8f0',
                         borderRadius: '16px',

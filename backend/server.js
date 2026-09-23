@@ -77,6 +77,7 @@ app.use('/api/account', accountClosureRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/whatsapp', whatsappWebhookRoutes);
+app.use('/api/activity-logs', require('./routes/activityLogs'));
 
 async function startServer() {
   await initializeDatabase();

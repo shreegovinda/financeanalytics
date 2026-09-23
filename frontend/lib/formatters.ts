@@ -19,6 +19,21 @@ export const SUPPORTED_LOCALES = [
   { code: 'te-IN', label: 'Telugu (India)' },
 ];
 
+export const SUPPORTED_LANGUAGES = [
+  { code: 'en', label: 'English', nativeLabel: 'English' },
+  { code: 'hi', label: 'Hindi', nativeLabel: 'हिन्दी' },
+  { code: 'ta', label: 'Tamil', nativeLabel: 'தமிழ்' },
+  { code: 'te', label: 'Telugu', nativeLabel: 'తెలుగు' },
+  { code: 'bn', label: 'Bengali', nativeLabel: 'বাংলা' },
+  { code: 'mr', label: 'Marathi', nativeLabel: 'मराठी' },
+  { code: 'gu', label: 'Gujarati', nativeLabel: 'ગુજરાતી' },
+  { code: 'kn', label: 'Kannada', nativeLabel: 'ಕನ್ನಡ' },
+  { code: 'ml', label: 'Malayalam', nativeLabel: 'മലയാളം' },
+  { code: 'es', label: 'Spanish', nativeLabel: 'Español' },
+  { code: 'fr', label: 'French', nativeLabel: 'Français' },
+  { code: 'de', label: 'German', nativeLabel: 'Deutsch' },
+];
+
 export const SUPPORTED_TIMEZONES = [
   { code: 'Asia/Kolkata', label: 'India Standard Time (IST - Asia/Kolkata)' },
   { code: 'UTC', label: 'Coordinated Universal Time (UTC)' },
@@ -56,6 +71,54 @@ const MONTH_NAMES_SHORT = [
   'Nov',
   'Dec',
 ];
+
+const MONTH_NAMES_FULL = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
+export function formatMonthYear(monthStr?: string | null): string {
+  if (!monthStr) return '—';
+  const match = String(monthStr)
+    .trim()
+    .match(/^(\d{4})-(\d{2})/);
+  if (!match) return String(monthStr);
+  const year = match[1];
+  const monthIdx = parseInt(match[2], 10) - 1;
+  const fullMonth = MONTH_NAMES_FULL[monthIdx] || match[2];
+  return `${fullMonth} ${year}`;
+}
+
+export function hasTimeComponent(dateInput: string | Date | number | null | undefined): boolean {
+  if (!dateInput) return false;
+  if (typeof dateInput === 'string') {
+    const trimmed = dateInput.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed) || /^\d{1,2}[/-]\d{1,2}[/-]\d{4}$/.test(trimmed)) {
+      return false;
+    }
+    return trimmed.includes('T') || trimmed.includes(':');
+  }
+  if (dateInput instanceof Date) {
+    if (isNaN(dateInput.getTime())) return false;
+    return (
+      dateInput.getHours() !== 0 || dateInput.getMinutes() !== 0 || dateInput.getSeconds() !== 0
+    );
+  }
+  if (typeof dateInput === 'number') {
+    return true;
+  }
+  return false;
+}
 
 export function formatCustomDate(
   dateInput: string | Date | number | null | undefined,

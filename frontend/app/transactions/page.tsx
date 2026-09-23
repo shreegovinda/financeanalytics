@@ -13,7 +13,8 @@ import 'ag-grid-community/styles/ag-theme-quartz.css';
 import AuthSessionGuard from '@/components/AuthSessionGuard';
 import BackButton from '@/components/BackButton';
 import { apiGet, apiPut, getErrorMessage } from '@/lib/api';
-import { formatDate } from '@/lib/date';
+import { formatDate, useUserPreferences } from '@/lib/date';
+import { useTranslation } from '@/lib/translations';
 import DateRangePicker from '@/components/DateRangePicker';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -264,6 +265,8 @@ function getIsoRange(mode: FilterMode): { start: string; end: string } | null {
 
 export default function TransactionsPage() {
   const router = useRouter();
+  const prefs = useUserPreferences();
+  const { t } = useTranslation();
   const gridRef = useRef<AgGridReact<TxnRow>>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -381,7 +384,7 @@ export default function TransactionsPage() {
           description: t.description,
           type: t.type,
           amount: Number(t.amount),
-          amountDisplay: `${t.type === 'credit' ? '+' : '-'}₹${Number(t.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          amountDisplay: `${t.type === 'credit' ? '+' : '-'} ${prefs.formatMoney(t.amount)}`,
           categoryId: t.category_id ?? '',
           parentName: parent?.name ?? '',
           parentColor: parent?.color ?? '#9ca3af',
@@ -391,7 +394,7 @@ export default function TransactionsPage() {
           hasBill: Boolean(t.has_bill),
         };
       }),
-    [transactions, resolveCats],
+    [transactions, resolveCats, prefs],
   );
 
   // ── Derived summary stats ───────────────────────────────────────────────────
@@ -474,7 +477,7 @@ export default function TransactionsPage() {
     () => [
       {
         field: 'dateDisplay',
-        headerName: 'Date',
+        headerName: t('date', 'Date'),
         width: 120,
         sortable: true,
         filter: 'agTextColumnFilter',
@@ -483,7 +486,7 @@ export default function TransactionsPage() {
       },
       {
         field: 'description',
-        headerName: 'Description',
+        headerName: t('description', 'Description'),
         flex: 2,
         sortable: true,
         filter: 'agTextColumnFilter',
@@ -491,7 +494,7 @@ export default function TransactionsPage() {
       },
       {
         field: 'parentName',
-        headerName: 'Category',
+        headerName: t('category', 'Category'),
         width: 150,
         sortable: true,
         filter: 'agTextColumnFilter',
@@ -507,7 +510,7 @@ export default function TransactionsPage() {
       },
       {
         field: 'type',
-        headerName: 'Type',
+        headerName: t('type', 'Type'),
         width: 110,
         sortable: true,
         filter: 'agTextColumnFilter',
@@ -515,7 +518,7 @@ export default function TransactionsPage() {
       },
       {
         field: 'amount',
-        headerName: 'Amount',
+        headerName: t('amount', 'Amount'),
         width: 140,
         sortable: true,
         filter: 'agNumberColumnFilter',
@@ -530,14 +533,14 @@ export default function TransactionsPage() {
         cellRenderer: BillCellRenderer,
       },
       {
-        headerName: 'Action',
+        headerName: t('actions', 'Action'),
         width: 90,
         sortable: false,
         filter: false,
         cellRenderer: EditCellRenderer,
       },
     ],
-    [],
+    [t],
   );
 
   const defaultColDef = useMemo<ColDef>(
@@ -660,42 +663,27 @@ export default function TransactionsPage() {
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <p className="text-xs text-gray-500 mb-1">Income</p>
-              <p className="text-xl font-bold text-green-600">
-                ₹
-                {stats.income.toLocaleString('en-IN', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </p>
+              <p className="text-xs text-gray-500 mb-1">{t('income', 'Income')}</p>
+              <p className="text-xl font-bold text-green-600">{prefs.formatMoney(stats.income)}</p>
               <p className="text-xs text-gray-400 mt-1">{periodLabel}</p>
             </div>
             <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <p className="text-xs text-gray-500 mb-1">Expenses</p>
-              <p className="text-xl font-bold text-red-600">
-                ₹
-                {stats.expenses.toLocaleString('en-IN', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </p>
+              <p className="text-xs text-gray-500 mb-1">{t('expense', 'Expenses')}</p>
+              <p className="text-xl font-bold text-red-600">{prefs.formatMoney(stats.expenses)}</p>
               <p className="text-xs text-gray-400 mt-1">{periodLabel}</p>
             </div>
             <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <p className="text-xs text-gray-500 mb-1">Net Savings</p>
+              <p className="text-xs text-gray-500 mb-1">{t('netBalance', 'Net Savings')}</p>
               <p
                 className={`text-xl font-bold ${stats.net >= 0 ? 'text-blue-600' : 'text-red-500'}`}
               >
-                {stats.net >= 0 ? '+' : ''}₹
-                {Math.abs(stats.net).toLocaleString('en-IN', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
+                {stats.net >= 0 ? '+' : ''}
+                {prefs.formatMoney(stats.net)}
               </p>
               <p className="text-xs text-gray-400 mt-1">{periodLabel}</p>
             </div>
             <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <p className="text-xs text-gray-500 mb-1">Transactions</p>
+              <p className="text-xs text-gray-500 mb-1">{t('transactions', 'Transactions')}</p>
               <p className="text-xl font-bold text-gray-800">{stats.count}</p>
               <p className="text-xs text-gray-400 mt-1">{periodLabel}</p>
             </div>
@@ -706,7 +694,9 @@ export default function TransactionsPage() {
         {!loading && categoryBreakdown.length > 0 && (
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-semibold text-gray-700">Spending by Category</p>
+              <p className="text-sm font-semibold text-gray-700">
+                {t('spendingByCategory', 'Spending by Category')}
+              </p>
               <p className="text-xs text-gray-400">{periodLabel} · debits only</p>
             </div>
             <div className="space-y-3">
@@ -727,11 +717,7 @@ export default function TransactionsPage() {
                       <div className="flex items-center gap-3">
                         <span className="text-xs text-gray-400">{share}%</span>
                         <span className="text-sm font-medium text-gray-800">
-                          ₹
-                          {cat.total.toLocaleString('en-IN', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}
+                          {prefs.formatMoney(cat.total)}
                         </span>
                       </div>
                     </div>

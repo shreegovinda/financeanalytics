@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../config/db');
 const authenticateToken = require('../middleware/auth');
 const { getUserDataExport, generateUserDataPdf } = require('../services/exportService');
+const { logActivity } = require('../services/activityLogService');
 
 const router = express.Router();
 
@@ -13,6 +14,15 @@ router.get('/json', authenticateToken, async (req, res) => {
   try {
     const exportData = await getUserDataExport(pool, req.user.id);
     const filename = `finlytix-export-${req.user.id.slice(0, 8)}-${Date.now()}.json`;
+
+    await logActivity(pool, {
+      userId: req.user.id,
+      action: 'DATA_EXPORT',
+      category: 'preferences',
+      description: 'Exported complete user data archive in JSON format',
+      details: { format: 'json' },
+      ip: req.ip,
+    });
 
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
@@ -32,6 +42,15 @@ router.get('/pdf', authenticateToken, async (req, res) => {
     const exportData = await getUserDataExport(pool, req.user.id);
     const pdfBuffer = await generateUserDataPdf(exportData);
     const filename = `finlytix-summary-${req.user.id.slice(0, 8)}-${Date.now()}.pdf`;
+
+    await logActivity(pool, {
+      userId: req.user.id,
+      action: 'DATA_EXPORT',
+      category: 'preferences',
+      description: 'Exported financial ledger summary in PDF format',
+      details: { format: 'pdf' },
+      ip: req.ip,
+    });
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);

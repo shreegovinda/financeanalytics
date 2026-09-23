@@ -399,3 +399,18 @@ ALTER TABLE transactions ALTER COLUMN description TYPE TEXT;
 ALTER TABLE transaction_bills ALTER COLUMN merchant_name TYPE TEXT;
 ALTER TABLE transaction_bills ALTER COLUMN file_name TYPE TEXT;
 ALTER TABLE transaction_line_items ALTER COLUMN description TYPE TEXT;
+
+-- Activity Logs & Audit Trail
+CREATE TABLE IF NOT EXISTS activity_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  action VARCHAR(50) NOT NULL,
+  category VARCHAR(30) NOT NULL DEFAULT 'security',
+  description TEXT NOT NULL,
+  details JSONB DEFAULT '{}'::jsonb,
+  ip_address VARCHAR(45),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_user_created ON activity_logs(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_user_action ON activity_logs(user_id, action);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_user_category ON activity_logs(user_id, category);

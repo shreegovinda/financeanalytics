@@ -3,6 +3,8 @@ const test = require('node:test');
 const { safeDecrypt, computeBlindIndex } = require('../services/crypto');
 const { normalizePhoneNumber } = require('../services/whatsappService');
 
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-key-12345678901234567890';
+
 function mockModule(modulePath, exports) {
   const resolvedPath = require.resolve(modulePath);
   const originalModule = require.cache[resolvedPath];
@@ -307,6 +309,116 @@ test('POST /register records policy consent when valid consent is provided', asy
     assert.equal(recordedConsents[0][3], 'TestBrowser/1.0');
   } finally {
     restoreVerify();
+    cleanup();
+  }
+});
+
+test('PUT /me rejects invalid email format with HTTP 400', async () => {
+  const pool = {
+    async query(sql) {
+      if (sql.includes('SELECT phone')) {
+        return { rows: [{ id: 'user-1', email: 'old@example.com', phone: '+919876543210' }] };
+      }
+      return { rows: [] };
+    },
+  };
+
+  const { router, cleanup } = loadAuthRouter(pool);
+  try {
+    const handler = getRouteHandler(router, 'PUT', '/me');
+    const req = { user: { id: 'user-1' }, body: { email: 'not-an-email' } };
+    const res = createMockRes();
+
+    await handler(req, res);
+    assert.equal(res.statusCode, 400);
+    assert.match(res.body.error, /valid email address/);
+  } finally {
+    cleanup();
+  }
+});
+
+test('PUT /me rejects duplicate email with HTTP 400', async () => {
+  const pool = {
+    async query(sql) {
+      if (sql.includes('SELECT phone')) {
+        return { rows: [{ id: 'user-1', email: 'old@example.com', phone: '+919876543210' }] };
+      }
+      if (sql.includes('SELECT id FROM users WHERE LOWER(email)')) {
+        return { rows: [{ id: 'user-2' }] };
+      }
+      return { rows: [] };
+    },
+  };
+
+  const { router, cleanup } = loadAuthRouter(pool);
+  try {
+    const handler = getRouteHandler(router, 'PUT', '/me');
+    const req = { user: { id: 'user-1' }, body: { email: 'existing@example.com' } };
+    const res = createMockRes();
+
+    await handler(req, res);
+    assert.equal(res.statusCode, 400);
+    assert.match(res.body.error, /already in use/);
+  } finally {
+    cleanup();
+  }
+});
+
+test('PUT /me updates email successfully and returns refreshed token', async () => {
+  let updatedEmail = null;
+  const pool = {
+    async query(sql, params) {
+      if (sql.includes('SELECT phone')) {
+        return {
+          rows: [
+            {
+              id: 'user-1',
+              email: 'old@example.com',
+              phone: '+919876543210',
+              token_version: 0,
+            },
+          ],
+        };
+      }
+      if (sql.includes('SELECT id FROM users WHERE LOWER(email)')) {
+        return { rows: [] };
+      }
+      if (sql.includes('SELECT id FROM users WHERE phone_hash')) {
+        return { rows: [] };
+      }
+      if (sql.includes('UPDATE users')) {
+        updatedEmail = params[3];
+        return {
+          rows: [
+            {
+              id: 'user-1',
+              email: params[3],
+              name: 'Updated User',
+              phone: '+919876543210',
+              token_version: 0,
+            },
+          ],
+        };
+      }
+      if (sql.includes('SELECT provider')) {
+        return { rows: [] };
+      }
+      return { rows: [] };
+    },
+  };
+
+  const { router, cleanup } = loadAuthRouter(pool);
+  try {
+    const handler = getRouteHandler(router, 'PUT', '/me');
+    const req = { user: { id: 'user-1' }, body: { email: 'newemail@example.com' } };
+    const res = createMockRes();
+
+    await handler(req, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(updatedEmail, 'newemail@example.com');
+    assert.equal(res.body.user.email, 'newemail@example.com');
+    assert.ok(res.body.token, 'A refreshed auth token should be returned');
+  } finally {
     cleanup();
   }
 });
