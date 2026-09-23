@@ -7,6 +7,8 @@ import AuthSessionGuard from '@/components/AuthSessionGuard';
 import { apiGet, getErrorMessage } from '@/lib/api';
 import { subscribeFinanceChanges } from '@/lib/financeRefresh';
 import { DashboardSkeleton } from '@/components/Skeleton';
+import { useUserPreferences } from '@/lib/date';
+import { useTranslation } from '@/lib/translations';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -43,6 +45,8 @@ export default function DashboardPage() {
     }
   };
 
+  const prefs = useUserPreferences();
+  const { t } = useTranslation();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<SummaryStats>({
@@ -123,7 +127,7 @@ export default function DashboardPage() {
   const savingsRate =
     totalIncome > 0 ? Math.max(0, Math.round((netBalance / totalIncome) * 100)) : 0;
   const topCategory = categoryData[0]?.name || 'No category yet';
-  const formatCurrency = (value: number): string => `₹${Number(value || 0).toFixed(2)}`;
+  const formatCurrency = (value: number): string => prefs.formatMoney(value);
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_34%),linear-gradient(180deg,#f8fafc_0%,#eef2ff_48%,#f8fafc_100%)]">
@@ -131,8 +135,8 @@ export default function DashboardPage() {
       <header className="sticky top-0 z-30 border-b border-white/70 bg-white/85 shadow-sm backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-4 lg:flex-row lg:justify-between lg:items-center">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-lg">
-              ₹
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-slate-900 text-white shadow-lg text-lg">
+              📈
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-600">
@@ -142,35 +146,41 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <span className="rounded-full bg-blue-50 px-4 py-2 text-sm font-medium text-blue-800">
-              Welcome, {user.name}
-            </span>
             <Link
               href="/settings?tab=profile"
-              aria-label="Edit profile"
-              className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 border border-blue-200 hover:bg-blue-200 transition flex items-center justify-center font-semibold cursor-pointer"
+              aria-label="My Profile & Account"
+              title="Personal profile, phone, security & credentials"
+              className="inline-flex items-center gap-2.5 rounded-full border border-blue-200/80 bg-blue-50/80 py-1.5 pr-4 pl-1.5 text-sm font-medium text-blue-900 shadow-2xs transition-all hover:bg-blue-100/80 hover:shadow-xs active:scale-98 cursor-pointer"
             >
-              {user.name?.trim().charAt(0).toUpperCase() || 'U'}
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white shadow-2xs">
+                {user.name?.trim().charAt(0).toUpperCase() || 'U'}
+              </span>
+              <span>{user.name}</span>
+              <span className="rounded-full bg-blue-200/60 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-blue-800">
+                {t('profile', 'Profile')}
+              </span>
             </Link>
             {user.role === 'admin' && (
               <Link
                 href="/admin"
-                className="px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition cursor-pointer text-sm font-medium shadow-sm"
+                className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700 cursor-pointer"
               >
                 Admin
               </Link>
             )}
             <Link
-              href="/settings"
-              className="px-4 py-2 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition cursor-pointer text-sm font-medium"
+              href="/activity"
+              title="Audit trail and account security activity logs"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-2xs transition hover:bg-slate-50 hover:text-slate-900 active:scale-98 cursor-pointer"
             >
-              Settings
+              <span>📋</span>
+              <span className="hidden sm:inline">{t('activity', 'Activity')}</span>
             </Link>
             <button
               onClick={handleLogout}
-              className="px-4 py-2 bg-white text-red-600 rounded-xl border border-red-200 hover:bg-red-50 transition cursor-pointer"
+              className="rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 cursor-pointer"
             >
-              Logout
+              {t('logout', 'Logout')}
             </button>
           </div>
         </div>
@@ -203,9 +213,17 @@ export default function DashboardPage() {
         <section className="mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-blue-950 to-indigo-900 p-6 text-white shadow-2xl sm:p-8">
           <div className="grid gap-8 lg:grid-cols-[1.25fr_0.75fr] lg:items-center">
             <div>
-              <p className="mb-3 inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-blue-100">
-                Money Command Center
-              </p>
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                <span className="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-blue-100">
+                  Finlytix Hub
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/40 bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-300">
+                  <span>⚡</span>
+                  <span>
+                    {prefs.currency} ({t('liveRatesActive', 'Live Rates Active')})
+                  </span>
+                </span>
+              </div>
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
                 Your financial picture, beautifully organized.
               </h2>
@@ -216,20 +234,20 @@ export default function DashboardPage() {
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link
                   href="/statements"
-                  className="rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-950 shadow-lg transition hover:bg-blue-50"
+                  className="rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-950 shadow-lg transition hover:bg-blue-50 cursor-pointer"
                 >
-                  Upload Statement
+                  {t('uploadStatement', 'Upload Statement')}
                 </Link>
                 <Link
                   href="/transactions"
-                  className="rounded-2xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/20"
+                  className="rounded-2xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/20 cursor-pointer"
                 >
-                  Review Transactions
+                  {t('transactions', 'Review Transactions')}
                 </Link>
               </div>
             </div>
             <div className="rounded-3xl border border-white/15 bg-white/10 p-5 backdrop-blur">
-              <p className="text-sm text-blue-100">Net Balance</p>
+              <p className="text-sm text-blue-100">{t('netBalance', 'Net Balance')}</p>
               <p
                 className={`mt-2 text-4xl font-bold ${netBalance >= 0 ? 'text-emerald-300' : 'text-red-300'}`}
               >
@@ -237,11 +255,11 @@ export default function DashboardPage() {
               </p>
               <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
                 <div className="rounded-2xl bg-white/10 p-3">
-                  <p className="text-blue-100">Savings Rate</p>
+                  <p className="text-blue-100">{t('savingsRate', 'Savings Rate')}</p>
                   <p className="mt-1 text-xl font-bold">{savingsRate}%</p>
                 </div>
                 <div className="rounded-2xl bg-white/10 p-3">
-                  <p className="text-blue-100">Transactions</p>
+                  <p className="text-blue-100">{t('transactions', 'Transactions')}</p>
                   <p className="mt-1 text-xl font-bold">{totalTransactions}</p>
                 </div>
               </div>
@@ -252,7 +270,9 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <div className="group rounded-3xl border border-emerald-100 bg-white/90 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
             <div className="mb-5 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-600">Total Income</h3>
+              <h3 className="text-sm font-semibold text-gray-600">
+                {t('totalIncome', 'Total Income')}
+              </h3>
               <span className="rounded-2xl bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
                 Credit
               </span>
@@ -262,7 +282,9 @@ export default function DashboardPage() {
           </div>
           <div className="group rounded-3xl border border-red-100 bg-white/90 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
             <div className="mb-5 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-600">Total Expenses</h3>
+              <h3 className="text-sm font-semibold text-gray-600">
+                {t('totalExpenses', 'Total Expenses')}
+              </h3>
               <span className="rounded-2xl bg-red-50 px-3 py-1 text-xs font-bold text-red-700">
                 Debit
               </span>
@@ -272,7 +294,9 @@ export default function DashboardPage() {
           </div>
           <div className="group rounded-3xl border border-indigo-100 bg-white/90 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
             <div className="mb-5 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-600">Net Balance</h3>
+              <h3 className="text-sm font-semibold text-gray-600">
+                {t('netBalance', 'Net Balance')}
+              </h3>
               <span className="rounded-2xl bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700">
                 {netBalance >= 0 ? 'Positive' : 'Negative'}
               </span>
@@ -304,7 +328,9 @@ export default function DashboardPage() {
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600 text-xl text-white shadow-lg">
                 📤
               </div>
-              <h3 className="font-semibold text-indigo-700">Upload Statement</h3>
+              <h3 className="font-semibold text-indigo-700">
+                {t('uploadStatement', 'Upload Statement')}
+              </h3>
               <p className="mt-2 text-sm text-gray-600">Import verified PDF or XLSX statements.</p>
             </Link>
             <Link
@@ -314,7 +340,9 @@ export default function DashboardPage() {
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-xl text-white shadow-lg">
                 📋
               </div>
-              <h3 className="font-semibold text-blue-700">View Transactions</h3>
+              <h3 className="font-semibold text-blue-700">
+                {t('transactions', 'View Transactions')}
+              </h3>
               <p className="mt-2 text-sm text-gray-600">Search, review, and tune categories.</p>
             </Link>
             <Link
@@ -324,7 +352,9 @@ export default function DashboardPage() {
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-600 text-xl text-white shadow-lg">
                 📊
               </div>
-              <h3 className="font-semibold text-emerald-700">Analytics Studio</h3>
+              <h3 className="font-semibold text-emerald-700">
+                {t('analytics', 'Analytics Studio')}
+              </h3>
               <p className="mt-2 text-sm text-gray-600">
                 Explore month, FY, and custom date insights.
               </p>

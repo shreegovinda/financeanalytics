@@ -7,7 +7,7 @@ async function page(pool, userId, before) {
     throw error;
   }
   const { rows } = await pool.query(
-    'SELECT role, content, result, sequence FROM chat_messages WHERE user_id=$1 AND ($2::bigint IS NULL OR sequence<$2) ORDER BY sequence DESC LIMIT 101',
+    'SELECT role, content, result, sequence, created_at FROM chat_messages WHERE user_id=$1 AND ($2::bigint IS NULL OR sequence<$2) ORDER BY sequence DESC LIMIT 101',
     [userId, before || null],
   );
   const messages = rows
@@ -26,6 +26,7 @@ async function page(pool, userId, before) {
         ...m,
         content: safeDecrypt(m.content),
         result: res,
+        created_at: m.created_at,
       };
     });
   return { messages, before: rows.length > 100 ? String(messages[0].sequence) : null };

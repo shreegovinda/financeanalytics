@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import PhoneInput from '@/components/PhoneInput';
 import { authAPI } from '@/lib/api';
 import axios from 'axios';
 
@@ -131,8 +132,13 @@ export default function UnifiedAuthPage() {
     setLoading(true);
     setError('');
 
+    const cleanEmail = email.trim().toLowerCase();
+    setEmail(cleanEmail);
+
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/auth/check-email`, { email });
+      const response = await axios.post(`${API_BASE_URL}/api/auth/check-email`, {
+        email: cleanEmail,
+      });
       if (response.data.exists) {
         setExistingUserName(response.data.user.name);
         setStep('login');
@@ -154,8 +160,10 @@ export default function UnifiedAuthPage() {
     setError('');
     setSuccess('');
 
+    const cleanEmail = email.trim().toLowerCase();
+
     try {
-      const response = await authAPI.login(email, password);
+      const response = await authAPI.login(cleanEmail, password);
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
       setSuccess('Login successful! Redirecting...');
@@ -170,7 +178,7 @@ export default function UnifiedAuthPage() {
         setSuccess('');
         return;
       }
-      setError(apiError.response?.data?.error || 'Invalid password');
+      setError(apiError.response?.data?.error || 'Invalid credentials');
     } finally {
       setLoading(false);
     }
@@ -352,10 +360,14 @@ export default function UnifiedAuthPage() {
     setError('');
     setSuccess('');
 
+    const cleanEmail = email.trim().toLowerCase();
+
     try {
-      await axios.post(`${API_BASE_URL}/api/auth/forgot-password/send-otp`, { email });
+      await axios.post(`${API_BASE_URL}/api/auth/forgot-password/send-otp`, {
+        email: cleanEmail,
+      });
       setResetOtpSent(true);
-      setSuccess(`Password reset OTP sent to ${email}.`);
+      setSuccess(`Password reset OTP sent to ${cleanEmail}.`);
     } catch (err: unknown) {
       const apiError = err as APIError;
       setError(apiError.response?.data?.error || 'Failed to send password reset OTP');
@@ -381,9 +393,11 @@ export default function UnifiedAuthPage() {
 
     setLoading(true);
 
+    const cleanEmail = email.trim().toLowerCase();
+
     try {
       await axios.post(`${API_BASE_URL}/api/auth/forgot-password/reset`, {
-        email,
+        email: cleanEmail,
         otp: resetOtpCode,
         newPassword: resetPassword,
       });
@@ -1066,28 +1080,12 @@ export default function UnifiedAuthPage() {
                 </div>
               </div>
 
-              {/* Mobile number includes a country calling code. */}
+              {/* Mobile number with country calling code selector */}
               <div>
                 <label className="block text-sm font-medium text-gray-200 mb-2">
                   Mobile number (required)
                 </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M17.35 1.47c-.98-.98-2.58-.98-3.56 0l-.88.88c-.39.39-.39 1.02 0 1.41l2.12 2.12c.39.39 1.02.39 1.41 0l.88-.88c.98-.98.98-2.58 0-3.56m-6 5.58l-9.54 9.54c-.39.39-.39 1.02 0 1.41l2.12 2.12c.39.39 1.02.39 1.41 0l9.54-9.54c.39-.39.39-1.02 0-1.41L12.76 7.04c-.39-.39-1.02-.39-1.41 0M6 17.76v2.12h2.12l8.24-8.24-2.12-2.12L6 17.76z" />
-                    </svg>
-                  </div>
-                  <input
-                    type="tel"
-                    required
-                    pattern="\+[1-9][0-9]{7,14}"
-                    autoComplete="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition"
-                    placeholder="+919876543210"
-                  />
-                </div>
+                <PhoneInput value={phone} onChange={setPhone} variant="dark" required />
               </div>
 
               {/* Password Field */}

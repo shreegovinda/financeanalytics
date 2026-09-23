@@ -6,7 +6,8 @@ import AuthSessionGuard from '@/components/AuthSessionGuard';
 import BackButton from '@/components/BackButton';
 import { apiFetch, getErrorMessage } from '@/lib/api';
 import { getAiProviderHeaders } from '@/lib/aiProvider';
-import { formatCurrency } from '@/lib/formatters';
+import { formatDateTime, useUserPreferences } from '@/lib/date';
+import { useTranslation } from '@/lib/translations';
 interface Evidence {
   income: string;
   expenses: string;
@@ -26,6 +27,7 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   result?: Answer;
+  created_at?: string;
 }
 
 const examples = [
@@ -34,9 +36,66 @@ const examples = [
   'Compare my spending by category.',
   'How do I delete a statement?',
 ];
-const money = (value: string) => formatCurrency(value);
+function FormattedText({ text }: { text: string }) {
+  const paragraphs = text.split('\n\n');
+
+  const renderInline = (str: string) => {
+    const parts: (string | React.ReactNode)[] = [];
+    const regex = /(\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*)/g;
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = regex.exec(str)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push(str.substring(lastIndex, match.index));
+      }
+      if (match[2] && match[3]) {
+        let href = match[3].trim();
+        if (href === '/profile') href = '/settings?tab=profile';
+        if (href === '/preferences') href = '/settings?tab=preferences';
+        const isExternal = href.startsWith('http://') || href.startsWith('https://');
+        parts.push(
+          <Link
+            key={match.index}
+            href={href}
+            target={isExternal ? '_blank' : undefined}
+            rel={isExternal ? 'noopener noreferrer' : undefined}
+            className="inline-flex items-center gap-0.5 font-semibold text-indigo-600 underline hover:text-indigo-800 transition-colors cursor-pointer"
+          >
+            {match[2]}
+          </Link>,
+        );
+      } else if (match[4]) {
+        parts.push(
+          <strong key={match.index} className="font-semibold text-slate-900">
+            {match[4]}
+          </strong>,
+        );
+      }
+      lastIndex = regex.lastIndex;
+    }
+    if (lastIndex < str.length) {
+      parts.push(str.substring(lastIndex));
+    }
+    return parts.length > 0 ? parts : str;
+  };
+
+  return (
+    <div className="space-y-2 text-sm leading-7">
+      {paragraphs.map((p, idx) => (
+        <p key={idx} className="whitespace-pre-wrap">
+          {renderInline(p)}
+        </p>
+      ))}
+    </div>
+  );
+}
+
 export default function AssistantPage() {
   const router = useRouter();
+  const prefs = useUserPreferences();
+  const { t } = useTranslation();
+  const money = (value: string | number) => prefs.formatMoney(value);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -147,11 +206,12 @@ export default function AssistantPage() {
       }
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Unable to answer');
+      const nowIso = new Date().toISOString();
       scrollTarget.current = 'latest';
       setMessages((previous) => [
         ...previous,
-        { role: 'user', content: question },
-        { role: 'assistant', content: data.answer, result: data },
+        { role: 'user', content: question, created_at: nowIso },
+        { role: 'assistant', content: data.answer, result: data, created_at: data.asOf || nowIso },
       ]);
     } catch (err) {
       setError(getErrorMessage(err));
@@ -168,7 +228,7 @@ export default function AssistantPage() {
         <BackButton fallbackHref="/dashboard" className="mb-5" />
         <header className="rounded-2xl bg-gradient-to-br from-indigo-700 to-slate-900 p-6 text-white">
           <p className="text-sm text-indigo-200">Your data. Your questions.</p>
-          <h1 className="mt-1 text-3xl font-bold">Ask Finlytix</h1>
+          <h1 className="mt-1 text-3xl font-bold">{t('assistantTitle', 'Ask Finlytix')}</h1>
           <Link href="/help" className="mt-2 inline-block text-sm text-indigo-100 underline">
             Help, privacy and security FAQs
           </Link>
@@ -221,10 +281,27 @@ export default function AssistantPage() {
                   : 'mr-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm'
               }
             >
-              <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
-                {message.role === 'user' ? 'You' : 'Finlytix'}
-              </p>
-              <p className="whitespace-pre-wrap text-sm leading-7">{message.content}</p>
+              <div className="mb-2 flex items-center justify-between gap-3 text-xs font-bold uppercase tracking-wide text-slate-500">
+                <span>{message.role === 'user' ? 'You' : 'Finlytix'}</span>
+                {(message.created_at || message.result?.asOf) && (
+                  <time
+                    dateTime={message.created_at || message.result?.asOf}
+                    className="text-[11px] font-medium normal-case tracking-normal text-slate-400"
+                  >
+                    {formatDateTime(
+                      message.created_at || message.result?.asOf,
+                      prefs.dateFormat,
+                      prefs.timeFormat,
+                      prefs.timezone,
+                    )}
+                  </time>
+                )}
+              </div>
+              {message.role === 'assistant' ? (
+                <FormattedText text={message.content} />
+              ) : (
+                <p className="whitespace-pre-wrap text-sm leading-7">{message.content}</p>
+              )}
               {message.result?.evidence.map((item, i) => (
                 <div key={i} className="mt-4 rounded-xl bg-slate-50 p-4 text-sm">
                   <p className="font-semibold">
@@ -244,32 +321,59 @@ export default function AssistantPage() {
                   </div>
                 </div>
               ))}
-              {Boolean(message.result?.sources.length) && (
-                <nav aria-label="Supporting records" className="mt-4 flex flex-wrap gap-2">
-                  {message.result?.sources.map((source) => (
-                    <Link
-                      key={source.id}
-                      href={source.href}
-                      className="rounded-lg border border-indigo-200 px-3 py-1.5 text-xs text-indigo-700 hover:bg-indigo-50"
-                    >
-                      {source.label}
-                    </Link>
-                  ))}
-                </nav>
+              {Boolean(message.result?.sources?.length) && (
+                <div className="mt-4 border-t border-slate-100 pt-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Referenced Records:
+                  </p>
+                  <nav aria-label="Supporting records" className="flex flex-wrap gap-2">
+                    {message.result?.sources.map((source) => (
+                      <Link
+                        key={source.id}
+                        href={source.href === '/profile' ? '/settings?tab=profile' : source.href}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200/80 bg-indigo-50/70 px-3 py-1.5 text-xs font-medium text-indigo-700 shadow-2xs transition-all hover:bg-indigo-100 hover:text-indigo-900 hover:shadow-xs active:scale-95 cursor-pointer"
+                      >
+                        <svg
+                          className="h-3.5 w-3.5 opacity-75"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                          />
+                        </svg>
+                        {source.label}
+                      </Link>
+                    ))}
+                  </nav>
+                </div>
               )}
               {message.result && (
                 <p className="mt-3 text-xs text-slate-400">
-                  Based on data retrieved at {new Date(message.result.asOf).toLocaleTimeString()}.
-                  Later imports or deletions may change these results.
+                  Based on data retrieved at{' '}
+                  {formatDateTime(
+                    message.result.asOf,
+                    prefs.dateFormat,
+                    prefs.timeFormat,
+                    prefs.timezone,
+                  )}
+                  . Later imports or deletions may change these results.
                 </p>
               )}
             </article>
           ))}
           {pendingQuestion && (
             <article className="ml-8 rounded-2xl bg-indigo-100 p-5">
-              <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
-                You · sending
-              </p>
+              <div className="mb-2 flex items-center justify-between gap-3 text-xs font-bold uppercase tracking-wide text-slate-500">
+                <span>You · sending</span>
+                <span className="text-[11px] font-medium normal-case tracking-normal text-slate-400">
+                  {formatDateTime(new Date(), prefs.dateFormat, prefs.timeFormat, prefs.timezone)}
+                </span>
+              </div>
               <p className="whitespace-pre-wrap text-sm leading-7">{pendingQuestion}</p>
             </article>
           )}
@@ -300,9 +404,17 @@ export default function AssistantPage() {
             value={input}
             maxLength={2000}
             onChange={(event) => setInput(event.target.value)}
-            placeholder="Ask about your finances or how Finlytix works…"
+            placeholder={t('askPlaceholder', 'Ask about your finances or how Finlytix works…')}
             rows={3}
             disabled={busy || loadingHistory}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                if (!busy && !loadingHistory && input.trim()) {
+                  void send();
+                }
+              }
+            }}
             className="w-full resize-none rounded-lg border border-slate-200 p-3 text-sm focus:outline-indigo-500"
           />
           <div className="mt-2 flex items-center justify-between">
@@ -310,16 +422,21 @@ export default function AssistantPage() {
               type="button"
               disabled={busy || loadingHistory || messages.length === 0}
               onClick={() => void deleteHistory()}
-              className="text-sm text-red-600 disabled:opacity-50"
+              className="text-sm text-red-600 disabled:opacity-50 cursor-pointer"
             >
-              Delete saved history
+              {t('delete', 'Delete saved history')}
             </button>
-            <button
-              disabled={busy || loadingHistory || !input.trim()}
-              className="rounded-xl bg-indigo-700 px-5 py-2.5 font-semibold text-white disabled:opacity-50"
-            >
-              {busy ? 'Working…' : 'Send question'}
-            </button>
+            <div className="flex items-center gap-3">
+              <span className="hidden sm:inline text-xs text-slate-400">
+                {t('pressEnterTip', 'Press Enter to submit • Shift + Enter for newline')}
+              </span>
+              <button
+                disabled={busy || loadingHistory || !input.trim()}
+                className="rounded-xl bg-indigo-700 px-5 py-2.5 font-semibold text-white disabled:opacity-50 cursor-pointer transition hover:bg-indigo-800"
+              >
+                {busy ? t('loading', 'Working…') : t('askButton', 'Send question')}
+              </button>
+            </div>
           </div>
           <p className="mt-2 text-xs text-slate-400">
             Your conversation is saved to your account. Verify important figures using the

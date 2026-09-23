@@ -15,6 +15,7 @@ const {
   encryptBuffer,
   decryptBuffer,
 } = require('../services/crypto');
+const { logActivity } = require('../services/activityLogService');
 
 const router = express.Router();
 
@@ -793,6 +794,20 @@ router.post('/', auth, uploadSingleStatement, async (req, res) => {
       }
     }
 
+    await logActivity(pool, {
+      userId: req.user.id,
+      action: 'STATEMENT_UPLOAD',
+      category: 'financial',
+      description: `Uploaded statement "${statement.file_name}" (${statement.bank_name || 'Bank'}, ${transactions.length} transactions extracted)`,
+      details: {
+        statement_id: statement.id,
+        file_name: statement.file_name,
+        bank: statement.bank_name,
+        transactions_count: transactions.length,
+      },
+      ip: req.ip,
+    });
+
     res.status(202).json({
       success: true,
       requiresReview: true,
@@ -969,6 +984,19 @@ router.post('/:statementId/confirm', auth, async (req, res) => {
       imported: txnIds.length,
       message: `${txnIds.length} transactions imported. Categorization has started.`,
     });
+
+    await logActivity(pool, {
+      userId,
+      action: 'STATEMENT_CONFIRM',
+      category: 'financial',
+      description: `Confirmed and imported ${txnIds.length} transactions from statement "${draft.file_name}"`,
+      details: {
+        statement_id: draft.statement_id,
+        file_name: draft.file_name,
+        imported_count: txnIds.length,
+      },
+      ip: req.ip,
+    });
   } catch (err) {
     try {
       await client.query('ROLLBACK');
@@ -1014,8 +1042,8 @@ router.post('/:statementId/discard', auth, async (req, res) => {
 router.get('/', auth, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, bank_name, file_name, to_char(uploaded_at, 'YYYY-MM-DD') as uploaded_at, status, processing_stage,
-              processing_progress, processing_error, to_char(processed_at, 'YYYY-MM-DD') as processed_at,
+      `SELECT id, bank_name, file_name, uploaded_at, status, processing_stage,
+              processing_progress, processing_error, processed_at,
               to_char(statement_month, 'YYYY-MM') as statement_month,
               file_format, detected_bank_name,
               EXISTS(SELECT 1 FROM statement_files f WHERE f.statement_id=statements.id) AS file_available
@@ -1035,10 +1063,10 @@ router.get('/', auth, async (req, res) => {
 router.get('/:statementId', auth, async (req, res) => {
   try {
     const statement = await pool.query(
-      `SELECT id, user_id, bank_name, file_name, to_char(uploaded_at, 'YYYY-MM-DD') as uploaded_at, status,
-              processing_stage, processing_progress, processing_error, to_char(processed_at, 'YYYY-MM-DD') as processed_at,
+      `SELECT id, user_id, bank_name, file_name, uploaded_at, status,
+              processing_stage, processing_progress, processing_error, processed_at,
               to_char(statement_month, 'YYYY-MM') as statement_month,
-              file_format, detected_bank_name, upload_path, ai_provider, to_char(created_at, 'YYYY-MM-DD') as created_at
+              file_format, detected_bank_name, upload_path, ai_provider, created_at
        FROM statements WHERE id = $1 AND user_id = $2`,
       [req.params.statementId, req.user.id],
     );
@@ -1084,6 +1112,18 @@ router.delete('/:statementId', auth, async (req, res) => {
       req.user.id,
     ]);
     await client.query('COMMIT');
+
+    await logActivity(pool, {
+      userId: req.user.id,
+      action: 'STATEMENT_DELETE',
+      category: 'financial',
+      description: `Statement "${statement.rows[0].file_name}" deleted along with transactions`,
+      details: {
+        statement_id: req.params.statementId,
+        file_name: statement.rows[0].file_name,
+      },
+      ip: req.ip,
+    });
 
     res.json({
       success: true,

@@ -1,3 +1,5 @@
+import axios from 'axios';
+
 interface FetchOptions extends RequestInit {
   timeout?: number;
   retries?: number;
@@ -6,6 +8,18 @@ interface FetchOptions extends RequestInit {
 const DEFAULT_TIMEOUT = 10000; // 10 seconds
 const DEFAULT_RETRIES = 2;
 const RETRY_DELAY = 1000; // 1 second
+
+function handleUnauthorized(url: string): void {
+  const isAuthEndpoint = url.includes('/api/auth/');
+  const isAuthPage = typeof window !== 'undefined' && window.location.pathname.startsWith('/auth');
+  if (!isAuthEndpoint && !isAuthPage) {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/auth';
+    }
+  }
+}
 
 async function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -57,18 +71,24 @@ export async function apiGet<T>(url: string, token?: string): Promise<T> {
   });
 
   if (response.status === 401) {
-    // Token expired or invalid - clear session
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/auth';
-    }
-    throw new Error('Session expired. Redirecting to login...');
+    handleUnauthorized(url);
+    const error = await response.json().catch(() => ({}));
+    const err = new Error(error.error || 'Session expired. Please log in.');
+    (err as unknown as { response?: { status?: number; data?: unknown } }).response = {
+      status: 401,
+      data: error,
+    };
+    throw err;
   }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.error || `API error: ${response.status}`);
+    const err = new Error(error.error || `API error: ${response.status}`);
+    (err as unknown as { response?: { status?: number; data?: unknown } }).response = {
+      status: response.status,
+      data: error,
+    };
+    throw err;
   }
 
   return response.json();
@@ -85,18 +105,24 @@ export async function apiPost<T>(url: string, data: unknown, token?: string): Pr
   });
 
   if (response.status === 401) {
-    // Token expired or invalid - clear session
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/auth';
-    }
-    throw new Error('Session expired. Redirecting to login...');
+    handleUnauthorized(url);
+    const error = await response.json().catch(() => ({}));
+    const err = new Error(error.error || 'Invalid credentials or session expired.');
+    (err as unknown as { response?: { status?: number; data?: unknown } }).response = {
+      status: 401,
+      data: error,
+    };
+    throw err;
   }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.error || `API error: ${response.status}`);
+    const err = new Error(error.error || `API error: ${response.status}`);
+    (err as unknown as { response?: { status?: number; data?: unknown } }).response = {
+      status: response.status,
+      data: error,
+    };
+    throw err;
   }
 
   return response.json();
@@ -113,18 +139,24 @@ export async function apiPut<T>(url: string, data: unknown, token?: string): Pro
   });
 
   if (response.status === 401) {
-    // Token expired or invalid - clear session
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/auth';
-    }
-    throw new Error('Session expired. Redirecting to login...');
+    handleUnauthorized(url);
+    const error = await response.json().catch(() => ({}));
+    const err = new Error(error.error || 'Session expired. Please log in.');
+    (err as unknown as { response?: { status?: number; data?: unknown } }).response = {
+      status: 401,
+      data: error,
+    };
+    throw err;
   }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.error || `API error: ${response.status}`);
+    const err = new Error(error.error || `API error: ${response.status}`);
+    (err as unknown as { response?: { status?: number; data?: unknown } }).response = {
+      status: response.status,
+      data: error,
+    };
+    throw err;
   }
 
   return response.json();
@@ -141,17 +173,24 @@ export async function apiPatch<T>(url: string, data: unknown, token?: string): P
   });
 
   if (response.status === 401) {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/auth';
-    }
-    throw new Error('Session expired. Redirecting to login...');
+    handleUnauthorized(url);
+    const error = await response.json().catch(() => ({}));
+    const err = new Error(error.error || 'Session expired. Please log in.');
+    (err as unknown as { response?: { status?: number; data?: unknown } }).response = {
+      status: 401,
+      data: error,
+    };
+    throw err;
   }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.error || `API error: ${response.status}`);
+    const err = new Error(error.error || `API error: ${response.status}`);
+    (err as unknown as { response?: { status?: number; data?: unknown } }).response = {
+      status: response.status,
+      data: error,
+    };
+    throw err;
   }
 
   return response.json();
@@ -166,18 +205,24 @@ export async function apiDelete(url: string, token?: string): Promise<void> {
   });
 
   if (response.status === 401) {
-    // Token expired or invalid - clear session
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/auth';
-    }
-    throw new Error('Session expired. Redirecting to login...');
+    handleUnauthorized(url);
+    const error = await response.json().catch(() => ({}));
+    const err = new Error(error.error || 'Session expired. Please log in.');
+    (err as unknown as { response?: { status?: number; data?: unknown } }).response = {
+      status: 401,
+      data: error,
+    };
+    throw err;
   }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.error || `API error: ${response.status}`);
+    const err = new Error(error.error || `API error: ${response.status}`);
+    (err as unknown as { response?: { status?: number; data?: unknown } }).response = {
+      status: response.status,
+      data: error,
+    };
+    throw err;
   }
 }
 
@@ -211,19 +256,19 @@ export const authAPI = {
     phone?: string,
     consentGiven?: boolean,
   ): Promise<AuthResponse> {
-    const response = await apiPost<AuthResponse['data']>(
+    const response = await axios.post<AuthResponse['data']>(
       `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/auth/register`,
       { email, password, name, phone, consentGiven },
     );
-    return { data: response };
+    return { data: response.data };
   },
 
   async login(email: string, password: string): Promise<AuthResponse> {
-    const response = await apiPost<AuthResponse['data']>(
+    const response = await axios.post<AuthResponse['data']>(
       `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/auth/login`,
       { email, password },
     );
-    return { data: response };
+    return { data: response.data };
   },
 
   async sendWhatsAppOtp(
@@ -259,6 +304,7 @@ export interface UserProfile {
   name: string;
   phone?: string | null;
   phone_verified?: boolean;
+  email_verified?: boolean;
   whatsapp_opt_in?: boolean;
   role?: string;
   locale?: string;
@@ -289,6 +335,7 @@ export const userAPI = {
   async updateProfile(
     data: Partial<{
       name: string;
+      email: string;
       phone: string;
       locale: string;
       timezone: string;
@@ -301,8 +348,8 @@ export const userAPI = {
       ai_key_mode: string;
     }>,
     token: string,
-  ): Promise<{ user: UserProfile }> {
-    return apiPut<{ user: UserProfile }>(
+  ): Promise<{ user: UserProfile; token?: string }> {
+    return apiPut<{ user: UserProfile; token?: string }>(
       `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/auth/me`,
       data,
       token,
@@ -597,6 +644,73 @@ export const adminAPI = {
     return apiPatch<{ success: boolean; report: AdminCrashReport }>(
       `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/admin/crash-reports/${id}`,
       { status },
+      token,
+    );
+  },
+};
+
+export interface ActivityLog {
+  id: string;
+  action: string;
+  category: string;
+  description: string;
+  details?: Record<string, unknown>;
+  ip_address?: string | null;
+  created_at: string;
+}
+
+export interface ActivityLogsResponse {
+  logs: ActivityLog[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export const activityLogAPI = {
+  async getLogs(
+    params: {
+      page?: number;
+      limit?: number;
+      category?: string;
+      action?: string;
+      startDate?: string;
+      endDate?: string;
+      search?: string;
+    } = {},
+    token?: string,
+  ): Promise<ActivityLogsResponse> {
+    const searchParams = new URLSearchParams();
+    if (params.page) searchParams.set('page', String(params.page));
+    if (params.limit) searchParams.set('limit', String(params.limit));
+    if (params.category && params.category !== 'all') searchParams.set('category', params.category);
+    if (params.action && params.action !== 'all') searchParams.set('action', params.action);
+    if (params.startDate) searchParams.set('startDate', params.startDate);
+    if (params.endDate) searchParams.set('endDate', params.endDate);
+    if (params.search) searchParams.set('search', params.search);
+    const queryString = searchParams.toString() ? `?${searchParams.toString()}` : '';
+
+    return apiGet<ActivityLogsResponse>(
+      `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/activity-logs${queryString}`,
+      token,
+    );
+  },
+};
+
+export interface ExchangeRatesResponse {
+  base: string;
+  rates: Record<string, number>;
+  updated_at: string;
+  source?: string;
+}
+
+export const analyticsAPI = {
+  async getExchangeRates(token?: string, forceRefresh = false): Promise<ExchangeRatesResponse> {
+    const query = forceRefresh ? '?refresh=true' : '';
+    return apiGet<ExchangeRatesResponse>(
+      `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/analytics/exchange-rates${query}`,
       token,
     );
   },

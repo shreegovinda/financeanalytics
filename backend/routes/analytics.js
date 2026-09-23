@@ -129,4 +129,17 @@ router.get('/trends', auth, async (req, res) => {
   }
 });
 
+const { getLiveRates } = require('../services/exchangeRateService');
+
+router.get('/exchange-rates', auth, async (req, res) => {
+  try {
+    const force = req.query?.refresh === 'true';
+    const rateData = await getLiveRates({ forceRefresh: force });
+    res.json(rateData);
+  } catch (err) {
+    console.error('Error fetching exchange rates:', err);
+    res.status(500).json({ error: 'Failed to fetch exchange rates' });
+  }
+});
+
 module.exports = router;

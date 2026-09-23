@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { apiGet, apiPost, getErrorMessage } from '@/lib/api';
 import BackButton from '@/components/BackButton';
+import { formatMonthYear, useUserPreferences } from '@/lib/date';
+import { useTranslation } from '@/lib/translations';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -28,19 +30,12 @@ interface StatementDraft {
   transactions: DraftTransaction[];
 }
 
-const currency = (value: number) =>
-  `₹${Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-/**
- * Review screen for an extracted statement.
- *
- * Nothing on this page exists in the transactions table yet — the import is held
- * in staging until Confirm. Discard releases the month so it can be uploaded
- * again.
- */
 export default function StatementPreviewPage() {
   const router = useRouter();
   const params = useParams();
+  const { t } = useTranslation();
+  const prefs = useUserPreferences();
+  const currency = (value: number) => prefs.formatMoney(value);
   const statementId = String(params?.id ?? '');
 
   const [draft, setDraft] = useState<StatementDraft | null>(null);
@@ -137,25 +132,31 @@ export default function StatementPreviewPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="mx-auto max-w-5xl">
-        <BackButton />
+        <BackButton fallbackHref="/statements" label="Back to Statements" />
 
-        <div className="mt-6">
-          <h1 className="text-3xl font-bold text-gray-900">Review before importing</h1>
-          <p className="mt-1 text-gray-600">
-            Your statement and extracted transactions are saved as a draft. Review now or return
-            from Bank Statements later. Analytics update only after you confirm the import.
-          </p>
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="text-3xl font-bold text-gray-900">Review before importing</h1>
+              <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-blue-800">
+                {formatMonthYear(draft.statementMonth)}
+              </span>
+            </div>
+            <p className="mt-1 text-gray-600">
+              Statement for <span className="font-semibold text-gray-800">{draft.bankName}</span> is
+              saved as a draft. Review transactions below or return later.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => router.push('/statements')}
+            className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-2xs transition-all hover:bg-gray-50 active:scale-95 cursor-pointer"
+          >
+            Review later
+          </button>
         </div>
 
-        <button
-          type="button"
-          onClick={() => router.push('/statements')}
-          className="mt-4 rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900"
-        >
-          Review later
-        </button>
-
-        <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           These {draft.transactionCount} transactions are held for review and are not in your
           dashboard or analytics yet.
         </div>
@@ -171,11 +172,27 @@ export default function StatementPreviewPage() {
           />
         </div>
 
-        <div className="mt-6 rounded-lg border border-gray-200 bg-white p-4 text-sm text-gray-700">
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <Detail label="File" value={draft.fileName} />
-            <Detail label="Format" value={draft.fileFormat} />
-            <Detail label="Month" value={draft.statementMonth} />
+        <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-5 text-sm text-gray-700 shadow-xs">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Detail label="File Name" value={draft.fileName} />
+            <div>
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wider text-gray-500">
+                File Type / Format
+              </span>
+              <span
+                className={`inline-flex items-center rounded px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider ${
+                  (draft.fileFormat?.toUpperCase() || 'PDF') === 'PDF'
+                    ? 'border border-red-200 bg-red-50 text-red-700'
+                    : 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+                }`}
+              >
+                {draft.fileFormat?.toUpperCase() || 'PDF'}
+              </span>
+            </div>
+            <Detail
+              label="Statement Period"
+              value={`${formatMonthYear(draft.statementMonth)} (${draft.statementMonth})`}
+            />
             <Detail
               label="Bank"
               value={
@@ -198,10 +215,18 @@ export default function StatementPreviewPage() {
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Date</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Description</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Type</th>
-                  <th className="px-4 py-3 text-right font-semibold text-gray-700">Amount</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                    {t('date', 'Date')}
+                  </th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                    {t('description', 'Description')}
+                  </th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                    {t('type', 'Type')}
+                  </th>
+                  <th className="px-4 py-3 text-right font-semibold text-gray-700">
+                    {t('amount', 'Amount')}
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -239,19 +264,37 @@ export default function StatementPreviewPage() {
             type="button"
             onClick={() => void handleConfirm()}
             disabled={busy !== null}
-            className="flex-1 rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white shadow-xs transition hover:bg-blue-700 active:scale-98 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
           >
-            {busy === 'confirm'
-              ? 'Importing...'
-              : `Confirm import of ${draft.transactionCount} transactions`}
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2.2}
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+            <span>
+              {busy === 'confirm'
+                ? 'Importing...'
+                : `Confirm import of ${draft.transactionCount} transactions`}
+            </span>
           </button>
           <button
             type="button"
             onClick={() => void handleDiscard()}
             disabled={busy !== null}
-            className="rounded-lg border border-red-300 bg-white px-4 py-3 font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-300 bg-white px-5 py-3 font-semibold text-red-700 shadow-xs transition hover:bg-red-50 active:scale-98 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
           >
-            {busy === 'discard' ? 'Discarding...' : 'Discard'}
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2.2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+            <span>{busy === 'discard' ? 'Discarding…' : 'Discard Draft'}</span>
           </button>
         </div>
 

@@ -1,10 +1,37 @@
-import { formatCustomDate, formatCustomDateTime } from '@/lib/formatters';
+import { useState, useEffect } from 'react';
+import {
+  formatCustomDate,
+  formatCustomDateTime,
+  hasTimeComponent,
+  formatMonthYear,
+} from '@/lib/formatters';
+import {
+  getStoredCurrency,
+  getStoredLocale,
+  convertCurrency,
+  formatMoney,
+  CURRENCY_RATES,
+  fetchLiveExchangeRates,
+  getRatesLastUpdated,
+} from './currency';
+import { getStoredLanguage } from './translations';
+
+export {
+  formatMonthYear,
+  getStoredCurrency,
+  getStoredLocale,
+  convertCurrency,
+  formatMoney,
+  CURRENCY_RATES,
+  fetchLiveExchangeRates,
+  getRatesLastUpdated,
+};
 
 type DateInput = string | number | Date | null | undefined;
 
 const padDatePart = (value: number | string): string => String(value).padStart(2, '0');
 
-function getStoredDateFormat(): string {
+export function getStoredDateFormat(): string {
   if (typeof window === 'undefined') return 'DD/MM/YYYY';
   try {
     const raw = localStorage.getItem('user');
@@ -18,7 +45,7 @@ function getStoredDateFormat(): string {
   return 'DD/MM/YYYY';
 }
 
-function getStoredTimeFormat(): string {
+export function getStoredTimeFormat(): string {
   if (typeof window === 'undefined') return '12h';
   try {
     const raw = localStorage.getItem('user');
@@ -32,8 +59,81 @@ function getStoredTimeFormat(): string {
   return '12h';
 }
 
+export function getStoredTimezone(): string {
+  if (typeof window === 'undefined') return 'Asia/Kolkata';
+  try {
+    const raw = localStorage.getItem('user');
+    if (raw) {
+      const user = JSON.parse(raw);
+      if (user?.timezone) return user.timezone;
+    }
+  } catch {
+    // fallback
+  }
+  return 'Asia/Kolkata';
+}
+
+export function notifyPreferencesChanged() {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new Event('finlytix-preferences-updated'));
+}
+
+export function useUserPreferences() {
+  const [prefs, setPrefs] = useState(() => ({
+    dateFormat: getStoredDateFormat(),
+    timeFormat: getStoredTimeFormat(),
+    timezone: getStoredTimezone(),
+    currency: getStoredCurrency(),
+    locale: getStoredLocale(),
+    language: getStoredLanguage(),
+  }));
+  const [ratesUpdated, setRatesUpdated] = useState<string | null>(() => getRatesLastUpdated());
+
+  useEffect(() => {
+    // Hydrate live exchange rates on mount
+    fetchLiveExchangeRates();
+
+    const update = () => {
+      setPrefs({
+        dateFormat: getStoredDateFormat(),
+        timeFormat: getStoredTimeFormat(),
+        timezone: getStoredTimezone(),
+        currency: getStoredCurrency(),
+        locale: getStoredLocale(),
+        language: getStoredLanguage(),
+      });
+      setRatesUpdated(getRatesLastUpdated());
+    };
+    window.addEventListener('finlytix-preferences-updated', update);
+    window.addEventListener('storage', update);
+    return () => {
+      window.removeEventListener('finlytix-preferences-updated', update);
+      window.removeEventListener('storage', update);
+    };
+  }, []);
+
+  const convertMoney = (amount: number, fromCurrency = 'INR') =>
+    convertCurrency(amount, fromCurrency, prefs.currency);
+
+  const formatMoneyAmount = (amount: number | string | null | undefined, fromCurrency = 'INR') =>
+    formatMoney(amount, prefs.currency, fromCurrency, prefs.locale);
+
+  const refreshRates = () => fetchLiveExchangeRates(true);
+
+  return {
+    ...prefs,
+    ratesUpdated,
+    refreshRates,
+    convertMoney,
+    formatMoney: formatMoneyAmount,
+  };
+}
+
 export function formatDate(dateInput: DateInput, formatPreference?: string): string {
   if (!dateInput) return '';
+  if (hasTimeComponent(dateInput)) {
+    return formatDateTime(dateInput, formatPreference);
+  }
   const fmt = formatPreference || getStoredDateFormat();
   return formatCustomDate(dateInput, fmt);
 }
@@ -42,12 +142,13 @@ export function formatDateTime(
   dateInput: DateInput,
   dateFormatPreference?: string,
   timeFormatPreference?: string,
-  timezone = 'Asia/Kolkata',
+  timezone?: string,
 ): string {
   if (!dateInput) return '';
   const dateFmt = dateFormatPreference || getStoredDateFormat();
   const timeFmt = timeFormatPreference || getStoredTimeFormat();
-  return formatCustomDateTime(dateInput, dateFmt, timeFmt, timezone);
+  const tz = timezone || getStoredTimezone();
+  return formatCustomDateTime(dateInput, dateFmt, timeFmt, tz);
 }
 
 export function parseDisplayDateToIso(dateInput: string): string | null {

@@ -1,17 +1,8 @@
 const pool = require('../config/db');
+const { BASELINE_RATES, getCachedRates } = require('./exchangeRateService');
 
-// Exchange rates benchmarked to USD for transparent local currency display
-const CURRENCY_RATES = {
-  USD: 1.0,
-  INR: 86.5,
-  EUR: 0.95,
-  GBP: 0.79,
-  AED: 3.67,
-  SGD: 1.34,
-  CAD: 1.41,
-  AUD: 1.56,
-  JPY: 154.0,
-};
+// Baseline exchange rates benchmarked to USD (backward compatibility)
+const CURRENCY_RATES = BASELINE_RATES;
 
 // Pricing rates benchmarked to public Google Cloud / AWS infrastructure and Gemini / Anthropic API token pricing
 const RATES_USD = {
@@ -52,7 +43,8 @@ async function getUserCostTransparency(userId) {
 
   const user = userRes.rows[0];
   const userCurrency = user.currency || 'INR';
-  const exchangeRate = CURRENCY_RATES[userCurrency] || CURRENCY_RATES.INR;
+  const { rates: currentRates } = getCachedRates();
+  const exchangeRate = currentRates[userCurrency] || currentRates.INR || CURRENCY_RATES.INR;
   const isByok = user.ai_key_mode === 'personal';
   const aiProvider = user.selected_ai_provider || 'gemini';
   const aiModel = user.selected_ai_model || 'gemini-2.5-flash';

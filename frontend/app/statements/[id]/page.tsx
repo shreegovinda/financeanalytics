@@ -5,7 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import AuthSessionGuard from '@/components/AuthSessionGuard';
 import BackButton from '@/components/BackButton';
 import { apiGet, getErrorMessage } from '@/lib/api';
-import { formatDate } from '@/lib/date';
+import { formatDate, formatMonthYear, useUserPreferences } from '@/lib/date';
+import { useTranslation } from '@/lib/translations';
 import StatementProcessingProgress, {
   isStatementProcessing,
 } from '@/components/StatementProcessingProgress';
@@ -16,6 +17,8 @@ interface Statement {
   file_name: string;
   uploaded_at: string;
   status: string;
+  statement_month?: string | null;
+  file_format?: string | null;
   processing_stage?: string | null;
   processing_progress?: number | null;
   processing_error?: string | null;
@@ -34,6 +37,8 @@ interface Transaction {
 export default function StatementDetailsPage() {
   const params = useParams();
   const router = useRouter();
+  const { t } = useTranslation();
+  const prefs = useUserPreferences();
   const [statement, setStatement] = useState<Statement | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -138,16 +143,54 @@ export default function StatementDetailsPage() {
 
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">{statement.bank_name}</h1>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             <div>
-              <p className="text-sm text-gray-600">File Name</p>
-              <p className="text-lg font-medium text-gray-900">{statement.file_name}</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
+                File Name
+              </p>
+              <p
+                className="text-sm font-semibold text-gray-900 truncate"
+                title={statement.file_name}
+              >
+                {statement.file_name}
+              </p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Status</p>
-              <p className="text-lg font-medium">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
+                Period
+              </p>
+              <p className="text-sm font-semibold text-gray-900">
+                {formatMonthYear(statement.statement_month)}
+              </p>
+              {statement.statement_month && (
+                <p className="text-xs text-gray-400">{statement.statement_month}</p>
+              )}
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
+                Format
+              </p>
+              <div>
                 <span
-                  className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  className={`inline-flex items-center rounded px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider ${
+                    (statement.file_format?.toUpperCase() ||
+                      (statement.file_name.endsWith('.xlsx') ? 'XLSX' : 'PDF')) === 'PDF'
+                      ? 'border border-red-200 bg-red-50 text-red-700'
+                      : 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+                  }`}
+                >
+                  {statement.file_format?.toUpperCase() ||
+                    (statement.file_name.endsWith('.xlsx') ? 'XLSX' : 'PDF')}
+                </span>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
+                Status
+              </p>
+              <p className="text-sm font-medium">
+                <span
+                  className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${
                     statement.status === 'completed'
                       ? 'bg-green-100 text-green-800'
                       : statement.status === 'processing'
@@ -155,19 +198,23 @@ export default function StatementDetailsPage() {
                         : 'bg-red-100 text-red-800'
                   }`}
                 >
-                  {statement.status.charAt(0).toUpperCase() + statement.status.slice(1)}
+                  {statement.status}
                 </span>
               </p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Uploaded</p>
-              <p className="text-lg font-medium text-gray-900">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
+                Uploaded
+              </p>
+              <p className="text-sm font-medium text-gray-900">
                 {formatDate(statement.uploaded_at)}
               </p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Transactions</p>
-              <p className="text-lg font-medium text-gray-900">{transactions.length}</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
+                Transactions
+              </p>
+              <p className="text-sm font-semibold text-gray-900">{transactions.length}</p>
             </div>
           </div>
           {statement.status !== 'completed' && (
@@ -180,22 +227,28 @@ export default function StatementDetailsPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-            <p className="text-sm text-gray-600 mb-2">Total Transactions</p>
+            <p className="text-sm text-gray-600 mb-2">{t('transactions', 'Total Transactions')}</p>
             <p className="text-3xl font-bold text-blue-600">{transactions.length}</p>
           </div>
           <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-            <p className="text-sm text-gray-600 mb-2">Total Credits (Income)</p>
-            <p className="text-3xl font-bold text-green-600">₹{totalCredit.toFixed(2)}</p>
+            <p className="text-sm text-gray-600 mb-2">
+              {t('totalIncome', 'Total Credits (Income)')}
+            </p>
+            <p className="text-3xl font-bold text-green-600">{prefs.formatMoney(totalCredit)}</p>
           </div>
           <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-            <p className="text-sm text-gray-600 mb-2">Total Debits (Expenses)</p>
-            <p className="text-3xl font-bold text-red-600">₹{totalDebit.toFixed(2)}</p>
+            <p className="text-sm text-gray-600 mb-2">
+              {t('totalExpenses', 'Total Debits (Expenses)')}
+            </p>
+            <p className="text-3xl font-bold text-red-600">{prefs.formatMoney(totalDebit)}</p>
           </div>
         </div>
 
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">Transactions</h2>
+            <h2 className="text-xl font-semibold text-gray-900">
+              {t('transactions', 'Transactions')}
+            </h2>
           </div>
 
           {transactions.length === 0 ? (
@@ -210,16 +263,16 @@ export default function StatementDetailsPage() {
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                      Date
+                      {t('date', 'Date')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                      Description
+                      {t('description', 'Description')}
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                      Type
+                      {t('type', 'Type')}
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">
-                      Amount
+                      {t('amount', 'Amount')}
                     </th>
                   </tr>
                 </thead>
@@ -244,7 +297,7 @@ export default function StatementDetailsPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
-                        {txn.type === 'credit' ? '+' : '-'}₹{Number(txn.amount).toFixed(2)}
+                        {txn.type === 'credit' ? '+' : '-'} {prefs.formatMoney(txn.amount)}
                       </td>
                     </tr>
                   ))}
