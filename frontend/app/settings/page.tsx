@@ -369,11 +369,6 @@ export default function SettingsPage() {
       addToast('error', 'Name cannot be empty.');
       return;
     }
-    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setError('Please enter a valid email address.');
-      addToast('error', 'Please enter a valid email address.');
-      return;
-    }
     if (phone.trim() && !/^\+[1-9]\d{7,14}$/.test(phone.trim())) {
       setError('A valid mobile number with country code is required.');
       addToast('error', 'A valid mobile number with country code is required.');
@@ -388,7 +383,6 @@ export default function SettingsPage() {
       const res = await userAPI.updateProfile(
         {
           name: name.trim(),
-          email: email.trim().toLowerCase(),
           phone: phone.trim() || undefined,
         },
         token,
@@ -677,9 +671,7 @@ export default function SettingsPage() {
 
   const isProfileDirty = Boolean(
     profile &&
-    (name.trim() !== (profile.name || '').trim() ||
-      email.trim().toLowerCase() !== (profile.email || '').trim().toLowerCase() ||
-      phone.trim() !== (profile.phone || '').trim()),
+    (name.trim() !== (profile.name || '').trim() || phone.trim() !== (profile.phone || '').trim()),
   );
 
   const isPreferencesDirty = Boolean(
@@ -901,9 +893,10 @@ export default function SettingsPage() {
                       <input
                         type="email"
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        readOnly
+                        aria-readonly="true"
                         placeholder="name@example.com"
-                        className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 pr-24"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-700 pr-24 cursor-default"
                       />
                       {profile?.email_verified && email === profile?.email && (
                         <span className="absolute right-2.5 top-2.5 rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
@@ -912,7 +905,8 @@ export default function SettingsPage() {
                       )}
                     </div>
                     <p className="mt-1 text-xs text-gray-400">
-                      Primary email used for sign-in and account recovery.
+                      Primary email used for sign-in and account recovery. It cannot be changed from
+                      profile settings.
                     </p>
                   </div>
 
