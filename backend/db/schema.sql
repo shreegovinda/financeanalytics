@@ -432,6 +432,14 @@ ALTER TABLE user_ai_use_cases ADD COLUMN IF NOT EXISTS validated_at TIMESTAMPTZ;
 ALTER TABLE user_ai_use_cases DROP CONSTRAINT IF EXISTS user_ai_use_cases_provider_check;
 ALTER TABLE user_ai_use_cases ADD CONSTRAINT user_ai_use_cases_provider_check
   CHECK (provider IN ('gemini', 'anthropic', 'openai', 'groq', 'deepseek', 'mistral'));
+INSERT INTO user_ai_use_cases (user_id, use_case, provider, model, key_mode)
+SELECT u.id, feature.use_case, u.selected_ai_provider, u.selected_ai_model, 'saved'
+FROM users u
+JOIN user_ai_keys keys ON keys.user_id=u.id AND keys.provider=u.selected_ai_provider
+CROSS JOIN (VALUES ('text_chat'),('voice_chat'),('statement_extraction'),('categorization'),('bill_extraction'),('whatsapp_chat')) AS feature(use_case)
+WHERE u.ai_key_mode='personal'
+  AND u.selected_ai_provider IN ('gemini','anthropic','openai','groq','deepseek','mistral')
+ON CONFLICT (user_id, use_case) DO NOTHING;
 UPDATE user_ai_use_cases settings SET key_mode='personal', encrypted_key=keys.encrypted_key,
   key_hint=keys.key_hint, validated_at=NULL
 FROM user_ai_keys keys WHERE settings.key_mode='saved'

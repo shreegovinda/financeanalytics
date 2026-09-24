@@ -50,7 +50,7 @@ async function handleWhatsAppChatMessage(fromPhone, messageText, messageId) {
     // 3. Retrieve recent history for conversational memory
     let history = [];
     try {
-      const historyRes = await chatHistory.page(pool, user.id);
+      const historyRes = await chatHistory.page(pool, user.id, undefined, 'legacy');
       if (historyRes && Array.isArray(historyRes.messages)) {
         history = historyRes.messages.slice(-6).map((m) => ({
           role: m.role === 'user' ? 'user' : 'assistant',
@@ -72,7 +72,7 @@ async function handleWhatsAppChatMessage(fromPhone, messageText, messageId) {
     // 6. Save message exchange in chat history
     try {
       const historyVersion = await chatHistory.version(pool, user.id);
-      await chatHistory.save(pool, user.id, historyVersion, messageText.trim(), result);
+      await chatHistory.save(pool, user.id, historyVersion, messageText.trim(), result, 'legacy');
     } catch (saveErr) {
       console.warn('Failed to persist WhatsApp chat exchange:', saveErr.message);
     }

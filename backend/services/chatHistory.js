@@ -67,8 +67,9 @@ async function remove(pool, userId) {
 }
 async function save(pool, userId, expectedVersion, question, result, conversationId) {
   return mutate(pool, userId, async (client, currentVersion) => {
-    if (currentVersion !== expectedVersion) return false;
     if (conversationId !== undefined) await requireConversation(client, userId, conversationId);
+    if ((!conversationId || conversationId === 'legacy') && currentVersion !== expectedVersion)
+      return false;
     const encQuestion = encrypt(question);
     const encAnswer = encrypt(result.answer || '');
     const encResult = JSON.stringify({ encrypted: encryptJson(result) });

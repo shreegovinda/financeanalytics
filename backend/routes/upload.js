@@ -462,29 +462,35 @@ async function categorizeStatementInBackground({
         effectiveUserId = stmtRes.rows[0]?.user_id;
       }
       if (effectiveUserId) {
-        aiConfig = await resolveUseCase(pool, effectiveUserId, 'categorization');
+        try {
+          aiConfig = await resolveUseCase(pool, effectiveUserId, 'categorization');
+        } catch (err) {
+          if (err.code !== 'AI_SETUP_REQUIRED') throw err;
+        }
       }
 
-      const results = await categorizeBatch(
-        transactions,
-        aiConfig ? aiConfig.providerId : aiProvider,
-        {
-          apiKey: aiConfig ? aiConfig.apiKey : null,
-          model: aiConfig ? aiConfig.model : null,
-        },
-      );
-      const updateClient = await pool.connect();
-      try {
-        for (const result of results) {
-          if (result.transactionIndex < txnIds.length) {
-            await updateClient.query(
-              'UPDATE transactions SET ai_suggested_category = $1 WHERE id = $2',
-              [result.category, txnIds[result.transactionIndex]],
-            );
+      if (aiConfig || !effectiveUserId) {
+        const results = await categorizeBatch(
+          transactions,
+          aiConfig ? aiConfig.providerId : aiProvider,
+          {
+            apiKey: aiConfig ? aiConfig.apiKey : null,
+            model: aiConfig ? aiConfig.model : null,
+          },
+        );
+        const updateClient = await pool.connect();
+        try {
+          for (const result of results) {
+            if (result.transactionIndex < txnIds.length) {
+              await updateClient.query(
+                'UPDATE transactions SET ai_suggested_category = $1 WHERE id = $2',
+                [result.category, txnIds[result.transactionIndex]],
+              );
+            }
           }
+        } finally {
+          updateClient.release();
         }
-      } finally {
-        updateClient.release();
       }
     }
 
