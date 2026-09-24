@@ -1,3 +1,4 @@
+const { resolveUseCase } = require('../services/aiUseCases');
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
@@ -6,7 +7,6 @@ const pool = require('../config/db');
 const auth = require('../middleware/auth');
 const { parseStatement } = require('../services/parsers/generic');
 const { categorizeBatch } = require('../services/claude');
-const { getProviderFromRequest, getUserAiExecutionConfig } = require('../services/ai');
 const {
   encrypt,
   safeDecrypt,
@@ -462,7 +462,7 @@ async function categorizeStatementInBackground({
         effectiveUserId = stmtRes.rows[0]?.user_id;
       }
       if (effectiveUserId) {
-        aiConfig = await getUserAiExecutionConfig(pool, effectiveUserId, aiProvider);
+        aiConfig = await resolveUseCase(pool, effectiveUserId, 'categorization');
       }
 
       const results = await categorizeBatch(
@@ -513,7 +513,7 @@ async function processStatementInBackground({
   try {
     await updateStatementProgress(statementId, 'extracting_text', 20);
 
-    const aiConfig = await getUserAiExecutionConfig(pool, userId, aiProvider);
+    const aiConfig = await resolveUseCase(pool, userId, 'statement_extraction');
     const parsedStatement = await parseStatement(filePath, aiConfig.providerId, {
       apiKey: aiConfig.apiKey,
       model: aiConfig.model,
@@ -674,7 +674,6 @@ router.post('/', auth, uploadSingleStatement, async (req, res) => {
 
   const filePath = req.file.path;
   const userId = req.user.id;
-  const requestedProvider = getProviderFromRequest(req);
 
   try {
     const selectedBank = normalizeSelectedBank(req.body.bank);
@@ -702,7 +701,7 @@ router.post('/', auth, uploadSingleStatement, async (req, res) => {
 
     await ensureMonthNotAlreadyUploaded(pool, userId, selectedBank, selectedMonth);
 
-    const aiConfig = await getUserAiExecutionConfig(pool, userId, requestedProvider);
+    const aiConfig = await resolveUseCase(pool, userId, 'statement_extraction');
     const parsedStatement = await parseStatement(filePath, aiConfig.providerId, {
       expectedBank: selectedBank,
       expectedMonth: selectedMonth,

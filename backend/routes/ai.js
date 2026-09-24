@@ -6,6 +6,41 @@ const { AI_CATALOGUE, isValidProvider, isValidModel } = require('../config/aiCat
 const { encrypt, maskKey } = require('../services/crypto');
 
 const router = express.Router();
+const { listUseCases, saveUseCase } = require('../services/aiUseCases');
+const validationInProgress = new Set();
+
+router.get('/use-cases', authenticateToken, async (req, res) => {
+  try {
+    res.set('Cache-Control', 'no-store').json({ useCases: await listUseCases(pool, req.user.id) });
+  } catch {
+    res.status(500).json({ error: 'Unable to load AI use-case settings.' });
+  }
+});
+router.put('/use-cases/:useCase', authenticateToken, async (req, res) => {
+  if (validationInProgress.has(req.user.id))
+    return res
+      .status(429)
+      .json({ error: 'A model check is already running. Please wait for it to finish.' });
+  validationInProgress.add(req.user.id);
+  try {
+    await saveUseCase(pool, req.user.id, req.params.useCase, req.body || {});
+    res.json({
+      success: true,
+      message: req.body?.clear
+        ? 'Feature disconnected.'
+        : 'Validated and saved. Applies to the next operation; no restart needed.',
+    });
+  } catch (error) {
+    res.status([400, 422].includes(error.status) ? error.status : 500).json({
+      error: [400, 422].includes(error.status)
+        ? error.message
+        : 'Unable to save AI use-case settings.',
+      code: error.code || 'AI_SETTINGS_ERROR',
+    });
+  } finally {
+    validationInProgress.delete(req.user.id);
+  }
+});
 
 /**
  * GET /api/ai/providers

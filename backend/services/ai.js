@@ -1,6 +1,7 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const { jsonrepair } = require('jsonrepair');
 const { decrypt } = require('./crypto');
+const { AI_CATALOGUE } = require('../config/aiCatalogue');
 
 let anthropicClient = null;
 
@@ -19,6 +20,18 @@ const PROVIDERS = {
     modelEnvKey: 'GEMINI_MODEL',
     defaultModel: 'gemini-2.5-flash',
   },
+  ...Object.fromEntries(
+    ['openai', 'groq', 'deepseek', 'mistral'].map((id) => [
+      id,
+      {
+        id,
+        label: AI_CATALOGUE.providers[id].label,
+        envKey: AI_CATALOGUE.providers[id].envKey,
+        modelEnvKey: `${id.toUpperCase()}_MODEL`,
+        defaultModel: AI_CATALOGUE.providers[id].models[0].id,
+      },
+    ]),
+  ),
 };
 
 function getAnthropicClient(apiKey) {
@@ -156,7 +169,10 @@ async function getUserAiExecutionConfig(pool, userId, requestedProviderId = null
   const providerId = requestedProviderId
     ? normalizeProviderId(requestedProviderId)
     : user.selected_ai_provider || 'gemini';
-  const model = user.selected_ai_model || getProviderModel(providerId);
+  const model =
+    providerId === user.selected_ai_provider
+      ? user.selected_ai_model || getProviderModel(providerId)
+      : getProviderModel(providerId);
   const keyMode = user.ai_key_mode || 'admin';
 
   if (keyMode === 'personal') {
@@ -215,24 +231,34 @@ async function getUserAiExecutionConfig(pool, userId, requestedProviderId = null
   };
 }
 
-async function generateWithAnthropic(prompt, maxTokens, apiKey, model) {
+async function generateWithAnthropic(prompt, maxTokens, apiKey, model, timeoutMs = 120000) {
   const effectiveModel = model || getProviderModel('anthropic');
   const client = getAnthropicClient(apiKey);
-  const message = await client.messages.create({
-    model: effectiveModel,
-    max_tokens: maxTokens,
-    messages: [
-      {
-        role: 'user',
-        content: prompt,
-      },
-    ],
-  });
+  const message = await client.messages.create(
+    {
+      model: effectiveModel,
+      max_tokens: maxTokens,
+      messages: [
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+    },
+    { timeout: timeoutMs, maxRetries: 0 },
+  );
 
   return message.content[0].type === 'text' ? message.content[0].text : '';
 }
 
-async function generateWithGemini(prompt, maxTokens, responseSchema, apiKey, model) {
+async function generateWithGemini(
+  prompt,
+  maxTokens,
+  responseSchema,
+  apiKey,
+  model,
+  timeout = null,
+) {
   const effectiveModel = model || getProviderModel('gemini');
   const effectiveKey = apiKey || process.env.GEMINI_API_KEY;
   if (!effectiveKey) {
@@ -240,7 +266,7 @@ async function generateWithGemini(prompt, maxTokens, responseSchema, apiKey, mod
   }
 
   const controller = new AbortController();
-  const timeoutMs = Number(process.env.GEMINI_TIMEOUT_MS || 120000);
+  const timeoutMs = timeout || Number(process.env.GEMINI_TIMEOUT_MS || 120000);
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   const generationConfig = {
     maxOutputTokens: maxTokens,
@@ -255,11 +281,12 @@ async function generateWithGemini(prompt, maxTokens, responseSchema, apiKey, mod
   let response;
   try {
     response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${effectiveModel}:generateContent?key=${effectiveKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(effectiveModel)}:generateContent`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-goog-api-key': effectiveKey,
         },
         signal: controller.signal,
         body: JSON.stringify({
@@ -343,6 +370,58 @@ function parseJsonResponse(responseText, expectedType, providerLabel) {
   throw new Error(`Unexpected JSON type from ${providerLabel}`);
 }
 
+const COMPATIBLE_ENDPOINTS = {
+  openai: 'https://api.openai.com/v1/chat/completions',
+  groq: 'https://api.groq.com/openai/v1/chat/completions',
+  deepseek: 'https://api.deepseek.com/chat/completions',
+  mistral: 'https://api.mistral.ai/v1/chat/completions',
+};
+
+async function generateCompatible(
+  prompt,
+  { providerId, model, apiKey, maxTokens, timeoutMs = 120000, responseSchema },
+) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(COMPATIBLE_ENDPOINTS[providerId], {
+      method: 'POST',
+      redirect: 'error',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey || process.env[PROVIDERS[providerId].envKey]}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          {
+            role: 'user',
+            content: `${prompt}\nReturn a JSON object only.${responseSchema ? '\nRequired output shape: ' + JSON.stringify(responseSchema) : ''}`,
+          },
+        ],
+        max_tokens: maxTokens,
+        response_format: { type: 'json_object' },
+        ...(providerId === 'deepseek' ? { thinking: { type: 'disabled' } } : {}),
+      }),
+    });
+    if (!response.ok) {
+      const error = new Error(`${PROVIDERS[providerId].label} request failed (${response.status})`);
+      error.status = response.status;
+      throw error;
+    }
+    const body = await response.json();
+    if (body.choices?.[0]?.finish_reason === 'length')
+      throw new Error('Incomplete JSON response: token limit reached');
+    return body.choices?.[0]?.message?.content || '';
+  } catch (error) {
+    if (error.name === 'AbortError') throw new Error('AI request timed out');
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function generateJsonArray(prompt, { providerId, maxTokens, apiKey, model } = {}) {
   const provider = normalizeProviderId(providerId);
 
@@ -351,6 +430,14 @@ async function generateJsonArray(prompt, { providerId, maxTokens, apiKey, model 
   }
 
   const effectiveModel = model || getProviderModel(provider);
+  if (COMPATIBLE_ENDPOINTS[provider]) {
+    const object = await generateJsonObject(
+      `${prompt}\nWrap the requested array in a JSON object with exactly one property: {"items": [...]}.`,
+      { providerId: provider, model: effectiveModel, apiKey, maxTokens },
+    );
+    if (!Array.isArray(object.items)) throw new Error('Unexpected JSON array response');
+    return object.items;
+  }
   const responseText =
     provider === 'gemini'
       ? await generateWithGemini(prompt, maxTokens, null, apiKey, effectiveModel)
@@ -361,7 +448,7 @@ async function generateJsonArray(prompt, { providerId, maxTokens, apiKey, model 
 
 async function generateJsonObject(
   prompt,
-  { providerId, maxTokens, responseSchema, apiKey, model } = {},
+  { providerId, maxTokens, responseSchema, apiKey, model, timeoutMs } = {},
 ) {
   const provider = normalizeProviderId(providerId);
 
@@ -370,10 +457,29 @@ async function generateJsonObject(
   }
 
   const effectiveModel = model || getProviderModel(provider);
-  const responseText =
-    provider === 'gemini'
-      ? await generateWithGemini(prompt, maxTokens, responseSchema, apiKey, effectiveModel)
-      : await generateWithAnthropic(prompt, maxTokens, apiKey, effectiveModel);
+  const modelConfig = AI_CATALOGUE.providers[provider]?.models.find(
+    (item) => item.id === effectiveModel,
+  );
+  maxTokens = Math.min(maxTokens || 8192, modelConfig?.maxTokens || 8192);
+  const responseText = COMPATIBLE_ENDPOINTS[provider]
+    ? await generateCompatible(prompt, {
+        providerId: provider,
+        maxTokens,
+        responseSchema,
+        apiKey,
+        model: effectiveModel,
+        timeoutMs,
+      })
+    : provider === 'gemini'
+      ? await generateWithGemini(
+          prompt,
+          maxTokens,
+          responseSchema,
+          apiKey,
+          effectiveModel,
+          timeoutMs,
+        )
+      : await generateWithAnthropic(prompt, maxTokens, apiKey, effectiveModel, timeoutMs);
 
   return parseJsonResponse(responseText, 'object', getProviderConfig(provider).label);
 }

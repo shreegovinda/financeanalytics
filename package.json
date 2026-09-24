@@ -15,6 +15,7 @@
     "format": "npm run format --workspace=backend && npm run format --workspace=frontend",
     "format:check": "npm run format:check --workspace=backend && npm run format:check --workspace=frontend",
     "test": "npm run test --workspace=backend",
+    "test:voice": "node --test frontend/test/voice.test.mjs backend/test/chat.test.js backend/test/chat-history.test.js",
     "test:security": "node --test backend/test/crypto.test.js backend/test/sensitive-data-encryption.test.js",
     "typecheck:mobile": "tsc --noEmit --project mobile/tsconfig.json",
     "typecheck:shared": "npm run build --workspace=shared",

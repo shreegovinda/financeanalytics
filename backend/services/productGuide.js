@@ -3,6 +3,8 @@
 module.exports = {
   faqs: require('../data/faqs.json'),
   version: '2026-09-13',
+  aiUseCaseSettings:
+    'On the web, Settings > AI Models & Keys offers independent provider/model/key settings for text chat, voice answers, statement extraction, transaction categorization, bill extraction, and WhatsApp chat. Each requires its own provider/model and an explicitly selected platform key or encrypted personal key; there are no shared defaults. Models are limited to the administrator catalogue. Voice transcription and playback use browser speech, not a Gemini Live model. Missing dedicated or saved keys do not fall back to platform billing. Validate & save checks model access with a small synthetic prompt before saving and may consume provider quota. Failed validation preserves previous settings. Changes apply to the next operation without restart; running requests retain their original connection.',
   purpose:
     'Finlytix analyses uploaded Indian bank statements. It has no live connection to bank accounts.',
   mobileApp:

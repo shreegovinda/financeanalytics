@@ -414,3 +414,44 @@ CREATE TABLE IF NOT EXISTS activity_logs (
 CREATE INDEX IF NOT EXISTS idx_activity_logs_user_created ON activity_logs(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_activity_logs_user_action ON activity_logs(user_id, action);
 CREATE INDEX IF NOT EXISTS idx_activity_logs_user_category ON activity_logs(user_id, category);
+-- Per-feature AI choices and encrypted dedicated credentials. Account deletion cascades.
+CREATE TABLE IF NOT EXISTS user_ai_use_cases (
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  use_case TEXT NOT NULL CHECK (use_case IN ('text_chat', 'voice_chat', 'statement_extraction', 'categorization', 'bill_extraction', 'whatsapp_chat')),
+  provider TEXT NOT NULL CHECK (provider IN ('gemini', 'anthropic', 'openai', 'groq', 'deepseek', 'mistral')),
+  model TEXT NOT NULL,
+  key_mode TEXT NOT NULL CHECK (key_mode IN ('admin', 'saved', 'personal')),
+  encrypted_key TEXT,
+  key_hint TEXT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, use_case),
+  CHECK (key_mode <> 'personal' OR encrypted_key IS NOT NULL)
+);
+
+ALTER TABLE user_ai_use_cases ADD COLUMN IF NOT EXISTS validated_at TIMESTAMPTZ;
+ALTER TABLE user_ai_use_cases DROP CONSTRAINT IF EXISTS user_ai_use_cases_provider_check;
+ALTER TABLE user_ai_use_cases ADD CONSTRAINT user_ai_use_cases_provider_check
+  CHECK (provider IN ('gemini', 'anthropic', 'openai', 'groq', 'deepseek', 'mistral'));
+UPDATE user_ai_use_cases settings SET key_mode='personal', encrypted_key=keys.encrypted_key,
+  key_hint=keys.key_hint, validated_at=NULL
+FROM user_ai_keys keys WHERE settings.key_mode='saved'
+  AND keys.user_id=settings.user_id AND keys.provider=settings.provider;
+
+-- Independent assistant conversations; legacy messages remain available as Saved history.
+CREATE TABLE IF NOT EXISTS chat_conversations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (id, user_id)
+);
+ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS conversation_id UUID;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='chat_messages_conversation_owner_fk') THEN
+    ALTER TABLE chat_messages ADD CONSTRAINT chat_messages_conversation_owner_fk
+      FOREIGN KEY (conversation_id, user_id) REFERENCES chat_conversations(id, user_id) ON DELETE CASCADE;
+  END IF;
+END $$;
+CREATE INDEX IF NOT EXISTS idx_chat_conversations_owner ON chat_conversations(user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_conversation ON chat_messages(user_id, conversation_id, sequence DESC);

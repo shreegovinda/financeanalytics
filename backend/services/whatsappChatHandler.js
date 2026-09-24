@@ -1,7 +1,7 @@
+const { resolveUseCase } = require('./aiUseCases');
 const pool = require('../config/db');
 const { answerQuestion } = require('./chat');
 const chatHistory = require('./chatHistory');
-const { getUserAiExecutionConfig } = require('./ai');
 const { sendTextMessage, normalizePhoneNumber } = require('./whatsappService');
 const { computeBlindIndex, safeDecrypt } = require('./crypto');
 
@@ -62,16 +62,10 @@ async function handleWhatsAppChatMessage(fromPhone, messageText, messageId) {
     }
 
     // 4. Resolve AI model provider preference & keys
-    const aiConfig = await getUserAiExecutionConfig(pool, user.id, user.selected_ai_provider);
+    const aiConfig = await resolveUseCase(pool, user.id, 'whatsapp_chat');
 
     // 5. Query Finlytix AI Assistant engine with tool-calling
-    const result = await answerQuestion(
-      pool,
-      user.id,
-      messageText.trim(),
-      history,
-      aiConfig.providerId,
-    );
+    const result = await answerQuestion(pool, user.id, messageText.trim(), history, aiConfig);
 
     const answer = result.answer || "I couldn't process your request. Please try again.";
 
