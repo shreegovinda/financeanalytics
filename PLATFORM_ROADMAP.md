@@ -10,11 +10,19 @@ Use this Desktop checkout as the source of truth. The older Codex checkout was m
 
 Never commit `.local-migration-backup/`, `.env*`, SMTP credentials, Gemini keys, database dumps, uploaded statements, or generated private reports.
 
-## Current branch
+## Current handover — 24 September 2026
 
-`feature/account-privacy-platform`
+Continue from `feature/assistant-conversations-ai-connections` in this Desktop checkout.
 
-This branch starts from the merged bank-statement and chatbot work from PR #39. It currently contains local uncommitted changes for the next platform phase.
+- Open PR: https://github.com/shreegovinda/financeanalytics/pull/42 (base: `master`).
+- Implementation commit: `55a7494`.
+- Previous PR #41 is merged. Do not continue on its old branch.
+- Read [ANTIGRAVITY_HANDOVER.md](ANTIGRAVITY_HANDOVER.md) first for the current implementation, validation, and next actions.
+- The sections below are the historical platform roadmap from the earlier handoff. They are not a current inventory of uncommitted work or proof of implementation. Reconcile them against code before choosing more work.
+
+## Historical platform phase
+
+The earlier `feature/account-privacy-platform` work was subsequently merged through PR #40. Historical notes below are retained for context.
 
 ## Current local changes already made
 
