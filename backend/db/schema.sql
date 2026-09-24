@@ -432,6 +432,15 @@ ALTER TABLE user_ai_use_cases ADD COLUMN IF NOT EXISTS validated_at TIMESTAMPTZ;
 ALTER TABLE user_ai_use_cases DROP CONSTRAINT IF EXISTS user_ai_use_cases_provider_check;
 ALTER TABLE user_ai_use_cases ADD CONSTRAINT user_ai_use_cases_provider_check
   CHECK (provider IN ('gemini', 'anthropic', 'openai', 'groq', 'deepseek', 'mistral'));
+-- One-time copy of legacy personal-key selections. Re-running would recreate
+-- features removed with { clear: true } because disconnect deletes those rows.
+CREATE TABLE IF NOT EXISTS user_ai_use_cases_legacy_backfill (
+  applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+INSERT INTO user_ai_use_cases_legacy_backfill (applied_at)
+SELECT NOW()
+WHERE NOT EXISTS (SELECT 1 FROM user_ai_use_cases_legacy_backfill)
+  AND EXISTS (SELECT 1 FROM user_ai_use_cases);
 INSERT INTO user_ai_use_cases (user_id, use_case, provider, model, key_mode)
 SELECT u.id, feature.use_case, u.selected_ai_provider, u.selected_ai_model, 'saved'
 FROM users u
@@ -439,11 +448,16 @@ JOIN user_ai_keys keys ON keys.user_id=u.id AND keys.provider=u.selected_ai_prov
 CROSS JOIN (VALUES ('text_chat'),('voice_chat'),('statement_extraction'),('categorization'),('bill_extraction'),('whatsapp_chat')) AS feature(use_case)
 WHERE u.ai_key_mode='personal'
   AND u.selected_ai_provider IN ('gemini','anthropic','openai','groq','deepseek','mistral')
+  AND NOT EXISTS (SELECT 1 FROM user_ai_use_cases_legacy_backfill)
 ON CONFLICT (user_id, use_case) DO NOTHING;
 UPDATE user_ai_use_cases settings SET key_mode='personal', encrypted_key=keys.encrypted_key,
   key_hint=keys.key_hint, validated_at=NULL
 FROM user_ai_keys keys WHERE settings.key_mode='saved'
-  AND keys.user_id=settings.user_id AND keys.provider=settings.provider;
+  AND keys.user_id=settings.user_id AND keys.provider=settings.provider
+  AND NOT EXISTS (SELECT 1 FROM user_ai_use_cases_legacy_backfill);
+INSERT INTO user_ai_use_cases_legacy_backfill (applied_at)
+SELECT NOW()
+WHERE NOT EXISTS (SELECT 1 FROM user_ai_use_cases_legacy_backfill);
 
 -- Independent assistant conversations; legacy messages remain available as Saved history.
 CREATE TABLE IF NOT EXISTS chat_conversations (
