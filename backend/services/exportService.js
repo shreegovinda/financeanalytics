@@ -136,8 +136,9 @@ async function getUserDataExport(pool, userId) {
 
   // 8. Chat History
   const chatRes = await pool.query(
-    `SELECT id, role, content, result, created_at
-     FROM chat_messages WHERE user_id = $1 ORDER BY created_at ASC`,
+    `SELECT m.id, m.role, m.content, m.result, m.created_at, m.conversation_id, c.title AS conversation_title
+     FROM chat_messages m LEFT JOIN chat_conversations c ON c.id=m.conversation_id AND c.user_id=m.user_id
+     WHERE m.user_id = $1 ORDER BY m.created_at ASC`,
     [userId],
   );
   const chatMessages = chatRes.rows.map((m) => {
@@ -152,6 +153,7 @@ async function getUserDataExport(pool, userId) {
     return {
       ...m,
       content: safeDecrypt(m.content),
+      conversation_title: m.conversation_title ? safeDecrypt(m.conversation_title) : null,
       result: res,
     };
   });
@@ -160,6 +162,12 @@ async function getUserDataExport(pool, userId) {
   const consentsRes = await pool.query(
     `SELECT id, policy_version, ip_address, user_agent, consented_at
      FROM user_consents WHERE user_id = $1 ORDER BY consented_at ASC`,
+    [userId],
+  );
+
+  // Export preferences only, never the encrypted or plaintext credentials.
+  const aiUseCasesRes = await pool.query(
+    'SELECT use_case, provider, model, key_mode, updated_at FROM user_ai_use_cases WHERE user_id=$1 ORDER BY use_case',
     [userId],
   );
 
@@ -183,6 +191,7 @@ async function getUserDataExport(pool, userId) {
   return {
     metadata: summary,
     profile: user,
+    aiUseCases: aiUseCasesRes.rows,
     bankAccounts: bankAccountsRes.rows,
     statements: statementsRes.rows,
     transactions,

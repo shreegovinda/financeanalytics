@@ -1,7 +1,7 @@
+const { resolveUseCase } = require('./aiUseCases');
 const pool = require('../config/db');
 const { answerQuestion } = require('./chat');
 const chatHistory = require('./chatHistory');
-const { getUserAiExecutionConfig } = require('./ai');
 const { sendTextMessage, normalizePhoneNumber } = require('./whatsappService');
 const { computeBlindIndex, safeDecrypt } = require('./crypto');
 
@@ -50,7 +50,7 @@ async function handleWhatsAppChatMessage(fromPhone, messageText, messageId) {
     // 3. Retrieve recent history for conversational memory
     let history = [];
     try {
-      const historyRes = await chatHistory.page(pool, user.id);
+      const historyRes = await chatHistory.page(pool, user.id, undefined, 'legacy');
       if (historyRes && Array.isArray(historyRes.messages)) {
         history = historyRes.messages.slice(-6).map((m) => ({
           role: m.role === 'user' ? 'user' : 'assistant',
@@ -62,23 +62,17 @@ async function handleWhatsAppChatMessage(fromPhone, messageText, messageId) {
     }
 
     // 4. Resolve AI model provider preference & keys
-    const aiConfig = await getUserAiExecutionConfig(pool, user.id, user.selected_ai_provider);
+    const aiConfig = await resolveUseCase(pool, user.id, 'whatsapp_chat');
 
     // 5. Query Finlytix AI Assistant engine with tool-calling
-    const result = await answerQuestion(
-      pool,
-      user.id,
-      messageText.trim(),
-      history,
-      aiConfig.providerId,
-    );
+    const result = await answerQuestion(pool, user.id, messageText.trim(), history, aiConfig);
 
     const answer = result.answer || "I couldn't process your request. Please try again.";
 
     // 6. Save message exchange in chat history
     try {
       const historyVersion = await chatHistory.version(pool, user.id);
-      await chatHistory.save(pool, user.id, historyVersion, messageText.trim(), result);
+      await chatHistory.save(pool, user.id, historyVersion, messageText.trim(), result, 'legacy');
     } catch (saveErr) {
       console.warn('Failed to persist WhatsApp chat exchange:', saveErr.message);
     }

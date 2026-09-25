@@ -16,6 +16,39 @@ test(
             )
           ).rows[0].id,
         );
+      const first = await history.createConversation(pool, ids[0], 'First chat');
+      const second = await history.createConversation(pool, ids[0], 'Second chat');
+      await history.save(pool, ids[0], 0, 'First question', { answer: 'First answer' }, first.id);
+      await history.save(
+        pool,
+        ids[0],
+        0,
+        'Second question',
+        { answer: 'Second answer' },
+        second.id,
+      );
+      assert.equal(
+        (await history.page(pool, ids[0], undefined, first.id)).messages[0].content,
+        'First question',
+      );
+      await assert.rejects(history.page(pool, ids[1], undefined, first.id), { status: 404 });
+      await assert.rejects(history.deleteConversation(pool, ids[1], first.id), { status: 404 });
+      const storedTitle = (
+        await pool.query('SELECT title FROM chat_conversations WHERE id=$1', [first.id])
+      ).rows[0].title;
+      assert.notEqual(storedTitle, 'First chat');
+      assert.equal((await history.conversations(pool, ids[0])).length, 2);
+      await history.deleteConversation(pool, ids[0], first.id);
+      await assert.rejects(history.save(pool, ids[0], 0, 'late', { answer: 'late' }, first.id), {
+        status: 404,
+      });
+      assert.equal((await history.page(pool, ids[0], undefined, second.id)).messages.length, 2);
+      assert.equal(
+        (await pool.query('SELECT 1 FROM chat_messages WHERE conversation_id=$1', [first.id]))
+          .rowCount,
+        0,
+      );
+      await history.deleteConversation(pool, ids[0], second.id);
       for (let i = 0; i < 51; i++)
         await history.save(pool, ids[0], 0, 'Question ' + i, {
           answer: 'Answer ' + i,

@@ -1,3 +1,4 @@
+const { resolveUseCase } = require('./aiUseCases');
 const fs = require('fs');
 const path = require('path');
 const pool = require('../config/db');
@@ -9,7 +10,6 @@ const {
 } = require('./whatsappService');
 const { parseStatement } = require('./parsers/generic');
 const { categorizeBatch } = require('./claude');
-const { getUserAiExecutionConfig } = require('./ai');
 const {
   encrypt,
   encryptJson,
@@ -193,7 +193,7 @@ async function handleWhatsAppDocumentUpload(fromPhone, document, messageId) {
           ],
         };
       } else {
-        const aiConfig = await getUserAiExecutionConfig(pool, user.id, user.selected_ai_provider);
+        const aiConfig = await resolveUseCase(pool, user.id, 'statement_extraction');
         aiProviderId = aiConfig.providerId;
         parsedStatement = await parseStatement(tempFilePath, aiConfig.providerId, {
           expectedBank: bankCode,
@@ -469,7 +469,7 @@ async function handleWhatsAppInteractiveReply(fromPhone, buttonId, messageId) {
       if (txnIds.length > 0) {
         setImmediate(async () => {
           try {
-            const aiConfig = await getUserAiExecutionConfig(pool, user.id, aiProvider);
+            const aiConfig = await resolveUseCase(pool, user.id, 'categorization');
             const results = await categorizeBatch(transactions, aiConfig.providerId, {
               apiKey: aiConfig.apiKey,
               model: aiConfig.model,

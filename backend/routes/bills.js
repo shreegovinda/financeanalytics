@@ -1,3 +1,4 @@
+const { resolveUseCase } = require('../services/aiUseCases');
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
@@ -5,7 +6,6 @@ const fs = require('fs');
 const pool = require('../config/db');
 const auth = require('../middleware/auth');
 const { parseBill } = require('../services/parsers/bill');
-const { getProviderFromRequest, getUserAiExecutionConfig } = require('../services/ai');
 const { encrypt, safeDecrypt, encryptJson, decryptJson } = require('../services/crypto');
 
 /**
@@ -147,7 +147,7 @@ router.post('/', auth, uploadSingleBill, async (req, res) => {
       return res.status(404).json({ error: 'Transaction not found' });
     }
 
-    const aiConfig = await getUserAiExecutionConfig(pool, userId, getProviderFromRequest(req));
+    const aiConfig = await resolveUseCase(pool, userId, 'bill_extraction');
     const parsed = await parseBill(filePath, aiConfig.providerId, {
       apiKey: aiConfig.apiKey,
       model: aiConfig.model,

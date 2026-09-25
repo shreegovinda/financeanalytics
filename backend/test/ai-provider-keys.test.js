@@ -2,6 +2,28 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { encrypt } = require('../services/crypto');
 const { getUserAiExecutionConfig } = require('../services/ai');
+test('provider overrides resolve a matching model and personal key together', async () => {
+  const pool = {
+    async query(sql, params) {
+      if (sql.includes('FROM users'))
+        return {
+          rows: [
+            {
+              selected_ai_provider: 'anthropic',
+              selected_ai_model: 'claude-test',
+              ai_key_mode: 'personal',
+            },
+          ],
+        };
+      assert.equal(params[1], 'gemini');
+      return { rows: [{ encrypted_key: encrypt('fake-gemini-key') }] };
+    },
+  };
+  const config = await getUserAiExecutionConfig(pool, 'test-user', 'gemini');
+  assert.equal(config.providerId, 'gemini');
+  assert.equal(config.apiKey, 'fake-gemini-key');
+  assert.notEqual(config.model, 'claude-test');
+});
 
 function mockModule(modulePath, exports) {
   const resolvedPath = require.resolve(modulePath);

@@ -113,14 +113,37 @@ async function answerQuestion(
   providerId,
   generate = generateChatJson,
 ) {
+  const greeting = message
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/[!?.。]+$/u, '')
+    .trim();
+  const greetings = {
+    hello: 'Hello! Ask me about your spending, income, statements, or how Finlytix works.',
+    hi: 'Hi! Ask me about your spending, income, statements, or how Finlytix works.',
+    hey: 'Hello! How can I help you with your finances?',
+    హలో: 'హలో! మీ ఖర్చులు, ఆదాయం లేదా బ్యాంక్ స్టేట్‌మెంట్‌ల గురించి అడగండి.',
+    హాలో: 'హలో! మీ ఖర్చులు, ఆదాయం లేదా బ్యాంక్ స్టేట్‌మెంట్‌ల గురించి అడగండి.',
+    హెల్లో: 'హలో! మీ ఖర్చులు, ఆదాయం లేదా బ్యాంక్ స్టేట్‌మెంట్‌ల గురించి అడగండి.',
+    నమస్కారం: 'నమస్కారం! మీ ఖర్చులు, ఆదాయం లేదా బ్యాంక్ స్టేట్‌మెంట్‌ల గురించి అడగండి.',
+    नमस्ते: 'नमस्ते! अपने खर्च, आय या बैंक स्टेटमेंट के बारे में पूछिए।',
+    ನಮಸ್ಕಾರ: 'ನಮಸ್ಕಾರ! ನಿಮ್ಮ ಖರ್ಚು, ಆದಾಯ ಅಥವಾ ಬ್ಯಾಂಕ್ ಸ್ಟೇಟ್‌ಮೆಂಟ್‌ಗಳ ಬಗ್ಗೆ ಕೇಳಿ.',
+  };
+  if (Object.hasOwn(greetings, greeting)) {
+    return {
+      answer: greetings[greeting],
+      sources: [],
+      evidence: [],
+      asOf: new Date().toISOString(),
+    };
+  }
   let aiConfig;
-  if (providerId && typeof providerId === 'object') {
+  if (typeof providerId === 'function') {
+    aiConfig = await providerId();
+  } else if (providerId && typeof providerId === 'object') {
     aiConfig = providerId;
   } else {
-    aiConfig = await getUserAiExecutionConfig(pool, userId);
-    if (typeof providerId === 'string' && providerId) {
-      aiConfig.providerId = providerId;
-    }
+    aiConfig = await getUserAiExecutionConfig(pool, userId, providerId);
   }
 
   const aiOptions = {

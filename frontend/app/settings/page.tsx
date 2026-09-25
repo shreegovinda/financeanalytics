@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AuthSessionGuard from '@/components/AuthSessionGuard';
 import BankSettings from '@/components/BankSettings';
+import AiUseCaseSettings from '@/components/AiUseCaseSettings';
 import BackButton from '@/components/BackButton';
 import PhoneInput from '@/components/PhoneInput';
 import { useToast } from '@/components/Toast';
@@ -123,7 +124,6 @@ export default function SettingsPage() {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
   const [preferencesSaved, setPreferencesSaved] = useState(false);
-  const [aiSaved, setAiSaved] = useState(false);
 
   // Password rotation state
   const [showPasswordForm, setShowPasswordForm] = useState(false);
@@ -151,12 +151,6 @@ export default function SettingsPage() {
 
   // AI & BYOK state (Step 7 & 8)
   const [aiCatalogue, setAiCatalogue] = useState<AICatalogueResponse | null>(null);
-  const [selectedProvider, setSelectedProvider] = useState('gemini');
-  const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
-  const [keyMode, setKeyMode] = useState<'admin' | 'personal'>('admin');
-  const [personalApiKeyInput, setPersonalApiKeyInput] = useState('');
-  const [isSavingAi, setIsSavingAi] = useState(false);
-  const [isSavingKey, setIsSavingKey] = useState(false);
 
   // Data Export state (Step 9)
   const [isExportingJson, setIsExportingJson] = useState(false);
@@ -193,9 +187,6 @@ export default function SettingsPage() {
 
       if (aiCat) {
         setAiCatalogue(aiCat);
-        setSelectedProvider(aiCat.currentPreferences.provider || 'gemini');
-        setSelectedModel(aiCat.currentPreferences.model || 'gemini-2.5-flash');
-        setKeyMode(aiCat.currentPreferences.keyMode || 'admin');
       }
 
       if (costRes?.transparency) {
@@ -508,109 +499,6 @@ export default function SettingsPage() {
     }
   };
 
-  // AI preferences save
-  const handleSaveAiPreferences = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const token = localStorage.getItem('token');
-    if (!token) return;
-
-    setError(null);
-    setSuccessMessage(null);
-    setIsSavingAi(true);
-
-    try {
-      await aiAPI.updatePreferences(
-        { provider: selectedProvider, model: selectedModel, keyMode },
-        token,
-      );
-      setSuccessMessage('AI model and provider preferences saved.');
-      addToast('success', 'AI provider and model settings saved successfully.');
-      setAiSaved(true);
-      setTimeout(() => setAiSaved(false), 3500);
-      void accountAPI
-        .getCostTransparency(token)
-        .then((r) => {
-          if (r?.transparency) setCostTransparency(r.transparency);
-        })
-        .catch(() => {});
-    } catch (err) {
-      const msg = getErrorMessage(err);
-      setError(msg);
-      addToast('error', msg);
-    } finally {
-      setIsSavingAi(false);
-    }
-  };
-
-  // Personal AI key save
-  const handleSavePersonalKey = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const token = localStorage.getItem('token');
-    if (!token) return;
-    if (!personalApiKeyInput.trim()) {
-      setError('Please enter your API key.');
-      return;
-    }
-
-    setError(null);
-    setSuccessMessage(null);
-    setIsSavingKey(true);
-
-    try {
-      await aiAPI.saveKey(selectedProvider, personalApiKeyInput.trim(), token);
-      try {
-        await aiAPI.updatePreferences(
-          { provider: selectedProvider, model: selectedModel, keyMode: 'personal' },
-          token,
-        );
-      } catch {
-        // Preferences auto-switched by backend
-      }
-      setKeyMode('personal');
-      setPersonalApiKeyInput('');
-      const updatedCat = await aiAPI.getCatalogue(token);
-      setAiCatalogue(updatedCat);
-      setSuccessMessage(`Encrypted personal key for ${selectedProvider} saved and activated.`);
-      void accountAPI
-        .getCostTransparency(token)
-        .then((r) => {
-          if (r?.transparency) setCostTransparency(r.transparency);
-        })
-        .catch(() => {});
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setIsSavingKey(false);
-    }
-  };
-
-  // Personal AI key delete
-  const handleDeletePersonalKey = async (providerId: string) => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
-
-    setError(null);
-    setSuccessMessage(null);
-
-    try {
-      await aiAPI.deleteKey(providerId, token);
-      const updatedCat = await aiAPI.getCatalogue(token);
-      setAiCatalogue(updatedCat);
-      if (keyMode === 'personal' && selectedProvider === providerId) {
-        setKeyMode('admin');
-      }
-      setSuccessMessage(`Personal key for ${providerId} removed.`);
-      void accountAPI
-        .getCostTransparency(token)
-        .then((r) => {
-          if (r?.transparency) setCostTransparency(r.transparency);
-        })
-        .catch(() => {});
-    } catch (err) {
-      setError(getErrorMessage(err));
-    }
-  };
-
   // Data Export handlers
   const handleExportJson = async () => {
     const token = localStorage.getItem('token');
@@ -665,10 +553,6 @@ export default function SettingsPage() {
 
   const rootCategories = categories.filter((c) => !c.parent_id);
   const subcategoryCount = categories.length - rootCategories.length;
-  const currentProviderConfig = aiCatalogue?.catalogue.providers.find(
-    (p) => p.id === selectedProvider,
-  );
-
   const isProfileDirty = Boolean(
     profile &&
     (name.trim() !== (profile.name || '').trim() || phone.trim() !== (profile.phone || '').trim()),
@@ -682,13 +566,6 @@ export default function SettingsPage() {
       language !== (profile.language || 'en') ||
       dateFormat !== (profile.date_format || 'DD/MM/YYYY') ||
       timeFormat !== (profile.time_format || '12h')),
-  );
-
-  const isAiDirty = Boolean(
-    aiCatalogue &&
-    (selectedProvider !== (aiCatalogue.currentPreferences.provider || 'gemini') ||
-      selectedModel !== (aiCatalogue.currentPreferences.model || 'gemini-2.5-flash') ||
-      keyMode !== (aiCatalogue.currentPreferences.keyMode || 'admin')),
   );
 
   if (isLoading) {
@@ -1810,216 +1687,7 @@ export default function SettingsPage() {
           {/* TAB 4: AI & BYOK (Step 7 & 8) */}
           {activeTab === 'ai' && (
             <div className="space-y-6">
-              <form
-                onSubmit={handleSaveAiPreferences}
-                className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"
-              >
-                <h2 className="text-lg font-semibold text-gray-900">AI Model & Provider Choice</h2>
-                <p className="mt-1 text-sm text-gray-500">
-                  Select which AI model processes your bank statements and answers chat queries.
-                </p>
-
-                <div className="mt-5 grid gap-5 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5">
-                      Provider
-                    </label>
-                    <select
-                      value={selectedProvider}
-                      onChange={(e) => {
-                        const prov = e.target.value;
-                        setSelectedProvider(prov);
-                        const provConf = aiCatalogue?.catalogue.providers.find(
-                          (p) => p.id === prov,
-                        );
-                        const defModel =
-                          provConf?.models.find((m) => m.isDefault)?.id || provConf?.models[0]?.id;
-                        if (defModel) setSelectedModel(defModel);
-                      }}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none"
-                    >
-                      {aiCatalogue?.catalogue.providers.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5">
-                      Model
-                    </label>
-                    <select
-                      value={selectedModel}
-                      onChange={(e) => setSelectedModel(e.target.value)}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none"
-                    >
-                      {currentProviderConfig?.models.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.label} {m.isDefault ? '(Default)' : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Mode selection: Admin vs BYOK */}
-                <div className="mt-6">
-                  <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-2">
-                    API Key Billing Mode
-                  </label>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <label
-                      className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition-all ${
-                        keyMode === 'admin'
-                          ? 'border-blue-600 bg-blue-50/50 shadow-sm'
-                          : 'border-gray-200 bg-white hover:border-gray-300'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="keyMode"
-                        checked={keyMode === 'admin'}
-                        onChange={() => setKeyMode('admin')}
-                        className="mt-1 text-blue-600"
-                      />
-                      <div>
-                        <p className="font-semibold text-gray-900">Platform Managed</p>
-                        <p className="text-xs text-gray-500">
-                          Included with your Finlytix account under standard fair usage limits.
-                        </p>
-                      </div>
-                    </label>
-
-                    <label
-                      className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition-all ${
-                        keyMode === 'personal'
-                          ? 'border-blue-600 bg-blue-50/50 shadow-sm'
-                          : 'border-gray-200 bg-white hover:border-gray-300'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="keyMode"
-                        checked={keyMode === 'personal'}
-                        onChange={() => setKeyMode('personal')}
-                        className="mt-1 text-blue-600"
-                      />
-                      <div>
-                        <p className="font-semibold text-gray-900">Personal API Key (BYOK)</p>
-                        <p className="text-xs text-gray-500">
-                          Direct billing to your AI provider account. Zero platform rate limits.
-                        </p>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="mt-5 flex items-center justify-end gap-3">
-                  {aiSaved && (
-                    <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200">
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2.5"
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                      Settings saved!
-                    </span>
-                  )}
-                  <button
-                    type="submit"
-                    disabled={isSavingAi || !isAiDirty}
-                    className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition cursor-pointer"
-                  >
-                    {isSavingAi ? 'Saving...' : isAiDirty ? 'Save AI Selection' : 'Settings Saved'}
-                  </button>
-                </div>
-              </form>
-
-              {/* BYOK Encrypted Key Section */}
-              <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                <h3 className="text-base font-semibold text-gray-900">
-                  Encrypted Personal Keys ({currentProviderConfig?.label})
-                </h3>
-                <p className="mt-1 text-xs text-gray-500">
-                  Keys are stored using authenticated AES-256-GCM application encryption and never
-                  returned in plaintext.
-                </p>
-
-                {currentProviderConfig?.userKeyConfigured ? (
-                  <div className="mt-4 flex items-center justify-between rounded-xl border border-green-200 bg-green-50 p-4">
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-200 text-green-800 text-xs font-bold">
-                        ✓
-                      </span>
-                      <div>
-                        <p className="text-xs font-semibold text-green-900">
-                          Key Active: {currentProviderConfig.keyHint}
-                        </p>
-                        <p className="text-xs text-green-700">
-                          Secured with authenticated AES-256-GCM encryption.
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleDeletePersonalKey(selectedProvider)}
-                      className="rounded-lg bg-red-100 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-200 cursor-pointer"
-                    >
-                      Remove Key
-                    </button>
-                  </div>
-                ) : (
-                  <form onSubmit={handleSavePersonalKey} className="mt-4 space-y-3">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                      <input
-                        type="password"
-                        placeholder={`Enter your ${currentProviderConfig?.label} API key`}
-                        value={personalApiKeyInput}
-                        onChange={(e) => setPersonalApiKeyInput(e.target.value)}
-                        className="flex-1 rounded-xl border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none"
-                      />
-                      <button
-                        type="submit"
-                        disabled={isSavingKey}
-                        className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-black disabled:opacity-50 cursor-pointer"
-                      >
-                        {isSavingKey ? 'Encrypting...' : 'Save & Encrypt Key'}
-                      </button>
-                    </div>
-                    {currentProviderConfig?.docsUrl && (
-                      <p className="text-xs text-gray-500">
-                        Need a key? Get one from{' '}
-                        <a
-                          href={currentProviderConfig.docsUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          {currentProviderConfig.label} console ↗
-                        </a>
-                      </p>
-                    )}
-                  </form>
-                )}
-
-                {/* Disclosures box */}
-                <div className="mt-6 rounded-xl border border-slate-100 bg-slate-50 p-4 text-xs text-slate-600 space-y-2">
-                  <p className="font-semibold text-slate-800">Security & Billing Disclosures:</p>
-                  <p>• {aiCatalogue?.catalogue.disclosures.adminPaidNotice}</p>
-                  <p>• {aiCatalogue?.catalogue.disclosures.personalKeyNotice}</p>
-                  <p>• {aiCatalogue?.catalogue.disclosures.dataTransferNotice}</p>
-                </div>
-              </div>
+              <AiUseCaseSettings catalogue={aiCatalogue} />
             </div>
           )}
 

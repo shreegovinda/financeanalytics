@@ -1,8 +1,8 @@
+const { resolveUseCase } = require('../services/aiUseCases');
 const express = require('express');
 const pool = require('../config/db');
 const auth = require('../middleware/auth');
 const { categorizeBatch } = require('../services/claude');
-const { getProviderFromRequest, getUserAiExecutionConfig } = require('../services/ai');
 const { encrypt, safeDecrypt } = require('../services/crypto');
 
 const router = express.Router();
@@ -215,7 +215,7 @@ router.post('/categorize', auth, async (req, res) => {
       type: row.type,
     }));
 
-    const aiConfig = await getUserAiExecutionConfig(pool, req.user.id, getProviderFromRequest(req));
+    const aiConfig = await resolveUseCase(pool, req.user.id, 'categorization');
     const categorizations = await categorizeBatch(txns, aiConfig.providerId, {
       apiKey: aiConfig.apiKey,
       model: aiConfig.model,
