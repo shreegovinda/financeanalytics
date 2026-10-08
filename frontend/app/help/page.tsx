@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import HelpChatbot from '@/components/HelpChatbot';
 import faqs from '../../../backend/data/faqs.json';
 
 export default function HelpPage() {
@@ -12,6 +13,9 @@ export default function HelpPage() {
         <p className="mt-3 text-slate-600">
           How the application works, what happens to your data, and what is still planned.
         </p>
+        <div className="mt-6">
+          <HelpChatbot />
+        </div>
         <div className="mt-6 space-y-3">
           {faqs.map((faq) => (
             <details
@@ -29,11 +33,11 @@ export default function HelpPage() {
           ))}
         </div>
         <p className="mt-8 text-sm text-slate-600">
-          You can also{' '}
+          For questions about your own spending and statements,{' '}
           <Link href="/assistant" className="text-indigo-700 underline">
-            ask the Finlytix chatbot
+            open Ask Finlytix
           </Link>{' '}
-          about these topics after signing in.
+          after signing in.
         </p>
       </div>
     </main>

@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Recognition, recognitionConstructor, recognitionError, VoicePlayback } from '@/lib/voice';
+import SpeechLanguageSelect from '@/components/SpeechLanguageSelect';
+import { useVoiceSession } from '@/lib/useVoiceSession';
+import { languageSelectOptions, loadSpeechLanguage, saveSpeechLanguage } from '@/lib/voice';
 
 interface VoiceAnswer {
   answer: string;
@@ -14,175 +16,37 @@ interface Turn {
 }
 interface Props {
   onClose: () => void;
-  onAsk: (question: string) => Promise<VoiceAnswer | undefined>;
+  onAsk: (question: string, language: string) => Promise<VoiceAnswer | undefined>;
   locale: string;
 }
 
 export default function VoiceAssistantModal({ onClose, onAsk, locale }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const recognition = useRef<Recognition | null>(null);
-  const playback = useRef(new VoicePlayback());
-  const alive = useRef(true);
-  const pending = useRef(false);
-  const askLatest = useRef(onAsk);
-  const audioEnabled = useRef(true);
-  const continueListening = useRef(false);
-  const [handsFree, setHandsFree] = useState(false);
-  const [status, setStatus] = useState<'ready' | 'listening' | 'thinking' | 'speaking'>('ready');
-  const [error, setError] = useState('');
-  const [draft, setDraft] = useState('');
-  const [heard, setHeard] = useState('');
+  const [language, setLanguage] = useState(() => loadSpeechLanguage(locale || 'en-IN'));
   const [turns, setTurns] = useState<Turn[]>([]);
-  const [language, setLanguage] = useState(locale || 'en-IN');
-  const [supported] = useState(() => Boolean(recognitionConstructor()));
+  const options = useMemo(() => languageSelectOptions([locale]), [locale]);
+  const languageRef = useRef(language);
+  languageRef.current = language;
+  const voice = useVoiceSession({
+    language,
+    onAsk: async (question) => {
+      const result = await onAsk(question, languageRef.current);
+      if (result) setTurns((previous) => [...previous, { question, result }]);
+      return result;
+    },
+  });
   const bottom = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    askLatest.current = onAsk;
-  }, [onAsk]);
 
   useEffect(() => {
-    alive.current = true;
     dialog.current?.showModal();
-    const player = playback.current;
-    return () => {
-      alive.current = false;
-      continueListening.current = false;
-      const mic = recognition.current;
-      recognition.current = null;
-      if (mic) {
-        mic.onresult = mic.onerror = mic.onend = null;
-        mic.abort();
-      }
-      player.stop();
-    };
   }, []);
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: 'nearest' });
-  }, [turns, heard, status]);
+  }, [turns, voice.heard, voice.status]);
 
-  function stopMic() {
-    const mic = recognition.current;
-    recognition.current = null;
-    if (mic) {
-      mic.onresult = mic.onerror = mic.onend = null;
-      mic.abort();
-    }
-    setHeard('');
-  }
-  function pause() {
-    audioEnabled.current = false;
-    continueListening.current = false;
-    setHandsFree(false);
-    stopMic();
-    playback.current.stop();
-    if (!pending.current) setStatus('ready');
-  }
-  function speak(answer: string) {
-    stopMic();
-    setStatus('speaking');
-    playback.current.speak(
-      answer,
-      language,
-      () => {
-        if (!alive.current) return;
-        setStatus('ready');
-        if (continueListening.current) startListening();
-      },
-      () => {
-        if (!alive.current) return;
-        continueListening.current = false;
-        setHandsFree(false);
-        setStatus('ready');
-        setError('Audio could not play. Tap Read aloud to retry. Your answer is saved below.');
-      },
-    );
-  }
-  async function ask(question: string) {
-    if (pending.current || !question.trim() || !alive.current) return;
-    if (question.trim().length > 2000) {
-      pause();
-      setDraft(question.slice(0, 2000));
-      setError('Please shorten your question to 2,000 characters.');
-      return;
-    }
-    pending.current = true;
-    audioEnabled.current = true;
-    stopMic();
-    playback.current.stop();
-    setDraft(question);
-    setError('');
-    setStatus('thinking');
-    try {
-      const result = await askLatest.current(question.trim());
-      if (!alive.current) return;
-      if (!result) throw new Error('Unable to send your question. Please try again.');
-      setTurns((previous) => [...previous, { question: question.trim(), result }]);
-      setDraft('');
-      pending.current = false;
-      if (audioEnabled.current) speak(result.answer);
-      else setStatus('ready');
-    } catch (err) {
-      if (!alive.current) return;
-      setError(err instanceof Error ? err.message : 'Unable to answer. Please retry.');
-      continueListening.current = false;
-      setHandsFree(false);
-      setStatus('ready');
-    } finally {
-      pending.current = false;
-    }
-  }
-  function startListening() {
-    if (pending.current || !alive.current) return;
-    const Constructor = recognitionConstructor();
-    if (!Constructor) return;
-    stopMic();
-    playback.current.stop();
-    setError('');
-    const mic = new Constructor();
-    recognition.current = mic;
-    mic.lang = language;
-    mic.continuous = false;
-    mic.interimResults = true;
-    let finalText = '';
-    let failed = false;
-    mic.onresult = (event) => {
-      if (recognition.current !== mic) return;
-      let interim = '';
-      finalText = '';
-      for (let i = 0; i < event.results.length; i++) {
-        const result = event.results[i];
-        if (result.isFinal) finalText += result[0].transcript + ' ';
-        else interim += result[0].transcript;
-      }
-      setHeard((finalText + interim).trim());
-    };
-    mic.onerror = (event) => {
-      if (recognition.current !== mic) return;
-      failed = true;
-      continueListening.current = false;
-      setHandsFree(false);
-      setError(recognitionError(event.error));
-      setStatus('ready');
-    };
-    mic.onend = () => {
-      if (recognition.current !== mic || !alive.current) return;
-      recognition.current = null;
-      setHeard('');
-      if (!failed && finalText.trim()) void ask(finalText);
-      else {
-        setStatus('ready');
-        continueListening.current = false;
-        setHandsFree(false);
-        if (!failed) setError(recognitionError('no-speech'));
-      }
-    };
-    try {
-      mic.start();
-      setStatus('listening');
-    } catch {
-      mic.onerror({ error: 'audio-capture' });
-      recognition.current = null;
-    }
+  function changeLanguage(code: string) {
+    setLanguage(code);
+    saveSpeechLanguage(code);
   }
 
   return (
@@ -218,98 +82,68 @@ export default function VoiceAssistantModal({ onClose, onAsk, locale }: Props) {
           Questions use your selected AI provider. Text and answers are saved in your chat history;
           Finlytix does not store voice recordings.
         </p>
-        <label className="flex flex-wrap items-center gap-3 text-sm">
-          Speech language
-          <select
-            aria-label="Speech language"
-            value={language}
-            disabled={status !== 'ready'}
-            onChange={(event) => setLanguage(event.target.value)}
-            className="rounded-lg bg-slate-800 p-2"
-          >
-            {Array.from(
-              new Set(
-                [
-                  locale,
-                  'en-IN',
-                  'en-US',
-                  'hi-IN',
-                  'kn-IN',
-                  'ta-IN',
-                  'te-IN',
-                  'ml-IN',
-                  'mr-IN',
-                  'bn-IN',
-                  'gu-IN',
-                  'es-ES',
-                  'fr-FR',
-                  'de-DE',
-                ].filter(Boolean),
-              ),
-            ).map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
-        </label>
+        <SpeechLanguageSelect
+          value={language}
+          onChange={changeLanguage}
+          options={options}
+          disabled={voice.status !== 'ready'}
+          selectClassName="rounded-lg bg-slate-800 p-2"
+        />
         <div className="rounded-xl bg-indigo-950 p-5 text-center">
           <div
             aria-hidden="true"
-            className={`mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-indigo-600 text-2xl ${status === 'listening' || status === 'speaking' ? 'motion-safe:animate-pulse' : ''}`}
+            className={`mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-indigo-600 text-2xl ${voice.status === 'listening' || voice.status === 'speaking' ? 'motion-safe:animate-pulse' : ''}`}
           >
             ♪
           </div>
           <p role="status">
-            {status === 'listening'
+            {voice.status === 'listening'
               ? 'Listening… finish your question to send it.'
-              : status === 'thinking'
+              : voice.status === 'thinking'
                 ? 'Checking your records…'
-                : status === 'speaking'
+                : voice.status === 'speaking'
                   ? 'Finlytix is speaking…'
                   : 'Ready when you are'}
           </p>
-          {heard && <p className="mt-3 text-indigo-200">{heard}</p>}
+          {voice.heard && <p className="mt-3 text-indigo-200">{voice.heard}</p>}
         </div>
-        {!supported && (
+        {!voice.supported && (
           <p role="status" className="text-amber-200">
             Speech recognition is unavailable here. Type below, or open this page in a browser with
             speech recognition enabled.
           </p>
         )}
-        {error && (
+        {voice.notice && (
+          <p role="status" className="rounded-lg bg-amber-950 p-3 text-sm text-amber-100">
+            {voice.notice}
+          </p>
+        )}
+        {voice.error && (
           <p role="alert" className="rounded-lg bg-red-950 p-3 text-sm text-red-100">
-            {error}
+            {voice.error}
           </p>
         )}
         <div className="flex flex-wrap items-center gap-3">
           <button
-            disabled={!supported || status === 'thinking'}
-            onClick={() => {
-              playback.current.unlock();
-              if (status === 'listening') recognition.current?.stop();
-              else startListening();
-            }}
+            disabled={!voice.supported || voice.status === 'thinking'}
+            onClick={voice.toggleListen}
             className="rounded-xl bg-indigo-600 px-4 py-3 font-semibold disabled:opacity-40"
           >
-            {status === 'listening'
+            {voice.status === 'listening'
               ? 'Finish question'
-              : status === 'speaking'
+              : voice.status === 'speaking'
                 ? 'Interrupt & speak'
                 : 'Speak'}
           </button>
-          <button onClick={pause} className="rounded-xl border border-slate-600 px-4 py-3">
+          <button onClick={voice.pause} className="rounded-xl border border-slate-600 px-4 py-3">
             Pause voice
           </button>
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
-              checked={handsFree}
-              disabled={!supported}
-              onChange={(event) => {
-                continueListening.current = event.target.checked;
-                setHandsFree(event.target.checked);
-              }}
+              checked={voice.handsFree}
+              disabled={!voice.supported}
+              onChange={(event) => voice.setHandsFreeListening(event.target.checked)}
             />
             Listen again after each answer
           </label>
@@ -318,21 +152,23 @@ export default function VoiceAssistantModal({ onClose, onAsk, locale }: Props) {
           className="flex gap-2"
           onSubmit={(event) => {
             event.preventDefault();
-            playback.current.unlock();
-            void ask(draft);
+            voice.unlock();
+            void voice.ask(voice.draft);
           }}
         >
           <input
             aria-label="Voice question"
-            value={draft}
+            value={voice.draft}
             maxLength={2000}
-            disabled={status === 'thinking' || status === 'listening'}
-            onChange={(event) => setDraft(event.target.value)}
+            disabled={voice.status === 'thinking' || voice.status === 'listening'}
+            onChange={(event) => voice.setDraft(event.target.value)}
             placeholder="Or type your question…"
             className="min-w-0 flex-1 rounded-lg border border-slate-600 bg-slate-900 p-3"
           />
           <button
-            disabled={!draft.trim() || status === 'thinking' || status === 'listening'}
+            disabled={
+              !voice.draft.trim() || voice.status === 'thinking' || voice.status === 'listening'
+            }
             className="rounded-lg bg-indigo-600 px-4 disabled:opacity-40"
           >
             Ask
@@ -356,10 +192,10 @@ export default function VoiceAssistantModal({ onClose, onAsk, locale }: Props) {
                 ))}
               </nav>
               <button
-                disabled={status === 'thinking'}
+                disabled={voice.status === 'thinking'}
                 onClick={() => {
-                  setError('');
-                  speak(turn.result.answer);
+                  voice.setError('');
+                  voice.speak(turn.result.answer);
                 }}
                 className="text-sm text-indigo-300 underline disabled:opacity-40"
               >
