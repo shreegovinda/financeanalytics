@@ -25,12 +25,10 @@ export default function VoiceAssistantModal({ onClose, onAsk, locale }: Props) {
   const [language, setLanguage] = useState(() => loadSpeechLanguage(locale || 'en-IN'));
   const [turns, setTurns] = useState<Turn[]>([]);
   const options = useMemo(() => languageSelectOptions([locale]), [locale]);
-  const languageRef = useRef(language);
-  languageRef.current = language;
   const voice = useVoiceSession({
     language,
     onAsk: async (question) => {
-      const result = await onAsk(question, languageRef.current);
+      const result = await onAsk(question, language);
       if (result) setTurns((previous) => [...previous, { question, result }]);
       return result;
     },

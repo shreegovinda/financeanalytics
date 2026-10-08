@@ -18,10 +18,9 @@ export interface VoiceAskResult {
 interface Options {
   language: string;
   onAsk: (question: string) => Promise<VoiceAskResult | undefined>;
-  active?: boolean;
 }
 
-export function useVoiceSession({ language, onAsk, active = true }: Options) {
+export function useVoiceSession({ language, onAsk }: Options) {
   const recognition = useRef<Recognition | null>(null);
   const playback = useRef(new VoicePlayback());
   const alive = useRef(true);
@@ -67,6 +66,7 @@ export function useVoiceSession({ language, onAsk, active = true }: Options) {
 
   useEffect(() => {
     alive.current = true;
+    const player = playback.current;
     return () => {
       alive.current = false;
       continueListening.current = false;
@@ -76,13 +76,9 @@ export function useVoiceSession({ language, onAsk, active = true }: Options) {
         mic.onresult = mic.onerror = mic.onend = null;
         mic.abort();
       }
-      playback.current.stop();
+      player.stop();
     };
   }, []);
-
-  useEffect(() => {
-    if (!active) pause();
-  }, [active, pause]);
 
   const speak = useCallback(
     (answer: string) => {
@@ -204,7 +200,9 @@ export function useVoiceSession({ language, onAsk, active = true }: Options) {
       recognition.current = null;
     }
   }, [ask, stopMic]);
-  startListeningRef.current = startListening;
+  useEffect(() => {
+    startListeningRef.current = startListening;
+  }, [startListening]);
 
   const toggleListen = useCallback(() => {
     playback.current.unlock();

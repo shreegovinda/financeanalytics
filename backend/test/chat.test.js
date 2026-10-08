@@ -184,7 +184,7 @@ test('help scope skips finance planning and asks for the selected language', asy
     assert.doesNotMatch(prompt, /You plan read-only Finlytix data retrieval/);
     assert.match(prompt, /product help assistant/);
     assert.match(prompt, /Reply entirely in Hindi/);
-    assert.match(prompt, /Help page chatbot/);
+    assert.match(prompt, /product help chatbot/);
     return { answer: 'स्टेटमेंट हटाने के लिए Statements खोलें।', sourceIds: ['product'] };
   };
   const result = await answerQuestion(

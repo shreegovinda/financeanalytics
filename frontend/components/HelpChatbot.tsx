@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import SpeechLanguageSelect from '@/components/SpeechLanguageSelect';
@@ -12,6 +12,7 @@ import {
   loadSpeechLanguage,
   saveSpeechLanguage,
   SPEECH_LANGUAGES,
+  subscribeSpeechLanguage,
 } from '@/lib/voice';
 
 interface HelpAnswer {
@@ -30,30 +31,30 @@ function hasToken(): boolean {
   return typeof window !== 'undefined' && Boolean(localStorage.getItem('token'));
 }
 
+function subscribeAuth(onChange: () => void): () => void {
+  if (typeof window === 'undefined') return () => {};
+  window.addEventListener('storage', onChange);
+  return () => window.removeEventListener('storage', onChange);
+}
+
 export default function HelpChatbot() {
   const router = useRouter();
-  const [signedIn, setSignedIn] = useState(false);
-  const [language, setLanguage] = useState('en-IN');
+  const signedIn = useSyncExternalStore(subscribeAuth, hasToken, () => false);
+  const language = useSyncExternalStore(
+    subscribeSpeechLanguage,
+    () => loadSpeechLanguage(),
+    () => 'en-IN',
+  );
   const [voiceMode, setVoiceMode] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [pending, setPending] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [conversationId, setConversationId] = useState<string | null>(null);
-  const languageRef = useRef(language);
-  languageRef.current = language;
-  const messagesRef = useRef(messages);
-  messagesRef.current = messages;
-  const conversationRef = useRef(conversationId);
-  conversationRef.current = conversationId;
+  const conversationRef = useRef<string | null>(null);
   const options = useMemo(() => languageSelectOptions([], true), []);
   const bottom = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    setSignedIn(hasToken());
-    setLanguage(loadSpeechLanguage());
-  }, []);
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: 'nearest' });
   }, [messages, pending]);
@@ -82,12 +83,9 @@ export default function HelpChatbot() {
           if (!created.ok) throw new Error('Unable to start a help conversation.');
           const chat = await created.json();
           id = chat.id;
-          setConversationId(chat.id);
           conversationRef.current = chat.id;
         }
-        const history = messagesRef.current
-          .slice(-6)
-          .map(({ role, content }) => ({ role, content }));
+        const history = messages.slice(-6).map(({ role, content }) => ({ role, content }));
         const response = await apiFetch(chatApi, {
           method: 'POST',
           retries: 0,
@@ -103,7 +101,7 @@ export default function HelpChatbot() {
             history,
             useCase: voiceMode ? 'voice_chat' : 'text_chat',
             scope: 'help',
-            language: languageRef.current,
+            language,
           }),
         });
         if (response.status === 401) {
@@ -127,17 +125,15 @@ export default function HelpChatbot() {
         setBusy(false);
       }
     },
-    [router, voiceMode],
+    [language, messages, router, voiceMode],
   );
 
   const voice = useVoiceSession({
     language,
-    active: voiceMode,
     onAsk: postQuestion,
   });
 
   function changeLanguage(code: string) {
-    setLanguage(code);
     saveSpeechLanguage(code);
   }
 
@@ -179,7 +175,11 @@ export default function HelpChatbot() {
           <input
             type="checkbox"
             checked={voiceMode}
-            onChange={(event) => setVoiceMode(event.target.checked)}
+            onChange={(event) => {
+              const enabled = event.target.checked;
+              setVoiceMode(enabled);
+              if (!enabled) voice.pause();
+            }}
           />
           Voice mode
         </label>

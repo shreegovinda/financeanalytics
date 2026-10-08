@@ -290,9 +290,20 @@ export function saveSpeechLanguage(code: string): void {
   if (typeof window === 'undefined') return;
   try {
     window.localStorage.setItem(SPEECH_LANGUAGE_STORAGE_KEY, code);
+    window.dispatchEvent?.(new Event('finlytix-speech-language'));
   } catch {
     // Ignore blocked storage.
   }
+}
+
+export function subscribeSpeechLanguage(onChange: () => void): () => void {
+  if (typeof window === 'undefined') return () => {};
+  window.addEventListener('finlytix-speech-language', onChange);
+  window.addEventListener('storage', onChange);
+  return () => {
+    window.removeEventListener('finlytix-speech-language', onChange);
+    window.removeEventListener('storage', onChange);
+  };
 }
 
 export function recognitionConstructor(): (new () => Recognition) | undefined {
