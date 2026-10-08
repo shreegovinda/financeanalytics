@@ -229,7 +229,11 @@ export default function AssistantPage() {
       setBusy(false);
     }
   }
-  async function send(question = input, voice = false): Promise<Answer | undefined> {
+  async function send(
+    question = input,
+    voice = false,
+    language?: string,
+  ): Promise<Answer | undefined> {
     if (busy || loadingHistory || !question.trim()) return;
     const token = localStorage.getItem('token');
     if (!token) {
@@ -273,6 +277,7 @@ export default function AssistantPage() {
             conversationId,
             history,
             useCase: voice ? 'voice_chat' : 'text_chat',
+            ...(language ? { language } : {}),
           }),
         },
       );
@@ -639,7 +644,7 @@ export default function AssistantPage() {
       {isVoiceModalOpen && (
         <VoiceAssistantModal
           locale={prefs.locale}
-          onAsk={(question) => send(question, true)}
+          onAsk={(question, language) => send(question, true, language)}
           onClose={() => setIsVoiceModalOpen(false)}
         />
       )}
