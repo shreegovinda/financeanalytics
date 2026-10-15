@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AuthSessionGuard from '@/components/AuthSessionGuard';
-import BackButton from '@/components/BackButton';
 import FileUploadForm from '@/components/FileUploadForm';
 import ConfirmationDialog from '@/components/ConfirmationDialog';
 import { apiGet, getErrorMessage } from '@/lib/api';
@@ -165,11 +164,9 @@ export default function StatementsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="animate-fade-in pb-12">
       <AuthSessionGuard />
-      <div className="max-w-6xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-        <BackButton className="mb-6" />
-
+      <div className="space-y-6">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Bank Statements</h1>
           <p className="text-gray-600">Upload and manage your bank statements</p>

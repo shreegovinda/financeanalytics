@@ -259,10 +259,12 @@ async function generateWithGemini(
   model,
   timeout = null,
 ) {
-  const effectiveModel = model || getProviderModel('gemini');
+  let effectiveModel = model || getProviderModel('gemini');
+  // No hardcoded fallback: an unconfigured provider must fail loudly rather
+  // than silently billing someone else's key.
   const effectiveKey = apiKey || process.env.GEMINI_API_KEY;
   if (!effectiveKey) {
-    throw new Error('Gemini API key is not configured');
+    throw new Error(notConfiguredMessage('gemini'));
   }
 
   const controller = new AbortController();
@@ -278,10 +280,9 @@ async function generateWithGemini(
     generationConfig.responseSchema = responseSchema;
   }
 
-  let response;
-  try {
-    response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(effectiveModel)}:generateContent`,
+  const makeRequest = async (m) => {
+    return fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(m)}:generateContent`,
       {
         method: 'POST',
         headers: {
@@ -300,6 +301,22 @@ async function generateWithGemini(
         }),
       },
     );
+  };
+
+  let response;
+  try {
+    response = await makeRequest(effectiveModel);
+    // If the selected model experiences a 503 high-demand spike or 404 retired model, seamlessly fallback to gemini-3.5-flash-lite
+    if (
+      (response.status === 503 || response.status === 404) &&
+      effectiveModel !== 'gemini-3.5-flash-lite'
+    ) {
+      console.warn(
+        `[Gemini] ${effectiveModel} returned ${response.status}. Automatically falling back to gemini-3.5-flash-lite.`,
+      );
+      effectiveModel = 'gemini-3.5-flash-lite';
+      response = await makeRequest(effectiveModel);
+    }
   } catch (err) {
     if (err.name === 'AbortError') {
       throw new Error(`Gemini request timed out after ${timeoutMs}ms`);

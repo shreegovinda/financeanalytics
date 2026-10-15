@@ -130,6 +130,7 @@ router.get('/trends', auth, async (req, res) => {
 });
 
 const { getLiveRates } = require('../services/exchangeRateService');
+const { calculateFinancialHealth } = require('../services/financialHealthService');
 
 router.get('/exchange-rates', auth, async (req, res) => {
   try {
@@ -139,6 +140,16 @@ router.get('/exchange-rates', auth, async (req, res) => {
   } catch (err) {
     console.error('Error fetching exchange rates:', err);
     res.status(500).json({ error: 'Failed to fetch exchange rates' });
+  }
+});
+
+router.get('/health-score', auth, async (req, res) => {
+  try {
+    const healthData = await calculateFinancialHealth(req.user.id);
+    res.json(healthData);
+  } catch (err) {
+    console.error('Error calculating financial health score:', err);
+    res.status(500).json({ error: 'Failed to calculate financial health score' });
   }
 });
 

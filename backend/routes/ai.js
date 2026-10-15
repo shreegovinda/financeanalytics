@@ -83,11 +83,14 @@ router.get('/catalogue', authenticateToken, async (req, res) => {
       };
     }
 
+    const { isProviderConfigured } = require('../services/ai');
+
     const providers = Object.values(AI_CATALOGUE.providers).map((prov) => ({
       ...prov,
       userKeyConfigured: Boolean(keysMap[prov.id]?.hasKey),
       keyHint: keysMap[prov.id]?.keyHint || null,
       updatedAt: keysMap[prov.id]?.updatedAt || null,
+      adminKeyConfigured: isProviderConfigured(prov.id),
     }));
 
     res.json({
