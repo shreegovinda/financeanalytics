@@ -6,8 +6,14 @@ import Link from 'next/link';
 import AuthSessionGuard from '@/components/AuthSessionGuard';
 import BankSettings from '@/components/BankSettings';
 import AiUseCaseSettings from '@/components/AiUseCaseSettings';
-import BackButton from '@/components/BackButton';
-import PhoneInput from '@/components/PhoneInput';
+import {
+  UpdateEmailModal,
+  UpdatePhoneModal,
+  PasswordUpdateModal,
+} from '@/components/ProfileUpdateModals';
+import { TwoFactorModal } from '@/components/TwoFactorModal';
+import { ThemeStudio } from '@/components/ThemeSelector';
+
 import { useToast } from '@/components/Toast';
 import {
   apiGet,
@@ -72,7 +78,7 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (hex: strin
   );
 }
 
-type SettingsTab = 'profile' | 'preferences' | 'ai' | 'banks' | 'categories' | 'data' | 'activity';
+type SettingsTab = 'profile' | 'preferences' | 'ai' | 'banks' | 'categories' | 'data';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -85,8 +91,7 @@ export default function SettingsPage() {
         p === 'ai' ||
         p === 'banks' ||
         p === 'categories' ||
-        p === 'data' ||
-        p === 'activity'
+        p === 'data'
       ) {
         return p;
       }
@@ -125,12 +130,14 @@ export default function SettingsPage() {
   const [profileSaved, setProfileSaved] = useState(false);
   const [preferencesSaved, setPreferencesSaved] = useState(false);
 
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showPhoneModal, setShowPhoneModal] = useState(false);
+
   // Password rotation state
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
-  const [isSavingPassword, setIsSavingPassword] = useState(false);
 
   // Cost Transparency & Platform Footprint state
   const [costTransparency, setCostTransparency] = useState<CostTransparency | null>(null);
@@ -161,17 +168,25 @@ export default function SettingsPage() {
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [twoFactorMethod, setTwoFactorMethod] = useState('none');
+  const [showTwoFactorModal, setShowTwoFactorModal] = useState(false);
+  const [isPasswordStale, setIsPasswordStale] = useState(false);
 
   async function loadData(token: string) {
     try {
-      const [cats, prof, aiCat, costRes] = await Promise.all([
+      const [cats, prof, aiCat, costRes, twoFaRes] = await Promise.all([
         apiGet<Category[]>(`${API_BASE_URL}/api/categories`, token).catch(() => []),
         userAPI.getProfile(token).catch(() => null),
         aiAPI.getCatalogue(token).catch(() => null),
         accountAPI.getCostTransparency(token).catch(() => null),
+        apiGet<{ method: string }>(`${API_BASE_URL}/api/auth/2fa/status`, token).catch(() => ({
+          method: 'none',
+        })),
       ]);
 
       setCategories(cats);
+      if (twoFaRes && 'method' in twoFaRes) setTwoFactorMethod(twoFaRes.method);
       if (prof?.user) {
         setProfile(prof.user);
         setName(prof.user.name || '');
@@ -180,6 +195,12 @@ export default function SettingsPage() {
         setCurrency(prof.user.currency || 'INR');
         setTimezone(prof.user.timezone || 'Asia/Kolkata');
         setLocale(prof.user.locale || 'en-IN');
+        if (prof.user.password_changed_at) {
+          setIsPasswordStale(
+            Date.now() - new Date(prof.user.password_changed_at).getTime() >
+              30 * 24 * 60 * 60 * 1000,
+          );
+        }
         setLanguage(prof.user.language || 'en');
         setDateFormat(prof.user.date_format || 'DD/MM/YYYY');
         setTimeFormat(prof.user.time_format || '12h');
@@ -409,9 +430,6 @@ export default function SettingsPage() {
   // Password rotation save
   const handlePasswordSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    const token = localStorage.getItem('token');
-    if (!token) return;
-
     if (newPassword.length < 8) {
       setError('New password must be at least 8 characters long.');
       addToast('error', 'New password must be at least 8 characters long.');
@@ -423,30 +441,9 @@ export default function SettingsPage() {
       return;
     }
 
-    setIsSavingPassword(true);
     setError(null);
     setSuccessMessage(null);
-
-    try {
-      const res = await apiPut<{ success: boolean; token: string }>(
-        `${API_BASE_URL}/api/auth/password`,
-        { currentPassword, newPassword },
-        token,
-      );
-      localStorage.setItem('token', res.token);
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmNewPassword('');
-      setShowPasswordForm(false);
-      setSuccessMessage('Password updated successfully.');
-      addToast('success', 'Password updated successfully.');
-    } catch (err) {
-      const msg = getErrorMessage(err);
-      setError(msg);
-      addToast('error', msg);
-    } finally {
-      setIsSavingPassword(false);
-    }
+    setShowPasswordModal(true);
   };
 
   // Regional & Format preferences save
@@ -577,9 +574,9 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/70 pb-20">
+    <div className="animate-fade-in pb-12">
       <AuthSessionGuard />
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <div className="space-y-6">
         {/* Header Hero Card */}
         <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-indigo-600 to-slate-900 p-6 sm:p-8 text-white shadow-lg">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.22),transparent_32%)]" />
@@ -605,7 +602,6 @@ export default function SettingsPage() {
                   Admin Dashboard
                 </Link>
               )}
-              <BackButton variant="dark" fallbackHref="/dashboard" label="Back to Dashboard" />
             </div>
           </div>
 
@@ -683,18 +679,6 @@ export default function SettingsPage() {
               <span>🛡️</span>
               <span>{t('privacyTabName', 'Data & Privacy')}</span>
             </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('activity')}
-              className={`relative z-10 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all duration-150 cursor-pointer ${
-                activeTab === 'activity'
-                  ? 'bg-white text-blue-950 shadow-md font-bold scale-[1.02]'
-                  : 'text-blue-100 hover:text-white hover:bg-white/15'
-              }`}
-            >
-              <span>📋</span>
-              <span>{t('logsTabName', 'Activity Logs')}</span>
-            </button>
           </div>
         </section>
 
@@ -763,8 +747,15 @@ export default function SettingsPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5">
-                      Email Address
+                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5 flex justify-between">
+                      <span>Email Address</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowEmailModal(true)}
+                        className="text-indigo-600 hover:text-indigo-800 transition cursor-pointer"
+                      >
+                        Change
+                      </button>
                     </label>
                     <div className="relative">
                       <input
@@ -782,19 +773,33 @@ export default function SettingsPage() {
                       )}
                     </div>
                     <p className="mt-1 text-xs text-gray-400">
-                      Primary email used for sign-in and account recovery. It cannot be changed from
-                      profile settings.
+                      Primary email used for sign-in and account recovery.
                     </p>
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5">
-                      Mobile Number
+                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5 flex justify-between">
+                      <span>Mobile Number</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowPhoneModal(true)}
+                        className="text-indigo-600 hover:text-indigo-800 transition cursor-pointer"
+                      >
+                        Change
+                      </button>
                     </label>
-                    <PhoneInput value={phone} onChange={setPhone} variant="light" />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={phone}
+                        readOnly
+                        aria-readonly="true"
+                        placeholder="+919876543210"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-700 cursor-default"
+                      />
+                    </div>
                     <p className="mt-1.5 text-xs text-gray-400">
-                      Select your country calling code and enter your mobile number. Used for
-                      WhatsApp statement ingestion.
+                      Used for WhatsApp statement ingestion and passwordless sign-in.
                     </p>
                   </div>
                 </div>
@@ -840,6 +845,12 @@ export default function SettingsPage() {
                     <p className="mt-1 text-sm text-gray-500">
                       Rotate your account password regularly to protect your financial data.
                     </p>
+                    {isPasswordStale && (
+                      <p className="mt-2 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 inline-block px-3 py-1 rounded-md">
+                        ⚠️ It&apos;s been over 30 days since you last changed your password. Please
+                        update it now.
+                      </p>
+                    )}
                   </div>
                   <button
                     type="button"
@@ -847,6 +858,26 @@ export default function SettingsPage() {
                     className="rounded-xl border border-gray-300 px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition cursor-pointer"
                   >
                     {showPasswordForm ? 'Hide Password Form' : 'Change Password'}
+                  </button>
+                </div>
+
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-gray-100 pt-6">
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900">
+                      Two-Factor Authentication (2FA)
+                    </h3>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {twoFactorMethod === 'none'
+                        ? 'Add an extra layer of security to your account.'
+                        : `2FA is currently enabled via ${twoFactorMethod}.`}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowTwoFactorModal(true)}
+                    className={`rounded-xl px-4 py-2 text-xs font-semibold transition cursor-pointer ${twoFactorMethod === 'none' ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100' : 'border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+                  >
+                    {twoFactorMethod === 'none' ? 'Enable 2FA' : 'Manage 2FA'}
                   </button>
                 </div>
 
@@ -900,15 +931,10 @@ export default function SettingsPage() {
                     <div className="flex justify-end pt-2">
                       <button
                         type="submit"
-                        disabled={
-                          isSavingPassword ||
-                          !currentPassword ||
-                          !newPassword ||
-                          !confirmNewPassword
-                        }
+                        disabled={!currentPassword || !newPassword || !confirmNewPassword}
                         className="rounded-xl bg-slate-900 px-5 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50 transition cursor-pointer"
                       >
-                        {isSavingPassword ? 'Updating Password...' : 'Update Password'}
+                        {'Update Password'}
                       </button>
                     </div>
                   </form>
@@ -1454,234 +1480,266 @@ export default function SettingsPage() {
 
           {/* TAB: REGIONAL & FORMAT PREFERENCES */}
           {activeTab === 'preferences' && (
-            <form onSubmit={handleSavePreferences} className="space-y-6">
-              <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-                <div className="flex flex-col gap-1 mb-5">
-                  <h2 className="text-lg font-semibold text-gray-900">
-                    {t('regionalTabName', 'Regional & Display Formats')}
+            <div className="space-y-6">
+              {/* Theme Studio Card */}
+              <div className="rounded-2xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
+                <div className="flex flex-col gap-1 mb-6">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2">
+                    <span>🎨</span>
+                    <span>Application Theme &amp; Personalization</span>
                   </h2>
-                  <p className="text-sm text-gray-500">
-                    Customize your interface language, display currency, timezone, date, and time
-                    formatting.
+                  <p className="text-sm text-gray-500 dark:text-slate-400">
+                    Completely customize the visual style of your entire application with light
+                    &amp; dark mode and custom color palettes.
                   </p>
                 </div>
 
-                {/* Live Rates Status Banner */}
-                <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-indigo-200/80 bg-gradient-to-r from-indigo-50/80 via-blue-50/60 to-emerald-50/50 p-4 sm:flex-row sm:items-center sm:justify-between shadow-2xs">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm text-base">
-                      ⚡
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-wider text-indigo-900">
-                        {t('liveRatesActive', 'Live Internet Exchange Rates Active')}
-                      </p>
-                      <p className="text-xs text-indigo-700/80">
-                        Live market rates synced from Open Exchange &amp; ECB (USD Pivot)
-                        {ratesUpdated
-                          ? ` • Last synced: ${new Date(ratesUpdated).toLocaleTimeString()}`
-                          : ''}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      setIsRefreshingRates(true);
-                      await refreshRates();
-                      setIsRefreshingRates(false);
-                      addToast('success', 'Exchange rates updated from live internet source.');
-                    }}
-                    disabled={isRefreshingRates}
-                    className="inline-flex items-center gap-1.5 self-start rounded-xl border border-indigo-300 bg-white px-3.5 py-1.5 text-xs font-semibold text-indigo-700 shadow-2xs hover:bg-indigo-50 active:scale-95 transition cursor-pointer disabled:opacity-50 sm:self-center"
-                  >
-                    <span className={isRefreshingRates ? 'animate-spin' : ''}>🔄</span>
-                    <span>{isRefreshingRates ? 'Syncing...' : 'Sync Live Rates'}</span>
-                  </button>
-                </div>
-
-                <div className="mt-6 grid gap-5 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5">
-                      {t('interfaceLanguage', 'Interface Language')}
-                    </label>
-                    <select
-                      value={language}
-                      onChange={(e) => setLanguage(e.target.value)}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none bg-white"
-                    >
-                      {SUPPORTED_LANGUAGES.map((l) => (
-                        <option key={l.code} value={l.code}>
-                          {l.label} ({l.nativeLabel})
-                        </option>
-                      ))}
-                    </select>
-                    <p className="mt-1 text-xs text-gray-400">
-                      Changes the display language across the entire application in real time.
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5">
-                      {t('currencyLabel', 'Display Currency')}
-                    </label>
-                    <select
-                      value={currency}
-                      onChange={(e) => setCurrency(e.target.value)}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none bg-white"
-                    >
-                      {SUPPORTED_CURRENCIES.map((c) => (
-                        <option key={c.code} value={c.code}>
-                          {c.label}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="mt-1 text-xs text-gray-400">
-                      Default currency used for ledger totals, charts, and cash flow.
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5">
-                      {t('timezoneLabel', 'Timezone')}
-                    </label>
-                    <select
-                      value={timezone}
-                      onChange={(e) => setTimezone(e.target.value)}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none bg-white"
-                    >
-                      {SUPPORTED_TIMEZONES.map((tz) => (
-                        <option key={tz.code} value={tz.code}>
-                          {tz.label}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="mt-1 text-xs text-gray-400">
-                      Used to group transaction timestamps and month cutoffs.
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5">
-                      Number Locale &amp; Separators
-                    </label>
-                    <select
-                      value={locale}
-                      onChange={(e) => setLocale(e.target.value)}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none bg-white"
-                    >
-                      {SUPPORTED_LOCALES.map((l) => (
-                        <option key={l.code} value={l.code}>
-                          {l.label}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="mt-1 text-xs text-gray-400">
-                      Determines comma formatting (e.g., 1,00,000 vs 100,000).
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5">
-                      {t('dateFormatLabel', 'Date Format')}
-                    </label>
-                    <select
-                      value={dateFormat}
-                      onChange={(e) => setDateFormat(e.target.value)}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none bg-white"
-                    >
-                      {SUPPORTED_DATE_FORMATS.map((df) => (
-                        <option key={df.code} value={df.code}>
-                          {df.label}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="mt-1 text-xs text-gray-400">
-                      Applied across all transaction tables, statements, and calendar pickers.
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5">
-                      {t('timeFormatLabel', 'Time Format')}
-                    </label>
-                    <select
-                      value={timeFormat}
-                      onChange={(e) => setTimeFormat(e.target.value)}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none bg-white"
-                    >
-                      {SUPPORTED_TIME_FORMATS.map((tf) => (
-                        <option key={tf.code} value={tf.code}>
-                          {tf.label}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="mt-1 text-xs text-gray-400">
-                      Used for upload audit logs and report timestamps.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Live Formatting Preview Card */}
-                <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
-                  <p className="text-xs font-bold uppercase tracking-wider text-blue-800 mb-2">
-                    ✨ Live Formatting Preview
-                  </p>
-                  <div className="grid gap-3 sm:grid-cols-3 text-xs text-blue-950">
-                    <div className="rounded-xl bg-white p-3 border border-blue-200">
-                      <p className="text-gray-500 text-[11px]">Formatted Date</p>
-                      <p className="text-sm font-bold text-gray-900 mt-0.5">
-                        {formatCustomDate(new Date(), dateFormat)}
-                      </p>
-                    </div>
-                    <div className="rounded-xl bg-white p-3 border border-blue-200">
-                      <p className="text-gray-500 text-[11px]">Formatted Date &amp; Time</p>
-                      <p className="text-sm font-bold text-gray-900 mt-0.5">
-                        {formatCustomDateTime(new Date(), dateFormat, timeFormat, timezone)}
-                      </p>
-                    </div>
-                    <div className="rounded-xl bg-white p-3 border border-blue-200">
-                      <p className="text-gray-500 text-[11px]">Formatted Currency</p>
-                      <p className="text-sm font-bold text-gray-900 mt-0.5">
-                        {formatCurrency(125000.5, currency, locale)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-6 flex items-center justify-end gap-3">
-                  {preferencesSaved && (
-                    <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200">
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2.5"
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                      {t('savedSuccess', 'Preferences saved!')}
-                    </span>
-                  )}
-                  <button
-                    type="submit"
-                    disabled={isSavingPreferences || !isPreferencesDirty}
-                    className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition cursor-pointer"
-                  >
-                    {isSavingPreferences
-                      ? t('saving', 'Saving Preferences...')
-                      : isPreferencesDirty
-                        ? t('savePreferences', 'Save Preferences')
-                        : t('savedSuccess', 'Preferences Saved')}
-                  </button>
-                </div>
+                <ThemeStudio />
               </div>
-            </form>
+
+              <form onSubmit={handleSavePreferences} className="space-y-6">
+                <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                  <div className="flex flex-col gap-1 mb-5">
+                    <h2 className="text-lg font-semibold text-gray-900">
+                      {t('regionalTabName', 'Regional & Display Formats')}
+                    </h2>
+                    <p className="text-sm text-gray-500">
+                      Customize your interface language, display currency, timezone, date, and time
+                      formatting.
+                    </p>
+                  </div>
+
+                  {/* Live Rates Status Banner */}
+                  <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-indigo-200/80 bg-gradient-to-r from-indigo-50/80 via-blue-50/60 to-emerald-50/50 p-4 sm:flex-row sm:items-center sm:justify-between shadow-2xs">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm text-base">
+                        ⚡
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-wider text-indigo-900">
+                          {t('liveRatesActive', 'Live Internet Exchange Rates Active')}
+                        </p>
+                        <p className="text-xs text-indigo-700/80">
+                          Live market rates synced from Open Exchange &amp; ECB (USD Pivot)
+                          {ratesUpdated
+                            ? ` • Last synced: ${new Date(ratesUpdated).toLocaleTimeString()}`
+                            : ''}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setIsRefreshingRates(true);
+                        await refreshRates();
+                        setIsRefreshingRates(false);
+                        addToast('success', 'Exchange rates updated from live internet source.');
+                      }}
+                      disabled={isRefreshingRates}
+                      className="inline-flex items-center gap-1.5 self-start rounded-xl border border-indigo-300 bg-white px-3.5 py-1.5 text-xs font-semibold text-indigo-700 shadow-2xs hover:bg-indigo-50 active:scale-95 transition cursor-pointer disabled:opacity-50 sm:self-center"
+                    >
+                      <span className={isRefreshingRates ? 'animate-spin' : ''}>🔄</span>
+                      <span>{isRefreshingRates ? 'Syncing...' : 'Sync Live Rates'}</span>
+                    </button>
+                  </div>
+
+                  <div className="mt-6 grid gap-5 sm:grid-cols-2">
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5">
+                        {t('interfaceLanguage', 'Interface Language')}
+                      </label>
+                      <select
+                        value={language}
+                        onChange={(e) => setLanguage(e.target.value)}
+                        className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none bg-white"
+                      >
+                        {SUPPORTED_LANGUAGES.map((l) => (
+                          <option key={l.code} value={l.code}>
+                            {l.label} ({l.nativeLabel})
+                          </option>
+                        ))}
+                      </select>
+                      <p className="mt-1 text-xs text-gray-400">
+                        Changes the display language across the entire application in real time.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5">
+                        {t('currencyLabel', 'Display Currency')}
+                      </label>
+                      <select
+                        value={currency}
+                        onChange={(e) => setCurrency(e.target.value)}
+                        className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none bg-white"
+                      >
+                        {SUPPORTED_CURRENCIES.map((c) => (
+                          <option key={c.code} value={c.code}>
+                            {c.label}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="mt-1 text-xs text-gray-400">
+                        Default currency used for ledger totals, charts, and cash flow.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5">
+                        {t('timezoneLabel', 'Timezone')}
+                      </label>
+                      <select
+                        value={timezone}
+                        onChange={(e) => setTimezone(e.target.value)}
+                        className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none bg-white"
+                      >
+                        {SUPPORTED_TIMEZONES.map((tz) => (
+                          <option key={tz.code} value={tz.code}>
+                            {tz.label}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="mt-1 text-xs text-gray-400">
+                        Used to group transaction timestamps and month cutoffs.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5">
+                        Number Locale &amp; Separators
+                      </label>
+                      <select
+                        value={locale}
+                        onChange={(e) => setLocale(e.target.value)}
+                        className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none bg-white"
+                      >
+                        {SUPPORTED_LOCALES.map((l) => (
+                          <option key={l.code} value={l.code}>
+                            {l.label}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="mt-1 text-xs text-gray-400">
+                        Determines comma formatting (e.g., 1,00,000 vs 100,000).
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5">
+                        {t('dateFormatLabel', 'Date Format')}
+                      </label>
+                      <select
+                        value={dateFormat}
+                        onChange={(e) => setDateFormat(e.target.value)}
+                        className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none bg-white"
+                      >
+                        {SUPPORTED_DATE_FORMATS.map((df) => (
+                          <option key={df.code} value={df.code}>
+                            {df.label}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="mt-1 text-xs text-gray-400">
+                        Applied across all transaction tables, statements, and calendar pickers.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5">
+                        {t('timeFormatLabel', 'Time Format')}
+                      </label>
+                      <select
+                        value={timeFormat}
+                        onChange={(e) => setTimeFormat(e.target.value)}
+                        className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none bg-white"
+                      >
+                        {SUPPORTED_TIME_FORMATS.map((tf) => (
+                          <option key={tf.code} value={tf.code}>
+                            {tf.label}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="mt-1 text-xs text-gray-400">
+                        Used for upload audit logs and report timestamps.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Live Formatting Preview Card */}
+                  <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
+                    <p className="text-xs font-bold uppercase tracking-wider text-blue-800 mb-2">
+                      ✨ Live Formatting Preview
+                    </p>
+                    <div className="grid gap-3 sm:grid-cols-3 text-xs text-blue-950">
+                      <div className="rounded-xl bg-white p-3 border border-blue-200">
+                        <p className="text-gray-500 text-[11px]">Formatted Date</p>
+                        <p className="text-sm font-bold text-gray-900 mt-0.5">
+                          {formatCustomDate(new Date(), dateFormat)}
+                        </p>
+                      </div>
+                      <div className="rounded-xl bg-white p-3 border border-blue-200">
+                        <p className="text-gray-500 text-[11px]">Formatted Date &amp; Time</p>
+                        <p className="text-sm font-bold text-gray-900 mt-0.5">
+                          {formatCustomDateTime(new Date(), dateFormat, timeFormat, timezone)}
+                        </p>
+                      </div>
+                      <div className="rounded-xl bg-white p-3 border border-blue-200">
+                        <p className="text-gray-500 text-[11px]">Formatted Currency</p>
+                        <p className="text-sm font-bold text-gray-900 mt-0.5">
+                          {formatCurrency(125000.5, currency, locale)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 flex items-center justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLanguage('en');
+                        setCurrency('INR');
+                        setTimezone('Asia/Kolkata');
+                        setLocale('en-IN');
+                        setDateFormat('DD/MM/YYYY');
+                        setTimeFormat('12h');
+                      }}
+                      className="rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition cursor-pointer"
+                    >
+                      Reset to Defaults
+                    </button>
+                    {preferencesSaved && (
+                      <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200">
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2.5"
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                        {t('savedSuccess', 'Preferences saved!')}
+                      </span>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={isSavingPreferences || !isPreferencesDirty}
+                      className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition cursor-pointer"
+                    >
+                      {isSavingPreferences
+                        ? t('saving', 'Saving Preferences...')
+                        : isPreferencesDirty
+                          ? t('savePreferences', 'Save Preferences')
+                          : t('savedSuccess', 'Preferences Saved')}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
           )}
 
           {/* TAB 4: AI & BYOK (Step 7 & 8) */}
@@ -1796,60 +1854,6 @@ export default function SettingsPage() {
                   >
                     Permanently Delete Account
                   </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'activity' && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-100 pb-5">
-                <div>
-                  <h2 className="text-xl font-bold text-slate-900">Activity & Audit Logs</h2>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Review your account security updates, profile modifications, and regional
-                    preference changes.
-                  </p>
-                </div>
-                <Link
-                  href="/activity"
-                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition cursor-pointer"
-                >
-                  <span>Open Full Activity Page</span>
-                  <span>→</span>
-                </Link>
-              </div>
-
-              <div className="mt-6 rounded-xl border border-blue-100 bg-blue-50/50 p-4 text-xs text-blue-900 flex items-start gap-3">
-                <span className="text-lg">🔒</span>
-                <div>
-                  <p className="font-semibold">Security & Privacy Protection</p>
-                  <p className="mt-0.5 text-blue-800">
-                    Finlytix tracks audit events for your security. Passwords, password hashes, and
-                    active authentication tokens are strictly excluded from logs and can never be
-                    retrieved or viewed.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-6 text-center py-6">
-                <p className="text-sm text-slate-600">
-                  Access the dedicated, filterable, and paginated timeline of your complete account
-                  history:
-                </p>
-                <div className="mt-4 flex flex-wrap justify-center gap-3">
-                  <Link
-                    href="/activity"
-                    className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow hover:bg-slate-800 transition cursor-pointer"
-                  >
-                    View All Activity Logs
-                  </Link>
-                  <Link
-                    href="/assistant"
-                    className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition cursor-pointer"
-                  >
-                    Ask AI: &quot;When did I change password?&quot;
-                  </Link>
                 </div>
               </div>
             </div>
@@ -1981,6 +1985,47 @@ export default function SettingsPage() {
             </div>
           );
         })()}
+
+      {showEmailModal && (
+        <UpdateEmailModal
+          onClose={() => setShowEmailModal(false)}
+          onSuccess={(newEmail) => setEmail(newEmail)}
+        />
+      )}
+
+      {showPhoneModal && (
+        <UpdatePhoneModal
+          onClose={() => setShowPhoneModal(false)}
+          onSuccess={(newPhone) => setPhone(newPhone)}
+        />
+      )}
+
+      {showTwoFactorModal && (
+        <TwoFactorModal
+          currentMethod={twoFactorMethod}
+          onClose={() => setShowTwoFactorModal(false)}
+          onSuccess={(method) => {
+            setTwoFactorMethod(method);
+            setShowTwoFactorModal(false);
+          }}
+        />
+      )}
+
+      {showPasswordModal && (
+        <PasswordUpdateModal
+          currentPassword={currentPassword}
+          newPassword={newPassword}
+          onClose={() => setShowPasswordModal(false)}
+          onSuccess={() => {
+            setCurrentPassword('');
+            setNewPassword('');
+            setConfirmNewPassword('');
+            setShowPasswordForm(false);
+            setSuccessMessage('Password updated successfully.');
+            addToast('success', 'Password updated successfully.');
+          }}
+        />
+      )}
     </div>
   );
 }

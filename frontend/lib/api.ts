@@ -94,7 +94,12 @@ export async function apiGet<T>(url: string, token?: string): Promise<T> {
   return response.json();
 }
 
-export async function apiPost<T>(url: string, data: unknown, token?: string): Promise<T> {
+export async function apiPost<T>(
+  url: string,
+  data: unknown,
+  token?: string,
+  options?: FetchOptions,
+): Promise<T> {
   const response = await apiFetch(url, {
     method: 'POST',
     headers: {
@@ -102,6 +107,7 @@ export async function apiPost<T>(url: string, data: unknown, token?: string): Pr
       ...(token && { Authorization: `Bearer ${token}` }),
     },
     body: JSON.stringify(data),
+    ...options,
   });
 
   if (response.status === 401) {
@@ -128,7 +134,12 @@ export async function apiPost<T>(url: string, data: unknown, token?: string): Pr
   return response.json();
 }
 
-export async function apiPut<T>(url: string, data: unknown, token?: string): Promise<T> {
+export async function apiPut<T>(
+  url: string,
+  data: unknown,
+  token?: string,
+  options?: FetchOptions,
+): Promise<T> {
   const response = await apiFetch(url, {
     method: 'PUT',
     headers: {
@@ -136,6 +147,7 @@ export async function apiPut<T>(url: string, data: unknown, token?: string): Pro
       ...(token && { Authorization: `Bearer ${token}` }),
     },
     body: JSON.stringify(data),
+    ...options,
   });
 
   if (response.status === 401) {
@@ -238,8 +250,10 @@ export function getErrorMessage(error: unknown): string {
 
 interface AuthResponse {
   data: {
-    token: string;
-    user: {
+    token?: string;
+    requires2FA?: boolean;
+    method?: string;
+    user?: {
       id: string;
       email: string;
       name: string;
@@ -259,6 +273,14 @@ export const authAPI = {
     const response = await axios.post<AuthResponse['data']>(
       `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/auth/register`,
       { email, password, name, phone, consentGiven },
+    );
+    return { data: response.data };
+  },
+
+  async verify2FALogin(email: string, otp: string): Promise<AuthResponse> {
+    const response = await axios.post<AuthResponse['data']>(
+      `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/auth/2fa/verify-login`,
+      { email, otp },
     );
     return { data: response.data };
   },
@@ -313,6 +335,7 @@ export interface UserProfile {
   language?: string;
   date_format?: string;
   time_format?: string;
+  password_changed_at?: string;
   selected_ai_provider?: string;
   selected_ai_model?: string;
   ai_key_mode?: string;
@@ -343,6 +366,7 @@ export const userAPI = {
       language: string;
       date_format: string;
       time_format: string;
+      password_changed_at?: string;
       selected_ai_provider: string;
       selected_ai_model: string;
       ai_key_mode: string;
@@ -373,6 +397,7 @@ export interface AICatalogueProvider {
   envKey: string;
   docsUrl: string;
   userKeyConfigured?: boolean;
+  adminKeyConfigured?: boolean;
   keyHint?: string | null;
   updatedAt?: string | null;
 }

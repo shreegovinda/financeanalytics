@@ -1,4 +1,5 @@
 const { resolveUseCase } = require('../services/aiUseCases');
+const { getUserAiExecutionConfig } = require('../services/ai');
 const express = require('express');
 const auth = require('../middleware/auth');
 const pool = require('../config/db');
@@ -88,8 +89,25 @@ router.post('/', auth, async (req, res) => {
             .map(({ role, content }) => ({ role, content }))
         : history;
     const historyVersion = await chatHistory.version(pool, req.user.id);
-    const result = await answerQuestion(pool, req.user.id, message.trim(), scopedHistory, () =>
-      resolveUseCase(pool, req.user.id, useCase),
+    const result = await answerQuestion(
+      pool,
+      req.user.id,
+      message.trim(),
+      scopedHistory,
+      async () => {
+        try {
+          return await resolveUseCase(pool, req.user.id, useCase);
+        } catch (err) {
+          if (useCase === 'voice_chat') {
+            try {
+              return await resolveUseCase(pool, req.user.id, 'text_chat');
+            } catch (_) {
+              // fall through
+            }
+          }
+          return await getUserAiExecutionConfig(pool, req.user.id, req.headers['x-ai-provider']);
+        }
+      },
     );
     const saved = await chatHistory.save(
       pool,

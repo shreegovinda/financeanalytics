@@ -17,7 +17,6 @@ import {
   YAxis,
 } from 'recharts';
 import AuthSessionGuard from '@/components/AuthSessionGuard';
-import BackButton from '@/components/BackButton';
 import DateRangePicker from '@/components/DateRangePicker';
 import { apiGet, getErrorMessage } from '@/lib/api';
 import { subscribeFinanceChanges } from '@/lib/financeRefresh';
@@ -297,28 +296,15 @@ export default function AnalyticsPage() {
   }, [monthlyData, prefs]);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_34%),linear-gradient(180deg,#f8fafc_0%,#eef2ff_48%,#f8fafc_100%)]">
+    <div className="animate-fade-in pb-12">
       <AuthSessionGuard />
 
-      <header className="sticky top-0 z-30 border-b border-white/70 bg-white/85 shadow-sm backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-3">
-            <BackButton fallbackHref="/dashboard" />
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-600">
-                Finlytix
-              </p>
-              <h1 className="text-2xl font-bold text-gray-900">Analytics Studio</h1>
-            </div>
-          </div>
-          <Link
-            href="/dashboard"
-            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-          >
-            Dashboard
-          </Link>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Analytics</h1>
+          <p className="text-sm text-slate-500">Track and visualize your cash flow patterns.</p>
         </div>
-      </header>
+      </div>
 
       <main className="mx-auto max-w-7xl space-y-8 px-4 py-8">
         <section className="overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-blue-950 to-indigo-900 text-white shadow-2xl">

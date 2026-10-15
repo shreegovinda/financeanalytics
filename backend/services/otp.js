@@ -17,9 +17,13 @@ function ttlForPurpose(purpose) {
 const OTP_PURPOSES = {
   LOGIN: 'login',
   PASSWORD_RESET: 'password_reset',
+  PASSWORD_CHANGE: 'password_change',
   EMAIL_VERIFY: 'email_verify',
   WHATSAPP_LOGIN: 'whatsapp_login',
   PHONE_VERIFY: 'phone_verify',
+  EMAIL_UPDATE: 'email_update',
+  PHONE_UPDATE: 'phone_update',
+  TWO_FACTOR: '2fa',
 };
 
 // Generate a random 6-digit OTP

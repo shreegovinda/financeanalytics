@@ -15,11 +15,15 @@
     "ag-grid-community": "^35.2.1",
     "ag-grid-react": "^35.2.1",
     "axios": "^1.15.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^13.4.3",
+    "lucide-react": "^1.48.0",
     "next": "16.2.4",
     "next-auth": "^4.24.14",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "recharts": "^3.8.1",
+    "tailwind-merge": "^3.7.0",
     "zustand": "^5.0.12"
   },
   "devDependencies": {

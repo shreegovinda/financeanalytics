@@ -3,12 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 import AuthSessionGuard from '@/components/AuthSessionGuard';
 import { apiGet, getErrorMessage } from '@/lib/api';
 import { subscribeFinanceChanges } from '@/lib/financeRefresh';
 import { DashboardSkeleton } from '@/components/Skeleton';
 import { useUserPreferences } from '@/lib/date';
 import { useTranslation } from '@/lib/translations';
+import FinlytixHealthScore from '@/components/FinlytixHealthScore';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -108,14 +110,6 @@ export default function DashboardPage() {
     return subscribeFinanceChanges(() => void checkAuth());
   }, [router]);
 
-  const handleLogout = (): void => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null);
-    setIsLoading(true);
-    window.location.replace('/auth');
-  };
-
   if (isLoading || !user) {
     return <DashboardSkeleton />;
   }
@@ -130,238 +124,181 @@ export default function DashboardPage() {
   const formatCurrency = (value: number): string => prefs.formatMoney(value);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_34%),linear-gradient(180deg,#f8fafc_0%,#eef2ff_48%,#f8fafc_100%)]">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, staggerChildren: 0.1 }}
+      className="space-y-6 pb-12"
+    >
       <AuthSessionGuard />
-      <header className="sticky top-0 z-30 border-b border-white/70 bg-white/85 shadow-sm backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-4 lg:flex-row lg:justify-between lg:items-center">
+
+      <div className="flex flex-col gap-2 mb-8">
+        <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
+          Welcome back, {user?.name?.split(' ')[0]} 👋
+        </h1>
+        <p className="text-slate-500 text-sm">
+          Here is your financial overview. Keep tracking to meet your goals.
+        </p>
+      </div>
+
+      {/* Primary KPI Stats - Bento Grid */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Net Balance */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-600 to-brand-800 p-6 text-white shadow-lg transition-transform hover:scale-[1.02]">
+          <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/10 blur-2xl"></div>
+          <p className="text-sm font-medium text-brand-100 uppercase tracking-wider">
+            {t('netBalance', 'Net Balance')}
+          </p>
+          <div className="mt-2 flex items-baseline gap-2">
+            <p className="text-4xl font-bold tracking-tight">{formatCurrency(netBalance)}</p>
+          </div>
+          <div className="mt-4 flex items-center text-xs text-brand-200">
+            <span className="flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 font-medium text-white">
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                />
+              </svg>
+              {savingsRate}% Saved
+            </span>
+          </div>
+        </div>
+
+        {/* Total Income */}
+        <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 transition-shadow hover:shadow-md">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-slate-900 text-white shadow-lg text-lg">
-              📈
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
             </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-600">
-                Finlytix
-              </p>
-              <h1 className="text-2xl font-bold text-gray-900">Finance Analytics</h1>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Link
-              href="/settings?tab=profile"
-              aria-label="My Profile & Account"
-              title="Personal profile, phone, security & credentials"
-              className="inline-flex items-center gap-2.5 rounded-full border border-blue-200/80 bg-blue-50/80 py-1.5 pr-4 pl-1.5 text-sm font-medium text-blue-900 shadow-2xs transition-all hover:bg-blue-100/80 hover:shadow-xs active:scale-98 cursor-pointer"
-            >
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white shadow-2xs">
-                {user.name?.trim().charAt(0).toUpperCase() || 'U'}
-              </span>
-              <span>{user.name}</span>
-              <span className="rounded-full bg-blue-200/60 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-blue-800">
-                {t('profile', 'Profile')}
-              </span>
-            </Link>
-            {user.role === 'admin' && (
-              <Link
-                href="/admin"
-                className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700 cursor-pointer"
-              >
-                Admin
-              </Link>
-            )}
-            <Link
-              href="/activity"
-              title="Audit trail and account security activity logs"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-2xs transition hover:bg-slate-50 hover:text-slate-900 active:scale-98 cursor-pointer"
-            >
-              <span>📋</span>
-              <span className="hidden sm:inline">{t('activity', 'Activity')}</span>
-            </Link>
-            <button
-              onClick={handleLogout}
-              className="rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 cursor-pointer"
-            >
-              {t('logout', 'Logout')}
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {user && (!user.phone || user.needsPhone) && (
-        <div className="mx-auto max-w-7xl px-4 pt-4">
-          <div className="flex flex-col gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-900 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
-              <span className="text-xl">⚠️</span>
-              <div>
-                <p className="text-sm font-semibold">Complete your profile</p>
-                <p className="mt-0.5 text-xs text-amber-800">
-                  A mobile number with country code is required for your account. Please update your
-                  profile to keep your contact details up to date.
-                </p>
-              </div>
-            </div>
-            <Link
-              href="/settings?tab=profile"
-              className="self-start rounded-xl bg-amber-700 px-3.5 py-1.5 text-xs font-semibold text-white shadow transition hover:bg-amber-800 cursor-pointer sm:self-center"
-            >
-              Add mobile number
-            </Link>
-          </div>
-        </div>
-      )}
-
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        <section className="mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-blue-950 to-indigo-900 p-6 text-white shadow-2xl sm:p-8">
-          <div className="grid gap-8 lg:grid-cols-[1.25fr_0.75fr] lg:items-center">
-            <div>
-              <div className="flex flex-wrap items-center gap-2 mb-3">
-                <span className="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-blue-100">
-                  Finlytix Hub
-                </span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/40 bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-300">
-                  <span>⚡</span>
-                  <span>
-                    {prefs.currency} ({t('liveRatesActive', 'Live Rates Active')})
-                  </span>
-                </span>
-              </div>
-              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                Your financial picture, beautifully organized.
-              </h2>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100 sm:text-base">
-                Track cash flow, spending categories, and monthly movement from one polished
-                dashboard.
-              </p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Link
-                  href="/statements"
-                  className="rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-950 shadow-lg transition hover:bg-blue-50 cursor-pointer"
-                >
-                  {t('uploadStatement', 'Upload Statement')}
-                </Link>
-                <Link
-                  href="/transactions"
-                  className="rounded-2xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/20 cursor-pointer"
-                >
-                  {t('transactions', 'Review Transactions')}
-                </Link>
-              </div>
-            </div>
-            <div className="rounded-3xl border border-white/15 bg-white/10 p-5 backdrop-blur">
-              <p className="text-sm text-blue-100">{t('netBalance', 'Net Balance')}</p>
-              <p
-                className={`mt-2 text-4xl font-bold ${netBalance >= 0 ? 'text-emerald-300' : 'text-red-300'}`}
-              >
-                {formatCurrency(netBalance)}
-              </p>
-              <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
-                <div className="rounded-2xl bg-white/10 p-3">
-                  <p className="text-blue-100">{t('savingsRate', 'Savings Rate')}</p>
-                  <p className="mt-1 text-xl font-bold">{savingsRate}%</p>
-                </div>
-                <div className="rounded-2xl bg-white/10 p-3">
-                  <p className="text-blue-100">{t('transactions', 'Transactions')}</p>
-                  <p className="mt-1 text-xl font-bold">{totalTransactions}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="group rounded-3xl border border-emerald-100 bg-white/90 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
-            <div className="mb-5 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-600">
-                {t('totalIncome', 'Total Income')}
-              </h3>
-              <span className="rounded-2xl bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
-                Credit
-              </span>
-            </div>
-            <p className="text-3xl font-bold text-emerald-600">{formatCurrency(totalIncome)}</p>
-            <p className="mt-3 text-sm text-gray-500">Money received across all imported data.</p>
-          </div>
-          <div className="group rounded-3xl border border-red-100 bg-white/90 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
-            <div className="mb-5 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-600">
-                {t('totalExpenses', 'Total Expenses')}
-              </h3>
-              <span className="rounded-2xl bg-red-50 px-3 py-1 text-xs font-bold text-red-700">
-                Debit
-              </span>
-            </div>
-            <p className="text-3xl font-bold text-red-600">{formatCurrency(totalExpenses)}</p>
-            <p className="mt-3 text-sm text-gray-500">Spending tracked from uploaded statements.</p>
-          </div>
-          <div className="group rounded-3xl border border-indigo-100 bg-white/90 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
-            <div className="mb-5 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-600">
-                {t('netBalance', 'Net Balance')}
-              </h3>
-              <span className="rounded-2xl bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700">
-                {netBalance >= 0 ? 'Positive' : 'Negative'}
-              </span>
-            </div>
-            <p
-              className={`text-3xl font-bold ${netBalance >= 0 ? 'text-emerald-600' : 'text-red-600'}`}
-            >
-              {formatCurrency(netBalance)}
+            <p className="text-sm font-medium text-slate-500 uppercase tracking-wider">
+              {t('totalIncome', 'Income')}
             </p>
-            <p className="mt-3 text-sm text-gray-500">Top category: {topCategory}</p>
           </div>
+          <p className="mt-4 text-2xl font-bold text-slate-900">{formatCurrency(totalIncome)}</p>
         </div>
 
-        <div className="bg-white/90 rounded-3xl border border-white p-6 shadow-sm mb-8">
-          <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
-                Shortcuts
-              </p>
-              <h2 className="text-2xl font-bold text-gray-900">What would you like to do?</h2>
+        {/* Total Expenses */}
+        <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 transition-shadow hover:shadow-md">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-50 text-rose-600">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+              </svg>
             </div>
-            <p className="text-sm text-gray-500">Fast access to your most-used workflows.</p>
+            <p className="text-sm font-medium text-slate-500 uppercase tracking-wider">
+              {t('totalExpenses', 'Expenses')}
+            </p>
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <p className="mt-4 text-2xl font-bold text-slate-900">{formatCurrency(totalExpenses)}</p>
+        </div>
+
+        {/* Transactions / Highest Category */}
+        <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 transition-shadow hover:shadow-md">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
+              </svg>
+            </div>
+            <p className="text-sm font-medium text-slate-500 uppercase tracking-wider">
+              Top Category
+            </p>
+          </div>
+          <p className="mt-4 text-xl font-bold text-slate-900 truncate" title={topCategory}>
+            {topCategory}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">{totalTransactions} total transactions</p>
+        </div>
+      </div>
+
+      {/* Finlytix Health Score (FinScore) Hero Section */}
+      <FinlytixHealthScore />
+
+      <div className="mt-8 grid gap-6 lg:grid-cols-3">
+        {/* Quick Actions */}
+        <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 lg:col-span-1">
+          <h2 className="text-lg font-bold text-slate-900 mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
             <Link
               href="/statements"
-              className="group rounded-3xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-white p-5 transition hover:-translate-y-1 hover:border-indigo-300 hover:shadow-xl cursor-pointer"
+              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-50 p-4 transition-colors hover:bg-brand-50 hover:text-brand-700 text-slate-600"
             >
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600 text-xl text-white shadow-lg">
-                📤
-              </div>
-              <h3 className="font-semibold text-indigo-700">
-                {t('uploadStatement', 'Upload Statement')}
-              </h3>
-              <p className="mt-2 text-sm text-gray-600">Import verified PDF or XLSX statements.</p>
+              <span className="text-2xl">📄</span>
+              <span className="text-xs font-semibold">Statements</span>
             </Link>
             <Link
               href="/transactions"
-              className="group rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white p-5 transition hover:-translate-y-1 hover:border-blue-300 hover:shadow-xl cursor-pointer"
+              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-50 p-4 transition-colors hover:bg-brand-50 hover:text-brand-700 text-slate-600"
             >
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-xl text-white shadow-lg">
-                📋
-              </div>
-              <h3 className="font-semibold text-blue-700">
-                {t('transactions', 'View Transactions')}
-              </h3>
-              <p className="mt-2 text-sm text-gray-600">Search, review, and tune categories.</p>
+              <span className="text-2xl">💳</span>
+              <span className="text-xs font-semibold">Transactions</span>
             </Link>
             <Link
               href="/analytics"
-              className="group rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-5 transition hover:-translate-y-1 hover:border-emerald-300 hover:shadow-xl cursor-pointer"
+              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-50 p-4 transition-colors hover:bg-brand-50 hover:text-brand-700 text-slate-600"
             >
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-600 text-xl text-white shadow-lg">
-                📊
-              </div>
-              <h3 className="font-semibold text-emerald-700">
-                {t('analytics', 'Analytics Studio')}
-              </h3>
-              <p className="mt-2 text-sm text-gray-600">
-                Explore month, FY, and custom date insights.
-              </p>
+              <span className="text-2xl">📊</span>
+              <span className="text-xs font-semibold">Analytics</span>
+            </Link>
+            <Link
+              href="/settings"
+              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-50 p-4 transition-colors hover:bg-brand-50 hover:text-brand-700 text-slate-600"
+            >
+              <span className="text-2xl">⚙️</span>
+              <span className="text-xs font-semibold">Settings</span>
             </Link>
           </div>
         </div>
-      </main>
-    </div>
+
+        {/* AI Assistant Promo */}
+        <div className="rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 p-6 shadow-sm ring-1 ring-slate-800 lg:col-span-2 text-white relative overflow-hidden flex flex-col justify-center">
+          <div className="absolute right-0 top-0 w-1/2 h-full bg-gradient-to-l from-brand-500/20 to-transparent blur-3xl pointer-events-none"></div>
+          <div className="relative z-10 max-w-md">
+            <span className="inline-block rounded-full bg-brand-500/20 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-brand-300 border border-brand-500/30 mb-3">
+              New Feature
+            </span>
+            <h2 className="text-2xl font-bold mb-2">Talk to your Financial AI</h2>
+            <p className="text-slate-400 text-sm mb-6 leading-relaxed">
+              Ask questions about your spending, extract data from unstructured receipts, or get a
+              full breakdown of your month using our new Voice and Text Assistant.
+            </p>
+            <Link
+              href="/assistant"
+              className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 transition-colors hover:bg-brand-50 shadow-md"
+            >
+              <svg
+                className="w-4 h-4 text-brand-600"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                />
+              </svg>
+              Try Voice Assistant
+            </Link>
+          </div>
+        </div>
+      </div>
+    </motion.div>
   );
 }
