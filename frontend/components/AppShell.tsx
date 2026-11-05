@@ -83,6 +83,49 @@ function subscribeToStoredUser(onStoreChange: () => void) {
 
 const serverUser = () => null;
 
+// Informational pages that visitors can open without an account.
+const PUBLIC_PREFIXES = ['/help', '/privacy', '/terms', '/cookies'];
+
+function readHasToken(): boolean {
+  try {
+    return Boolean(localStorage.getItem('token'));
+  } catch {
+    return false;
+  }
+}
+
+const serverHasToken = () => false;
+
+function PublicChrome({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen">
+      <header className="glass sticky top-0 z-40 border-b border-line">
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
+          <Link href="/" aria-label="Finlytix home">
+            <BrandMark size="sm" />
+          </Link>
+          <nav className="flex items-center gap-2 sm:gap-3" aria-label="Site">
+            <Link
+              href="/help"
+              className="hidden rounded-lg px-3 py-2 text-sm font-medium text-ink-3 transition-colors hover:text-ink sm:block"
+            >
+              Help
+            </Link>
+            <ThemeQuickToggle />
+            <Link
+              href="/auth"
+              className="rounded-xl bg-brand-gradient px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+            >
+              Sign in
+            </Link>
+          </nav>
+        </div>
+      </header>
+      {children}
+    </div>
+  );
+}
+
 function NavLinks({
   items,
   pathname,
@@ -167,6 +210,7 @@ export function AppShell({ children }: AppShellProps) {
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const user = useSyncExternalStore(subscribeToStoredUser, readStoredUser, serverUser);
+  const signedIn = useSyncExternalStore(subscribeToStoredUser, readHasToken, serverHasToken);
 
   // Public pages render without the app shell
   const isAuthPage =
@@ -186,6 +230,14 @@ export function AppShell({ children }: AppShellProps) {
 
   if (isAuthPage) {
     return <>{children}</>;
+  }
+
+  // Signed-out visitors get a simple public header instead of the account sidebar.
+  const isPublicInfoPage = PUBLIC_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname?.startsWith(`${prefix}/`),
+  );
+  if (isPublicInfoPage && !signedIn) {
+    return <PublicChrome>{children}</PublicChrome>;
   }
 
   const closeMenu = () => setIsMobileMenuOpen(false);
