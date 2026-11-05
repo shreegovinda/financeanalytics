@@ -5,6 +5,7 @@ const auth = require('../middleware/auth');
 const pool = require('../config/db');
 const { chatErrorResponse } = require('../services/chatErrors');
 const { answerQuestion } = require('../services/chat');
+const { parseSpeechLanguage } = require('../services/speechLanguages');
 const router = express.Router();
 const active = new Set();
 const chatHistory = require('../services/chatHistory');
@@ -57,9 +58,21 @@ router.delete('/history', auth, async (req, res) => {
   }
 });
 router.post('/', auth, async (req, res) => {
-  const { message, history = [], useCase = 'text_chat', conversationId } = req.body;
+  const {
+    message,
+    history = [],
+    useCase = 'text_chat',
+    conversationId,
+    scope,
+    language,
+  } = req.body;
   if (!['text_chat', 'voice_chat'].includes(useCase))
     return res.status(400).json({ error: 'Invalid chat use case.' });
+  if (scope !== undefined && scope !== 'help')
+    return res.status(400).json({ error: 'Invalid chat scope.' });
+  const speechLanguage = parseSpeechLanguage(language);
+  if (language !== undefined && language !== '' && !speechLanguage)
+    return res.status(400).json({ error: 'Invalid speech language.' });
   if (
     typeof message !== 'string' ||
     !message.trim() ||
@@ -108,6 +121,8 @@ router.post('/', auth, async (req, res) => {
           return await getUserAiExecutionConfig(pool, req.user.id, req.headers['x-ai-provider']);
         }
       },
+      undefined,
+      { language: speechLanguage, scope },
     );
     const saved = await chatHistory.save(
       pool,

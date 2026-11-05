@@ -172,3 +172,82 @@ test('assistant provides accurate context for mobile app and whatsapp feature qu
   assert.equal(result.sources[0].id, 'product');
   assert.ok(result.answer.includes('iOS and Android'));
 });
+
+test('help scope skips finance planning and asks for the selected language', async () => {
+  const client = {
+    query: async () => ({ rows: [] }),
+    release() {},
+  };
+  let call = 0;
+  const generate = async (prompt) => {
+    call += 1;
+    assert.doesNotMatch(prompt, /You plan read-only Finlytix data retrieval/);
+    assert.match(prompt, /product help assistant/);
+    assert.match(prompt, /Reply entirely in Hindi/);
+    assert.match(prompt, /product help chatbot/);
+    return { answer: 'स्टेटमेंट हटाने के लिए Statements खोलें।', sourceIds: ['product'] };
+  };
+  const result = await answerQuestion(
+    { connect: async () => client },
+    'owner',
+    'How do I delete a statement?',
+    [],
+    { providerId: 'gemini', model: null, apiKey: null },
+    generate,
+    { scope: 'help', language: 'hi-IN' },
+  );
+  assert.equal(call, 1);
+  assert.equal(result.sources.length, 1);
+  assert.equal(result.sources[0].id, 'product');
+});
+
+test('help greetings follow the selected language without an AI call', async () => {
+  const pool = { query: () => assert.fail('No database retrieval for help greetings') };
+  const result = await answerQuestion(
+    pool,
+    'owner',
+    'Hello!',
+    [],
+    undefined,
+    () => assert.fail('No AI call'),
+    { scope: 'help', language: 'hi-IN' },
+  );
+  assert.match(result.answer, /नमस्ते/);
+  assert.deepEqual(result.sources, []);
+});
+
+test('canned greeting is used only when it matches the selected language', async () => {
+  const pool = { query: () => assert.fail('No database retrieval for a canned greeting') };
+  const noAi = () => assert.fail('No AI call');
+  for (const [message, language, pattern] of [
+    ['नमस्ते', 'hi-IN', /नमस्ते/],
+    ['Hello', 'en-IN', /Hello!/],
+    ['Hello', undefined, /Hello!/],
+    ['ನಮಸ್ಕಾರ', 'kn-IN', /ನಮಸ್ಕಾರ/],
+  ]) {
+    const result = await answerQuestion(pool, 'owner', message, [], undefined, noAi, { language });
+    assert.match(result.answer, pattern);
+  }
+});
+
+test('greeting in a different language than selected goes to the model', async () => {
+  const client = { query: async () => ({ rows: [] }), release() {} };
+  const prompts = [];
+  const generate = async (prompt) => {
+    prompts.push(prompt);
+    if (prompts.length === 1) return { requests: [{ tool: 'product' }] };
+    return { answer: 'नमस्ते! आप कैसे हैं?', sourceIds: ['product'] };
+  };
+  const result = await answerQuestion(
+    { connect: async () => client },
+    'owner',
+    'Hello',
+    [],
+    { providerId: 'gemini', model: null, apiKey: null },
+    generate,
+    { language: 'hi-IN' },
+  );
+  assert.equal(prompts.length, 2);
+  assert.match(prompts[1], /Reply entirely in Hindi/);
+  assert.match(result.answer, /नमस्ते/);
+});

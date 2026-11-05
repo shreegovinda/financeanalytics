@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Recognition, recognitionConstructor, recognitionError, VoicePlayback } from '@/lib/voice';
+import SpeechLanguageSelect from '@/components/SpeechLanguageSelect';
+import { useVoiceSession } from '@/lib/useVoiceSession';
+import { languageSelectOptions, loadSpeechLanguage, saveSpeechLanguage } from '@/lib/voice';
 
 interface VoiceAnswer {
   answer: string;
@@ -15,35 +17,30 @@ interface Turn {
 }
 interface Props {
   onClose: () => void;
-  onAsk: (question: string) => Promise<VoiceAnswer | undefined>;
+  onAsk: (question: string, language?: string) => Promise<VoiceAnswer | undefined>;
   locale: string;
 }
 
 export default function VoiceAssistantModal({ onClose, onAsk, locale }: Props) {
-  const recognition = useRef<Recognition | null>(null);
-  const playback = useRef(new VoicePlayback());
-  const alive = useRef(true);
-  const pending = useRef(false);
-  const askLatest = useRef(onAsk);
-  const audioEnabled = useRef(true);
-  const continueListening = useRef(false);
-
-  const [supported] = useState(() => Boolean(recognitionConstructor()));
-  const [handsFree, setHandsFree] = useState(false);
-  // Without speech recognition the modal opens idle rather than listening.
-  const [status, setStatus] = useState<'ready' | 'listening' | 'thinking' | 'speaking'>(
-    supported ? 'listening' : 'ready',
-  );
-  const [error, setError] = useState('');
-  const [draft, setDraft] = useState('');
-  const [heard, setHeard] = useState('');
+  const [language, setLanguage] = useState(() => loadSpeechLanguage(locale || 'en-IN'));
   const [turns, setTurns] = useState<Turn[]>([]);
-  const [language, setLanguage] = useState(locale || 'en-IN');
+  const options = useMemo(() => languageSelectOptions([locale]), [locale]);
+  const voice = useVoiceSession({
+    language,
+    onAsk: async (question) => {
+      const result = await onAsk(question, language);
+      if (result) setTurns((previous) => [...previous, { question, result }]);
+      return result;
+    },
+  });
+  const { status, heard, error, notice, supported, draft, handsFree } = voice;
   const bottom = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    askLatest.current = onAsk;
-  }, [onAsk]);
+  function changeLanguage(code: string) {
+    setLanguage(code);
+    saveSpeechLanguage(code);
+    voice.applyLanguage(code);
+  }
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -60,186 +57,11 @@ export default function VoiceAssistantModal({ onClose, onAsk, locale }: Props) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  function stopMic() {
-    const mic = recognition.current;
-    recognition.current = null;
-    if (mic) {
-      mic.onresult = mic.onerror = mic.onend = null;
-      mic.abort();
-    }
-    setHeard('');
-  }
-
-  function pause() {
-    audioEnabled.current = false;
-    continueListening.current = false;
-    setHandsFree(false);
-    stopMic();
-    playback.current.stop();
-    if (!pending.current) setStatus('ready');
-  }
-
-  function speak(answer: string) {
-    stopMic();
-    setStatus('speaking');
-    playback.current.speak(
-      answer,
-      language,
-      () => {
-        if (!alive.current) return;
-        setStatus('ready');
-        if (continueListening.current) {
-          setTimeout(() => {
-            if (alive.current) startListening();
-          }, 400);
-        }
-      },
-      () => {
-        if (!alive.current) return;
-        continueListening.current = false;
-        setHandsFree(false);
-        setStatus('ready');
-        setError('Audio playback failed. Tap "Play Audio" to retry.');
-      },
-    );
-  }
-
-  async function ask(question: string) {
-    if (pending.current || !question.trim() || !alive.current) return;
-    if (question.trim().length > 2000) {
-      pause();
-      setDraft(question.slice(0, 2000));
-      setError('Please shorten your question to 2,000 characters.');
-      return;
-    }
-    pending.current = true;
-    audioEnabled.current = true;
-    stopMic();
-    playback.current.stop();
-    setDraft(question);
-    setError('');
-    setStatus('thinking');
-
-    try {
-      const result = await askLatest.current(question.trim());
-      if (!alive.current) return;
-      if (!result) throw new Error('Unable to send your question. Please try again.');
-      setTurns((previous) => [...previous, { question: question.trim(), result }]);
-      setDraft('');
-      pending.current = false;
-      if (audioEnabled.current) speak(result.answer);
-      else setStatus('ready');
-    } catch (err) {
-      if (!alive.current) return;
-      setError(err instanceof Error ? err.message : 'Unable to answer. Please retry.');
-      continueListening.current = false;
-      setHandsFree(false);
-      setStatus('ready');
-    } finally {
-      pending.current = false;
-    }
-  }
-
-  function startListening() {
-    if (pending.current || !alive.current) return;
-    const Constructor = recognitionConstructor();
-    if (!Constructor) {
-      setError(
-        'Voice recognition is not supported in this browser. Please use Chrome, Edge, or Safari.',
-      );
-      setStatus('ready');
-      return;
-    }
-    stopMic();
-    playback.current.stop();
-    setError('');
-    playback.current.unlock();
-
-    try {
-      const mic = new Constructor();
-      recognition.current = mic;
-      mic.lang = language;
-      mic.continuous = false;
-      mic.interimResults = true;
-      let finalText = '';
-      let failed = false;
-
-      mic.onresult = (event) => {
-        if (recognition.current !== mic) return;
-        let interim = '';
-        finalText = '';
-        for (let i = 0; i < event.results.length; i++) {
-          const result = event.results[i];
-          if (result.isFinal) finalText += result[0].transcript + ' ';
-          else interim += result[0].transcript;
-        }
-        setHeard((finalText + interim).trim());
-      };
-
-      mic.onerror = (event) => {
-        if (recognition.current !== mic) return;
-        failed = true;
-        continueListening.current = false;
-        setHandsFree(false);
-        setError(recognitionError(event.error));
-        setStatus('ready');
-      };
-
-      mic.onend = () => {
-        if (recognition.current !== mic || !alive.current) return;
-        recognition.current = null;
-        setHeard('');
-        if (!failed && finalText.trim()) {
-          void ask(finalText.trim());
-        } else {
-          setStatus('ready');
-          continueListening.current = false;
-          setHandsFree(false);
-          if (!failed && !finalText.trim()) {
-            setError(recognitionError('no-speech'));
-          }
-        }
-      };
-
-      mic.start();
-      setStatus('listening');
-    } catch (err) {
-      console.warn('Speech recognition start failed:', err);
-      setError('Could not start microphone. Check browser permissions.');
-      setStatus('ready');
-      recognition.current = null;
-    }
-  }
-
-  // Start the microphone on mount and tear everything down on unmount.
+  // Start listening shortly after the modal opens when the browser supports it.
   useEffect(() => {
-    alive.current = true;
-    const player = playback.current;
-
-    const releaseMic = () => {
-      alive.current = false;
-      continueListening.current = false;
-      const mic = recognition.current;
-      recognition.current = null;
-      if (mic) {
-        mic.onresult = mic.onerror = mic.onend = null;
-        mic.abort();
-      }
-      player.stop();
-    };
-
-    if (!supported) {
-      return releaseMic;
-    }
-
-    const timer = setTimeout(() => {
-      if (alive.current) startListening();
-    }, 300);
-
-    return () => {
-      clearTimeout(timer);
-      releaseMic();
-    };
+    if (!voice.supported) return;
+    const timer = setTimeout(() => voice.startListening(), 300);
+    return () => clearTimeout(timer);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
@@ -320,7 +142,7 @@ export default function VoiceAssistantModal({ onClose, onAsk, locale }: Props) {
                 </>
               )}
               {status === 'thinking' && (
-                <div className="absolute inset-0 rounded-full border-4 border-brand-200 border-t-indigo-600 animate-spin" />
+                <div className="absolute inset-0 rounded-full border-4 border-brand-200 border-t-brand-600 animate-spin" />
               )}
               {status === 'speaking' && (
                 <motion.div
@@ -336,14 +158,8 @@ export default function VoiceAssistantModal({ onClose, onAsk, locale }: Props) {
                 whileTap={{ scale: 0.95 }}
                 type="button"
                 onClick={() => {
-                  playback.current.unlock();
-                  if (status === 'listening') {
-                    recognition.current?.stop();
-                  } else if (status === 'speaking') {
-                    pause();
-                  } else {
-                    startListening();
-                  }
+                  if (status === 'speaking') voice.pause();
+                  else voice.toggleListen();
                 }}
                 className={`relative z-10 flex h-24 w-24 items-center justify-center rounded-full shadow-xl transition-all cursor-pointer ${
                   status === 'listening'
@@ -445,8 +261,8 @@ export default function VoiceAssistantModal({ onClose, onAsk, locale }: Props) {
                   <button
                     type="button"
                     onClick={() => {
-                      setError('');
-                      startListening();
+                      voice.setError('');
+                      voice.startListening();
                     }}
                     className="font-bold underline hover:text-red-900 cursor-pointer ml-1"
                   >
@@ -455,6 +271,15 @@ export default function VoiceAssistantModal({ onClose, onAsk, locale }: Props) {
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {notice && (
+              <div
+                role="status"
+                className="mt-3 max-w-md rounded-xl bg-amber-50 p-3 border border-amber-100 text-center text-xs text-amber-800"
+              >
+                {notice}
+              </div>
+            )}
 
             {!supported && (
               <div className="mt-3 max-w-md rounded-xl bg-amber-50 p-3 border border-amber-100 text-center text-xs text-amber-800">
@@ -505,8 +330,8 @@ export default function VoiceAssistantModal({ onClose, onAsk, locale }: Props) {
                         type="button"
                         disabled={status === 'thinking'}
                         onClick={() => {
-                          setError('');
-                          speak(turn.result.answer);
+                          voice.setError('');
+                          voice.speak(turn.result.answer);
                         }}
                         className="mt-2.5 inline-flex items-center gap-1 text-xs font-semibold text-brand-600 hover:text-brand-800 disabled:opacity-50 transition-colors cursor-pointer"
                       >
@@ -543,30 +368,19 @@ export default function VoiceAssistantModal({ onClose, onAsk, locale }: Props) {
                   type="checkbox"
                   checked={handsFree}
                   disabled={!supported}
-                  onChange={(e) => {
-                    continueListening.current = e.target.checked;
-                    setHandsFree(e.target.checked);
-                  }}
+                  onChange={(e) => voice.setHandsFreeListening(e.target.checked)}
                   className="rounded text-brand-600 focus:ring-brand-500 cursor-pointer"
                 />
                 Hands-free conversation mode
               </label>
 
-              <select
-                aria-label="Speech language"
+              <SpeechLanguageSelect
                 value={language}
-                disabled={status !== 'ready'}
-                onChange={(e) => setLanguage(e.target.value)}
-                className="bg-surface-2 border border-line rounded-lg px-2.5 py-1 text-xs font-medium text-ink-2 focus:outline-none cursor-pointer"
-              >
-                {Array.from(new Set([locale, 'en-IN', 'en-US', 'hi-IN']))
-                  .filter(Boolean)
-                  .map((val) => (
-                    <option key={val} value={val}>
-                      {val}
-                    </option>
-                  ))}
-              </select>
+                onChange={changeLanguage}
+                options={options}
+                className="flex items-center gap-2 font-medium text-ink-2"
+                selectClassName="bg-surface-2 border border-line rounded-lg px-2.5 py-1 text-xs font-medium text-ink-2 focus:outline-none cursor-pointer"
+              />
             </div>
 
             {/* Manual Text Fallback Form */}
@@ -574,8 +388,8 @@ export default function VoiceAssistantModal({ onClose, onAsk, locale }: Props) {
               className="flex gap-2"
               onSubmit={(e) => {
                 e.preventDefault();
-                playback.current.unlock();
-                void ask(draft);
+                voice.unlock();
+                void voice.ask(draft);
               }}
             >
               <input
@@ -583,7 +397,7 @@ export default function VoiceAssistantModal({ onClose, onAsk, locale }: Props) {
                 value={draft}
                 maxLength={2000}
                 disabled={status === 'thinking'}
-                onChange={(e) => setDraft(e.target.value)}
+                onChange={(e) => voice.setDraft(e.target.value)}
                 placeholder="Or type a question manually…"
                 className="min-w-0 flex-1 rounded-xl border border-line bg-surface-2 px-3.5 py-2 text-xs sm:text-sm text-ink focus:border-brand-500 focus:bg-surface focus:outline-none focus:ring-1 focus:ring-brand-500 transition-all disabled:opacity-60"
               />

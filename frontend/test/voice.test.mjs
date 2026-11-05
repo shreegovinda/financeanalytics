@@ -4,20 +4,29 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 
-function harness() {
+function harness(voices = [{ lang: 'en-IN', localService: true, name: 'English India' }]) {
   const queue = [];
   const timers = new Map();
   let timerId = 0;
   let cancellations = 0;
+  const store = new Map();
   const speechSynthesis = {
     speak: (utterance) => queue.push(utterance),
     cancel: () => cancellations++,
     resume() {},
-    getVoices: () => [{ lang: 'en-IN', localService: true }],
+    getVoices: () => voices,
+    addEventListener() {},
+    removeEventListener() {},
   };
   const context = {
     exports: {},
-    window: { speechSynthesis },
+    window: {
+      speechSynthesis,
+      localStorage: {
+        getItem: (key) => (store.has(key) ? store.get(key) : null),
+        setItem: (key, value) => store.set(key, String(value)),
+      },
+    },
     SpeechSynthesisUtterance: class {
       constructor(text) {
         this.text = text;
@@ -130,4 +139,83 @@ test('missing synthesis fails gracefully, while unlock is safe', () => {
     () => errors++,
   );
   assert.equal(errors, 1);
+});
+
+test('Indian speech catalog covers STT and TTS language codes', () => {
+  const { SPEECH_LANGUAGES, languageSelectOptions } = harness();
+  const codes = SPEECH_LANGUAGES.map((item) => item.code);
+  for (const code of [
+    'en-IN',
+    'hi-IN',
+    'bn-IN',
+    'te-IN',
+    'mr-IN',
+    'ta-IN',
+    'gu-IN',
+    'kn-IN',
+    'ml-IN',
+    'pa-IN',
+    'or-IN',
+    'ur-IN',
+    'as-IN',
+  ]) {
+    assert.ok(codes.includes(code), code);
+  }
+  const helpOptions = languageSelectOptions([], true);
+  assert.equal(
+    helpOptions.some((item) => item.code === 'es-ES'),
+    false,
+  );
+  assert.ok(helpOptions.some((item) => item.code === 'as-IN'));
+});
+
+test('synthesis matching accepts prefix, underscore, and Punjabi script tags', () => {
+  const { pickSynthesisVoice, synthesisGapMessage, languageMatches } = harness();
+  assert.equal(pickSynthesisVoice('hi-IN', [{ lang: 'hi_IN', localService: true }]).lang, 'hi_IN');
+  assert.equal(
+    pickSynthesisVoice('pa-IN', [{ lang: 'pa-Guru-IN', name: 'Punjabi' }]).lang,
+    'pa-Guru-IN',
+  );
+  assert.equal(languageMatches('or-IN', 'or'), true);
+  assert.match(synthesisGapMessage('as-IN', [{ lang: 'en-IN', localService: true }]), /Assamese/);
+  assert.equal(synthesisGapMessage('en-IN', [{ lang: 'en-IN', localService: true }]), undefined);
+});
+
+test('speech language persistence and recognition language fallbacks', () => {
+  const h = harness();
+  h.saveSpeechLanguage('ta-IN');
+  assert.equal(h.loadSpeechLanguage('en-IN'), 'ta-IN');
+  assert.equal(h.recognitionLangFor('pa-IN'), 'pa-IN');
+  assert.match(h.recognitionError('language-not-supported'), /unavailable/);
+});
+
+test('playback attaches a matching Indian voice and reports a gap otherwise', () => {
+  const h = harness([
+    { lang: 'en-IN', localService: true, name: 'English India' },
+    { lang: 'hi-IN', localService: true, name: 'Google हिन्दी' },
+  ]);
+  const player = new h.VoicePlayback();
+  let gap = '';
+  player.speak(
+    'Namaste',
+    'hi-IN',
+    () => {},
+    () => assert.fail('unexpected error'),
+    (message) => {
+      gap = message;
+    },
+  );
+  assert.equal(h.queue[0].lang, 'hi-IN');
+  assert.equal(h.queue[0].voice.name, 'Google हिन्दी');
+  assert.equal(gap, '');
+  player.speak(
+    'Namaskar',
+    'as-IN',
+    () => {},
+    () => {},
+    (message) => {
+      gap = message;
+    },
+  );
+  assert.match(gap, /Assamese/);
 });
