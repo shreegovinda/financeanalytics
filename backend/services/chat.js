@@ -158,8 +158,7 @@ async function answerQuestion(
   // A canned greeting is only right when it is in the selected speech language;
   // otherwise let the model reply in that language.
   const greetingMatchesLanguage =
-    !language ||
-    greetingLanguages[greeting] === String(language).toLowerCase().split('-')[0];
+    !language || greetingLanguages[greeting] === String(language).toLowerCase().split('-')[0];
   if (!helpOnly && greetingMatchesLanguage && Object.hasOwn(greetings, greeting)) {
     return {
       answer: greetings[greeting],
