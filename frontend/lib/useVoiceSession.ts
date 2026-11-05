@@ -30,6 +30,7 @@ export function useVoiceSession({ language, onAsk }: Options) {
   const audioEnabled = useRef(true);
   const continueListening = useRef(false);
   const listenAgainTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const micStartRetry = useRef(false);
   const [handsFree, setHandsFree] = useState(false);
   const [status, setStatus] = useState<VoiceStatus>('ready');
   const [error, setError] = useState('');
@@ -90,13 +91,13 @@ export function useVoiceSession({ language, onAsk }: Options) {
   }, []);
 
   const speak = useCallback(
-    (answer: string) => {
+    (answer: string, spokenLanguage?: string) => {
       cancelListenAgain();
       stopMic();
       setStatus('speaking');
       playback.current.speak(
         answer,
-        languageLatest.current,
+        spokenLanguage ?? languageLatest.current,
         () => {
           if (!alive.current) return;
           setStatus('ready');
@@ -133,6 +134,7 @@ export function useVoiceSession({ language, onAsk }: Options) {
       }
       pending.current = true;
       audioEnabled.current = true;
+      const replyLanguage = languageLatest.current;
       stopMic();
       playback.current.stop();
       setDraft(question);
@@ -145,7 +147,7 @@ export function useVoiceSession({ language, onAsk }: Options) {
         if (!result) throw new Error('Unable to send your question. Please try again.');
         setDraft('');
         pending.current = false;
-        if (audioEnabled.current) speak(result.answer);
+        if (audioEnabled.current) speak(result.answer, replyLanguage);
         else setStatus('ready');
         return result;
       } catch (err) {
@@ -211,10 +213,26 @@ export function useVoiceSession({ language, onAsk }: Options) {
     };
     try {
       mic.start();
+      micStartRetry.current = false;
       setStatus('listening');
     } catch {
-      mic.onerror({ error: 'audio-capture' });
+      // start() throws InvalidStateError when a previous session has not finished
+      // ending — not a missing microphone.
       recognition.current = null;
+      mic.onresult = mic.onerror = mic.onend = null;
+      if (!micStartRetry.current) {
+        micStartRetry.current = true;
+        listenAgainTimer.current = setTimeout(() => {
+          listenAgainTimer.current = undefined;
+          if (alive.current && !pending.current) startListeningRef.current();
+        }, 200);
+        return;
+      }
+      micStartRetry.current = false;
+      continueListening.current = false;
+      setHandsFree(false);
+      setStatus('ready');
+      setError(recognitionError('aborted'));
     }
   }, [ask, cancelListenAgain, stopMic]);
   useEffect(() => {
@@ -227,20 +245,52 @@ export function useVoiceSession({ language, onAsk }: Options) {
   }, [status]);
 
   // Changing the language mid-conversation takes effect immediately: restart the
-  // microphone in the new language, or stop speech that is still playing in the old one.
+  // microphone in the new language after the previous recognizer ends, stop speech
+  // that is still playing in the old one, or skip speaking an in-flight reply.
   const applyLanguage = useCallback(
     (code: string) => {
       languageLatest.current = code;
       if (statusRef.current === 'listening') {
-        stopMic();
-        startListeningRef.current();
+        const mic = recognition.current;
+        recognition.current = null;
+        setHeard('');
+        let resumed = false;
+        const resume = () => {
+          if (resumed) return;
+          resumed = true;
+          if (mic) mic.onend = null;
+          cancelListenAgain();
+          micStartRetry.current = false;
+          // Chrome cannot start() until the previous session's end event has settled.
+          listenAgainTimer.current = setTimeout(() => {
+            listenAgainTimer.current = undefined;
+            if (alive.current && !pending.current) startListeningRef.current();
+          }, 0);
+        };
+        if (!mic) {
+          resume();
+          return;
+        }
+        mic.onresult = mic.onerror = null;
+        mic.onend = resume;
+        try {
+          mic.abort();
+        } catch {
+          resume();
+          return;
+        }
+        if (!resumed) listenAgainTimer.current = setTimeout(resume, 400);
       } else if (statusRef.current === 'speaking') {
         playback.current.stop();
         setStatus('ready');
         if (continueListening.current) startListeningRef.current();
+      } else if (statusRef.current === 'thinking') {
+        // The in-flight /api/chat reply was requested in the previous language.
+        // Do not read it aloud with the newly selected voice.
+        audioEnabled.current = false;
       }
     },
-    [stopMic],
+    [cancelListenAgain],
   );
 
   const toggleListen = useCallback(() => {
