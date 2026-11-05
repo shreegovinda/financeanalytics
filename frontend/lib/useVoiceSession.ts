@@ -90,7 +90,11 @@ export function useVoiceSession({ language, onAsk }: Options) {
         () => {
           if (!alive.current) return;
           setStatus('ready');
-          if (continueListening.current) startListeningRef.current();
+          if (continueListening.current) {
+            setTimeout(() => {
+              if (alive.current) startListeningRef.current();
+            }, 400);
+          }
         },
         () => {
           if (!alive.current) return;
@@ -154,6 +158,7 @@ export function useVoiceSession({ language, onAsk }: Options) {
     playback.current.stop();
     setError('');
     setNotice('');
+    playback.current.unlock();
     const mic = new Constructor();
     recognition.current = mic;
     mic.lang = recognitionLangFor(languageLatest.current);

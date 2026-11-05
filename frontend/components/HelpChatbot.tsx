@@ -11,7 +11,7 @@ import {
   languageSelectOptions,
   loadSpeechLanguage,
   saveSpeechLanguage,
-  SPEECH_LANGUAGES,
+  speechLanguageByCode,
   subscribeSpeechLanguage,
 } from '@/lib/voice';
 
@@ -52,7 +52,7 @@ export default function HelpChatbot() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const conversationRef = useRef<string | null>(null);
-  const options = useMemo(() => languageSelectOptions([], true), []);
+  const options = useMemo(() => languageSelectOptions([language], true), [language]);
   const bottom = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -154,7 +154,7 @@ export default function HelpChatbot() {
     }
   }
 
-  const selected = SPEECH_LANGUAGES.find((item) => item.code === language);
+  const selected = speechLanguageByCode(language);
 
   return (
     <section
