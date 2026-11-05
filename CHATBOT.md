@@ -1,6 +1,7 @@
 # Ask Finlytix
 
 Open /assistant or choose Ask Finlytix from an authenticated app page.
+The public Help page includes a product help chatbot (typed by default, optional voice mode).
 The chat is read-only and uses the existing configured AI provider.
 Relevant user-owned data is sent to that provider; the interface discloses this.
 Conversation history is persisted per user in PostgreSQL.

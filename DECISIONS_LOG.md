@@ -297,6 +297,21 @@ must convert to `.xlsx` first. No migration needed for already-imported data.
 
 ---
 
+## Decision: Help chatbot voice reuses browser Web Speech, not a new provider
+
+**Date:** 2026-10-08
+**Status:** ✅ Implemented
+**Decision:** Add speech-to-text and text-to-speech to the Help page chatbot by reusing the existing Talk to Finlytix pipeline (`frontend/lib/voice.ts`, `useVoiceSession`, `/api/chat` with `voice_chat` / `text_chat`). Do not add a cloud STT/TTS vendor. Support major Indian languages via BCP-47 tags passed to `SpeechRecognition.lang` and `SpeechSynthesisUtterance.lang`, persist the choice in `localStorage`, and pass `language` plus `scope=help` so answers stay on the product guide and can be written in the selected language.
+
+**Rationale:**
+- The finance voice assistant already solved mic permissions, unsupported browsers, interruption, and playback failure.
+- Browser speech is the documented provider for voice; a second vendor would add secrets and billing.
+- Chromium/Google speech covers most Indian languages for recognition; synthesis voices are device-dependent, so the UI must explain gaps instead of failing silently.
+
+**Trade-off:** Odia, Assamese, Punjabi, and Urdu playback are often missing on desktop. Typed help chat remains the fallback.
+
+---
+
 ## Future Decisions (To Be Made)
 
 - [ ] Enforce the per-bank-per-month guard with a **unique** partial index on

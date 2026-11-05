@@ -1,6 +1,7 @@
 'use client';
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
+import HelpChatbot from '@/components/HelpChatbot';
 import faqsData from '../../../backend/data/faqs.json';
 
 interface FAQ {
@@ -42,6 +43,10 @@ export default function HelpPage() {
           <p className="mt-4 text-lg text-slate-600">
             Search our knowledge base or browse categories to learn about Finlytix.
           </p>
+        </div>
+
+        <div className="mt-10">
+          <HelpChatbot />
         </div>
 
         <div className="mt-10 max-w-2xl mx-auto">
