@@ -86,15 +86,20 @@ const serverUser = () => null;
 // Informational pages that visitors can open without an account.
 const PUBLIC_PREFIXES = ['/help', '/privacy', '/terms', '/cookies'];
 
-function readHasToken(): boolean {
+type SessionState = 'unknown' | 'signed-in' | 'signed-out';
+
+// The server (and the hydration pass) cannot know whether a token exists, so the
+// session starts as 'unknown' and no account- or visitor-specific chrome is shown
+// until the real value is read on the client.
+function readSessionState(): SessionState {
   try {
-    return Boolean(localStorage.getItem('token'));
+    return localStorage.getItem('token') ? 'signed-in' : 'signed-out';
   } catch {
-    return false;
+    return 'signed-out';
   }
 }
 
-const serverHasToken = () => false;
+const serverSessionState = (): SessionState => 'unknown';
 
 function PublicChrome({ children }: { children: React.ReactNode }) {
   return (
@@ -121,7 +126,8 @@ function PublicChrome({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
       </header>
-      {children}
+      {/* Legal pages set their own min-h-screen; subtract the header so they do not overflow. */}
+      <div className="[&>main]:min-h-[calc(100dvh-3.5rem)]">{children}</div>
     </div>
   );
 }
@@ -210,7 +216,7 @@ export function AppShell({ children }: AppShellProps) {
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const user = useSyncExternalStore(subscribeToStoredUser, readStoredUser, serverUser);
-  const signedIn = useSyncExternalStore(subscribeToStoredUser, readHasToken, serverHasToken);
+  const session = useSyncExternalStore(subscribeToStoredUser, readSessionState, serverSessionState);
 
   // The landing and auth pages are public and always render without the app shell.
   // Help and legal pages keep the shell for signed-in users (see below).
@@ -231,7 +237,11 @@ export function AppShell({ children }: AppShellProps) {
   const isPublicInfoPage = PUBLIC_PREFIXES.some(
     (prefix) => pathname === prefix || pathname?.startsWith(`${prefix}/`),
   );
-  if (isPublicInfoPage && !signedIn) {
+  if (isPublicInfoPage && session === 'unknown') {
+    // Avoid flashing the visitor header at signed-in users before the session is known.
+    return <>{children}</>;
+  }
+  if (isPublicInfoPage && session === 'signed-out') {
     return <PublicChrome>{children}</PublicChrome>;
   }
 
