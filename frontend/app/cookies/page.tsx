@@ -3,23 +3,23 @@ import { LEGAL_CONFIG } from '@/lib/legal';
 
 export default function CookiePolicyPage() {
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 sm:px-6">
+    <main className="min-h-screen bg-surface-2 px-4 py-8 text-ink sm:px-6">
       <div className="mx-auto max-w-3xl">
         <div className="mb-6 flex items-center justify-between text-sm">
-          <Link href="/" className="text-indigo-700 hover:underline">
+          <Link href="/" className="text-brand-700 hover:underline">
             ← Home
           </Link>
-          <span className="text-slate-500">Version {LEGAL_CONFIG.policyVersion}</span>
+          <span className="text-ink-3">Version {LEGAL_CONFIG.policyVersion}</span>
         </div>
 
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
           Cookie & Local Storage Policy
         </h1>
-        <p className="mt-2 text-sm text-slate-600">Effective Date: {LEGAL_CONFIG.effectiveDate}</p>
+        <p className="mt-2 text-sm text-ink-2">Effective Date: {LEGAL_CONFIG.effectiveDate}</p>
 
-        <div className="mt-8 space-y-6 text-sm leading-relaxed text-slate-700">
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">1. Essential Local Storage</h2>
+        <div className="mt-8 space-y-6 text-sm leading-relaxed text-ink-2">
+          <section className="rounded-2xl border border-line bg-surface p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-ink">1. Essential Local Storage</h2>
             <p className="mt-2">
               Finlytix uses browser local storage strictly for functionality necessary to provide
               the service:
@@ -36,8 +36,8 @@ export default function CookiePolicyPage() {
             </ul>
           </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">
+          <section className="rounded-2xl border border-line bg-surface p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-ink">
               2. No Tracking or Advertising Cookies
             </h2>
             <p className="mt-2">
@@ -47,8 +47,8 @@ export default function CookiePolicyPage() {
             </p>
           </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">3. Managing Local Storage</h2>
+          <section className="rounded-2xl border border-line bg-surface p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-ink">3. Managing Local Storage</h2>
             <p className="mt-2">
               Logging out via the application clears stored session tokens immediately. You can also
               clear stored data at any time via your browser settings.
@@ -56,16 +56,16 @@ export default function CookiePolicyPage() {
           </section>
         </div>
 
-        <div className="mt-8 flex gap-4 text-xs text-slate-500">
-          <Link href="/terms" className="hover:text-slate-800 underline">
+        <div className="mt-8 flex gap-4 text-xs text-ink-3">
+          <Link href="/terms" className="hover:text-ink underline">
             Terms of Service
           </Link>
           <span>·</span>
-          <Link href="/privacy" className="hover:text-slate-800 underline">
+          <Link href="/privacy" className="hover:text-ink underline">
             Privacy Policy
           </Link>
           <span>·</span>
-          <Link href="/help" className="hover:text-slate-800 underline">
+          <Link href="/help" className="hover:text-ink underline">
             Help & FAQs
           </Link>
         </div>

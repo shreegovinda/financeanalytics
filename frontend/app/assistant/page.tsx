@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, Fragment } from 'react';
+import { BarChart3, FileText, HelpCircle, TrendingUp, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -50,11 +51,15 @@ interface Conversation {
 
 const chatApi = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/chat`;
 
-const examples = [
-  { q: 'Summarize my finances across all uploaded statements.', icon: '📊' },
-  { q: 'Which statements have I uploaded?', icon: '📄' },
-  { q: 'Compare my spending by category.', icon: '📈' },
-  { q: 'How do I delete a statement?', icon: '❓' },
+const examples: { q: string; hint: string; Icon: LucideIcon }[] = [
+  {
+    q: 'Summarize my finances across all uploaded statements.',
+    hint: 'Income, spending and net cash flow',
+    Icon: BarChart3,
+  },
+  { q: 'Which statements have I uploaded?', hint: 'Banks, months and status', Icon: FileText },
+  { q: 'Compare my spending by category.', hint: 'See where money goes', Icon: TrendingUp },
+  { q: 'How do I delete a statement?', hint: 'Product help and privacy', Icon: HelpCircle },
 ];
 
 /** Relative time for sidebar chats */
@@ -247,14 +252,14 @@ function FormattedText({ text }: { text: string }) {
             href={href}
             target={isExternal ? '_blank' : undefined}
             rel={isExternal ? 'noopener noreferrer' : undefined}
-            className="inline-flex items-center gap-0.5 font-semibold text-indigo-600 underline hover:text-indigo-800 transition-colors cursor-pointer"
+            className="inline-flex items-center gap-0.5 font-semibold text-brand-600 underline hover:text-brand-800 transition-colors cursor-pointer"
           >
             {match[2]}
           </Link>,
         );
       } else if (match[4]) {
         parts.push(
-          <strong key={match.index} className="font-semibold text-slate-900">
+          <strong key={match.index} className="font-semibold text-ink">
             {match[4]}
           </strong>,
         );
@@ -268,7 +273,7 @@ function FormattedText({ text }: { text: string }) {
   };
 
   return (
-    <div className="space-y-2.5 text-[14px] leading-7 text-slate-800">
+    <div className="space-y-2.5 text-[14px] leading-7 text-ink">
       {paragraphs.map((p, idx) => (
         <p key={idx} className="whitespace-pre-wrap">
           {renderInline(p)}
@@ -288,32 +293,32 @@ function ChatSkeleton() {
       {/* User question on the left */}
       <div className="flex justify-start">
         <div className="flex items-end gap-2.5 max-w-[75%]">
-          <div className="shrink-0 w-8 h-8 rounded-full bg-indigo-200 animate-pulse" />
-          <div className="animate-pulse rounded-2xl rounded-tl-sm bg-indigo-100 p-4 space-y-2 w-64">
-            <div className="h-3.5 bg-indigo-200/60 rounded-full w-4/5" />
-            <div className="h-3.5 bg-indigo-200/60 rounded-full w-3/5" />
+          <div className="shrink-0 w-8 h-8 rounded-full bg-brand-200 animate-pulse" />
+          <div className="animate-pulse rounded-2xl rounded-tl-sm bg-brand-100 p-4 space-y-2 w-64">
+            <div className="h-3.5 bg-brand-200/60 rounded-full w-4/5" />
+            <div className="h-3.5 bg-brand-200/60 rounded-full w-3/5" />
           </div>
         </div>
       </div>
       {/* AI answer slightly offset to the right */}
       <div className="flex justify-start ml-6 sm:ml-10">
         <div className="flex items-end gap-2.5 max-w-[85%]">
-          <div className="shrink-0 w-8 h-8 rounded-full bg-slate-200 animate-pulse" />
-          <div className="animate-pulse rounded-2xl rounded-tl-sm bg-white border border-slate-200 p-5 space-y-2.5 w-96">
-            <div className="h-3 bg-slate-200 rounded-full w-full" />
-            <div className="h-3 bg-slate-200 rounded-full w-5/6" />
-            <div className="h-3 bg-slate-200 rounded-full w-4/5" />
-            <div className="h-3 bg-slate-200 rounded-full w-2/3" />
+          <div className="shrink-0 w-8 h-8 rounded-full bg-surface-4 animate-pulse" />
+          <div className="animate-pulse rounded-2xl rounded-tl-sm bg-surface border border-line p-5 space-y-2.5 w-96">
+            <div className="h-3 bg-surface-4 rounded-full w-full" />
+            <div className="h-3 bg-surface-4 rounded-full w-5/6" />
+            <div className="h-3 bg-surface-4 rounded-full w-4/5" />
+            <div className="h-3 bg-surface-4 rounded-full w-2/3" />
           </div>
         </div>
       </div>
       {/* Second user question on the left */}
       <div className="flex justify-start">
         <div className="flex items-end gap-2.5 max-w-[75%]">
-          <div className="shrink-0 w-8 h-8 rounded-full bg-indigo-200 animate-pulse" />
-          <div className="animate-pulse rounded-2xl rounded-tl-sm bg-indigo-100 p-4 space-y-2 w-52">
-            <div className="h-3.5 bg-indigo-200/60 rounded-full w-full" />
-            <div className="h-3.5 bg-indigo-200/60 rounded-full w-2/3" />
+          <div className="shrink-0 w-8 h-8 rounded-full bg-brand-200 animate-pulse" />
+          <div className="animate-pulse rounded-2xl rounded-tl-sm bg-brand-100 p-4 space-y-2 w-52">
+            <div className="h-3.5 bg-brand-200/60 rounded-full w-full" />
+            <div className="h-3.5 bg-brand-200/60 rounded-full w-2/3" />
           </div>
         </div>
       </div>
@@ -326,31 +331,31 @@ function TypingIndicator() {
   return (
     <div className="flex justify-start ml-6 sm:ml-10">
       <div className="flex items-end gap-2.5">
-        <div className="shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm">
+        <div className="shrink-0 w-8 h-8 rounded-full bg-brand-gradient flex items-center justify-center shadow-sm">
           <SparkleIcon className="w-4 h-4 text-white" />
         </div>
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="rounded-2xl rounded-tl-sm bg-white border border-slate-200 px-5 py-4 shadow-sm"
+          className="rounded-2xl rounded-tl-sm bg-surface border border-line px-5 py-4 shadow-sm"
         >
           <div className="flex items-center gap-1.5">
             <motion.span
               animate={{ opacity: [0.3, 1, 0.3] }}
               transition={{ repeat: Infinity, duration: 1.2, delay: 0 }}
-              className="w-2 h-2 bg-indigo-500 rounded-full"
+              className="w-2 h-2 bg-brand-500 rounded-full"
             />
             <motion.span
               animate={{ opacity: [0.3, 1, 0.3] }}
               transition={{ repeat: Infinity, duration: 1.2, delay: 0.2 }}
-              className="w-2 h-2 bg-indigo-500 rounded-full"
+              className="w-2 h-2 bg-brand-500 rounded-full"
             />
             <motion.span
               animate={{ opacity: [0.3, 1, 0.3] }}
               transition={{ repeat: Infinity, duration: 1.2, delay: 0.4 }}
-              className="w-2 h-2 bg-indigo-500 rounded-full"
+              className="w-2 h-2 bg-brand-500 rounded-full"
             />
-            <span className="ml-2 text-xs text-slate-400 font-medium">
+            <span className="ml-2 text-xs text-ink-4 font-medium">
               Analyzing your financial records…
             </span>
           </div>
@@ -583,20 +588,20 @@ export default function AssistantPage() {
       {/* ═══════════════════════════════════════════════════════════════
           Header
           ═══════════════════════════════════════════════════════════════ */}
-      <header className="z-20 shrink-0 border-b border-slate-200/80 bg-white/95 backdrop-blur-md">
+      <header className="z-20 shrink-0 border-b border-line/80 bg-surface/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <BackButton fallbackHref="/dashboard" />
-            <div className="min-w-0 border-l border-slate-200 pl-3">
+            <div className="min-w-0 border-l border-line pl-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-md shadow-indigo-100">
+                <div className="w-8 h-8 rounded-xl bg-brand-gradient flex items-center justify-center shadow-md">
                   <SparkleIcon className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-base font-bold tracking-tight text-slate-900">
+                  <h1 className="max-w-[8.5rem] truncate text-sm font-semibold tracking-tight text-ink sm:max-w-none sm:text-base">
                     {t('assistantTitle', 'Ask Finlytix')}
                   </h1>
-                  <p className="hidden text-[11px] text-slate-500 sm:block">
+                  <p className="hidden text-[11px] text-ink-3 sm:block">
                     Your finances, one conversation at a time
                   </p>
                 </div>
@@ -606,7 +611,7 @@ export default function AssistantPage() {
           <div className="flex items-center gap-2.5">
             <Link
               href="/help"
-              className="hidden text-xs font-medium text-slate-500 hover:text-indigo-700 sm:block transition-colors"
+              className="hidden text-xs font-medium text-ink-3 hover:text-brand-700 sm:block transition-colors"
             >
               Help & privacy
             </Link>
@@ -614,7 +619,7 @@ export default function AssistantPage() {
             <button
               type="button"
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="md:hidden rounded-lg p-2 text-slate-500 hover:bg-slate-100 transition cursor-pointer"
+              className="md:hidden rounded-lg p-2 text-ink-3 hover:bg-surface-3 transition cursor-pointer"
               aria-label="Toggle conversations"
             >
               <ChatBubbleIcon />
@@ -623,7 +628,7 @@ export default function AssistantPage() {
               type="button"
               onClick={() => setIsVoiceModalOpen(true)}
               disabled={busy || loadingHistory}
-              className="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2 text-xs sm:text-sm font-semibold text-white hover:from-indigo-700 hover:to-violet-700 disabled:opacity-50 transition-all shadow-sm hover:shadow cursor-pointer flex items-center gap-1.5"
+              className="rounded-xl bg-brand-gradient px-4 py-2 text-xs sm:text-sm font-semibold text-white hover:brightness-110 disabled:opacity-50 transition-all shadow-sm hover:shadow cursor-pointer flex items-center gap-1.5"
             >
               <MicIcon />
               <span className="hidden sm:inline">Talk to Finlytix</span>
@@ -641,7 +646,7 @@ export default function AssistantPage() {
           {(sidebarOpen || true) && (
             <motion.aside
               aria-label="Saved conversations"
-              className={`shrink-0 border-b border-slate-200/80 bg-gradient-to-b from-slate-50 to-white p-3 md:w-64 md:overflow-y-auto md:border-b-0 md:border-r md:p-4 ${
+              className={`shrink-0 border-b border-line/80 bg-gradient-to-b from-surface-2 to-surface p-3 md:w-64 md:overflow-y-auto md:border-b-0 md:border-r md:p-4 ${
                 sidebarOpen ? 'block' : 'hidden md:block'
               }`}
             >
@@ -652,19 +657,19 @@ export default function AssistantPage() {
                 type="button"
                 onClick={() => selectChat(null)}
                 disabled={busy || isVoiceModalOpen}
-                className="w-full rounded-xl bg-gradient-to-r from-slate-800 to-slate-900 px-4 py-3 text-sm font-semibold text-white hover:from-slate-700 hover:to-slate-800 disabled:opacity-50 transition-all shadow-sm cursor-pointer flex items-center justify-center gap-2"
+                className="w-full rounded-xl bg-ink px-4 py-3 text-sm font-semibold text-surface hover:opacity-90 disabled:opacity-50 transition-all shadow-sm cursor-pointer flex items-center justify-center gap-2"
               >
                 <PlusIcon />
                 New chat
               </motion.button>
 
-              <p className="mb-2 mt-5 hidden text-[10px] font-bold uppercase tracking-widest text-slate-400 md:block">
+              <p className="mb-2 mt-5 hidden text-[10px] font-bold uppercase tracking-widest text-ink-4 md:block">
                 Conversations
               </p>
 
               <div className="mt-2 flex gap-2 overflow-x-auto md:flex-col md:overflow-visible md:space-y-0.5">
                 {conversations.length === 0 && !loadingHistory && (
-                  <p className="hidden md:block text-xs text-slate-400 px-3 py-2">
+                  <p className="hidden md:block text-xs text-ink-4 px-3 py-2">
                     No conversations yet
                   </p>
                 )}
@@ -679,8 +684,8 @@ export default function AssistantPage() {
                       layout
                       className={`group flex shrink-0 items-center gap-1 rounded-xl md:shrink transition-all ${
                         selected === chat.id
-                          ? 'bg-indigo-50 border border-indigo-200 shadow-sm'
-                          : 'border border-transparent hover:bg-slate-50 hover:border-slate-200/60'
+                          ? 'bg-brand-50 border border-brand-200 shadow-sm'
+                          : 'border border-transparent hover:bg-surface-2 hover:border-line/60'
                       }`}
                     >
                       <button
@@ -690,10 +695,10 @@ export default function AssistantPage() {
                         aria-current={selected === chat.id ? 'page' : undefined}
                         className="min-w-0 flex-1 px-3 py-2.5 text-left disabled:opacity-50 cursor-pointer"
                       >
-                        <span className="block max-w-44 truncate text-sm font-medium text-slate-800">
+                        <span className="block max-w-44 truncate text-sm font-medium text-ink">
                           {chat.title}
                         </span>
-                        <span className="mt-0.5 hidden text-[10px] text-slate-400 md:block">
+                        <span className="mt-0.5 hidden text-[10px] text-ink-4 md:block">
                           {relativeTime(chat.updated_at)}
                         </span>
                       </button>
@@ -704,7 +709,7 @@ export default function AssistantPage() {
                         title="Delete conversation"
                         disabled={busy || isVoiceModalOpen}
                         onClick={() => setChatToDelete(chat)}
-                        className="mr-1.5 rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                        className="mr-1.5 rounded-lg p-1.5 text-ink-4 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
                       >
                         <TrashSmallIcon />
                       </button>
@@ -717,7 +722,7 @@ export default function AssistantPage() {
         </AnimatePresence>
 
         {/* ── Chat Area ── */}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-gradient-to-b from-slate-50/50 to-white">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-gradient-to-b from-surface-2/50 to-surface">
           {/* Scrollable message area */}
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 sm:px-8">
             <div className="mx-auto max-w-3xl">
@@ -728,7 +733,7 @@ export default function AssistantPage() {
                     <button
                       disabled={busy || loadingHistory}
                       onClick={() => void loadHistory(true)}
-                      className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-800 disabled:opacity-50 cursor-pointer bg-indigo-50 hover:bg-indigo-100 rounded-lg px-3 py-1.5 transition-colors"
+                      className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-600 hover:text-brand-800 disabled:opacity-50 cursor-pointer bg-brand-50 hover:bg-brand-100 rounded-lg px-3 py-1.5 transition-colors"
                     >
                       <ChevronUpIcon />
                       Load older messages
@@ -737,7 +742,7 @@ export default function AssistantPage() {
                   <button
                     disabled={busy || loadingHistory}
                     onClick={() => void loadHistory()}
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 disabled:opacity-50 cursor-pointer hover:bg-slate-100 rounded-lg px-3 py-1.5 transition-colors"
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-3 hover:text-ink-2 disabled:opacity-50 cursor-pointer hover:bg-surface-3 rounded-lg px-3 py-1.5 transition-colors"
                   >
                     <RefreshIcon />
                     Refresh
@@ -758,7 +763,7 @@ export default function AssistantPage() {
                   variants={fadeUp}
                   initial="hidden"
                   animate="show"
-                  className="pt-12 sm:pt-20 text-center"
+                  className="relative pt-12 sm:pt-20 text-center"
                 >
                   <motion.div
                     initial={{ scale: 0.8, opacity: 0 }}
@@ -769,14 +774,14 @@ export default function AssistantPage() {
                       damping: 20,
                       delay: 0.1,
                     }}
-                    className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-200"
+                    className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-gradient ai-glow"
                   >
                     <SparkleIcon className="w-8 h-8 text-white" />
                   </motion.div>
-                  <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-                    What would you like to explore?
+                  <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-ink">
+                    What would you like to <span className="text-brand-gradient">explore</span>?
                   </h2>
-                  <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-slate-500">
+                  <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-ink-3">
                     Start a focused conversation about your spending, statements, or Finlytix. Each
                     chat keeps its own history so you can revisit anytime.
                   </p>
@@ -790,19 +795,24 @@ export default function AssistantPage() {
                     }}
                     className="my-8 grid gap-3 sm:grid-cols-2"
                   >
-                    {examples.map(({ q, icon }) => (
+                    {examples.map(({ q, hint, Icon }) => (
                       <motion.button
                         key={q}
                         variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } }}
-                        whileHover={{ scale: 1.02, y: -2 }}
+                        whileHover={{ y: -2 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => void send(q)}
                         disabled={busy || loadingHistory}
-                        className="group rounded-2xl border border-slate-200 bg-white p-4 text-left text-sm hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer disabled:opacity-50"
+                        className="group flex items-start gap-3.5 rounded-2xl border border-line bg-surface p-4 text-left shadow-xs transition-all hover:border-brand-300 hover:shadow-md cursor-pointer disabled:opacity-50"
                       >
-                        <span className="text-lg mb-2 block">{icon}</span>
-                        <span className="text-slate-700 group-hover:text-indigo-700 transition-colors font-medium">
-                          {q}
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-gradient-soft text-brand-600 ring-1 ring-brand-500/15 transition-colors group-hover:bg-brand-gradient group-hover:text-white">
+                          <Icon size={17} />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-sm font-medium leading-snug text-ink">
+                            {q}
+                          </span>
+                          <span className="mt-1 block text-xs text-ink-3">{hint}</span>
                         </span>
                       </motion.button>
                     ))}
@@ -833,7 +843,7 @@ export default function AssistantPage() {
                           className="flex justify-start"
                         >
                           <div className="flex items-end gap-2.5 max-w-[85%] sm:max-w-[75%]">
-                            <div className="shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center shadow-sm">
+                            <div className="shrink-0 w-8 h-8 rounded-full bg-brand-gradient flex items-center justify-center shadow-sm">
                               <svg
                                 className="w-4 h-4 text-white"
                                 fill="none"
@@ -848,7 +858,7 @@ export default function AssistantPage() {
                                 />
                               </svg>
                             </div>
-                            <div className="rounded-2xl rounded-tl-sm bg-gradient-to-br from-indigo-600 via-indigo-600 to-blue-600 text-white p-4 sm:p-5 shadow-sm">
+                            <div className="rounded-2xl rounded-tl-sm bg-brand-gradient text-white p-4 sm:p-5 shadow-sm">
                               <p className="whitespace-pre-wrap text-sm leading-7 font-normal">
                                 {message.content}
                               </p>
@@ -871,14 +881,14 @@ export default function AssistantPage() {
                       >
                         <div className="flex items-end gap-2.5 max-w-[90%] sm:max-w-[85%]">
                           {/* Bot Avatar */}
-                          <div className="shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm">
+                          <div className="shrink-0 w-8 h-8 rounded-full bg-brand-gradient flex items-center justify-center shadow-sm">
                             <SparkleIcon className="w-4 h-4 text-white" />
                           </div>
 
                           {/* AI Response Card */}
-                          <div className="rounded-2xl rounded-tl-sm border border-slate-200/90 bg-white p-4 sm:p-5 shadow-sm">
+                          <div className="rounded-2xl rounded-tl-sm border border-line/90 bg-surface p-4 sm:p-5 shadow-sm">
                             {/* Header badge */}
-                            <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-indigo-600 flex items-center gap-1.5">
+                            <div className="mb-2 text-[11px] font-bold uppercase tracking-wider text-brand-600 flex items-center gap-1.5">
                               <span>Finlytix</span>
                             </div>
 
@@ -892,10 +902,10 @@ export default function AssistantPage() {
                                 initial={{ opacity: 0, y: 8 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.1 * i }}
-                                className="mt-4 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100/60 border border-slate-200/80 p-4 text-sm"
+                                className="mt-4 rounded-xl bg-gradient-to-br from-surface-2 to-surface-3/60 border border-line/80 p-4 text-sm"
                               >
-                                <p className="font-semibold text-slate-800 flex items-center gap-1.5">
-                                  <span className="inline-flex w-5 h-5 items-center justify-center rounded-md bg-indigo-100 text-indigo-600">
+                                <p className="font-semibold text-ink flex items-center gap-1.5">
+                                  <span className="inline-flex w-5 h-5 items-center justify-center rounded-md bg-brand-100 text-brand-600">
                                     <svg
                                       className="w-3 h-3"
                                       fill="none"
@@ -912,7 +922,7 @@ export default function AssistantPage() {
                                   </span>
                                   {item.transaction_count} matching transactions
                                 </p>
-                                <p className="mt-1 text-xs text-slate-500">
+                                <p className="mt-1 text-xs text-ink-3">
                                   {item.first_date || 'No transactions'}
                                   {item.last_date ? ' to ' + item.last_date : ''} ·{' '}
                                   {Object.entries(item.filters)
@@ -926,7 +936,7 @@ export default function AssistantPage() {
                                   <span className="inline-flex items-center gap-1 rounded-lg bg-rose-50 border border-rose-200/60 px-2.5 py-1 text-xs font-semibold text-rose-700">
                                     ↓ Expenses {money(item.expenses)}
                                   </span>
-                                  <span className="inline-flex items-center gap-1 rounded-lg bg-blue-50 border border-blue-200/60 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                                  <span className="inline-flex items-center gap-1 rounded-lg bg-brand-50 border border-brand-200/60 px-2.5 py-1 text-xs font-semibold text-brand-700">
                                     ≈ Net {money(item.net_cash_flow)}
                                   </span>
                                 </div>
@@ -935,8 +945,8 @@ export default function AssistantPage() {
 
                             {/* Source links */}
                             {Boolean(message.result?.sources?.length) && (
-                              <div className="mt-4 border-t border-slate-100 pt-3">
-                                <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                              <div className="mt-4 border-t border-line-soft pt-3">
+                                <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-ink-4">
                                   Referenced Records
                                 </p>
                                 <nav
@@ -951,7 +961,7 @@ export default function AssistantPage() {
                                           ? '/settings?tab=profile'
                                           : source.href
                                       }
-                                      className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200/80 bg-indigo-50/70 px-3 py-1.5 text-xs font-medium text-indigo-700 shadow-sm transition-all hover:bg-indigo-100 hover:text-indigo-900 hover:shadow active:scale-95 cursor-pointer"
+                                      className="inline-flex items-center gap-1.5 rounded-lg border border-brand-200/80 bg-brand-50/70 px-3 py-1.5 text-xs font-medium text-brand-700 shadow-sm transition-all hover:bg-brand-100 hover:text-brand-900 hover:shadow active:scale-95 cursor-pointer"
                                     >
                                       <ExternalLinkIcon />
                                       {source.label}
@@ -963,9 +973,9 @@ export default function AssistantPage() {
 
                             {/* Full Date, Year AND Time footer */}
                             {asOfTimestamp && (
-                              <p className="mt-3 text-[11px] text-slate-400 flex items-center gap-1.5">
+                              <p className="mt-3 text-[11px] text-ink-4 flex items-center gap-1.5">
                                 <svg
-                                  className="w-3.5 h-3.5 shrink-0 text-slate-400"
+                                  className="w-3.5 h-3.5 shrink-0 text-ink-4"
                                   fill="none"
                                   stroke="currentColor"
                                   strokeWidth={2}
@@ -1006,7 +1016,7 @@ export default function AssistantPage() {
                         className="flex justify-start"
                       >
                         <div className="flex items-end gap-2.5 max-w-[85%] sm:max-w-[75%]">
-                          <div className="shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center shadow-sm">
+                          <div className="shrink-0 w-8 h-8 rounded-full bg-brand-gradient flex items-center justify-center shadow-sm">
                             <svg
                               className="w-4 h-4 text-white"
                               fill="none"
@@ -1021,7 +1031,7 @@ export default function AssistantPage() {
                               />
                             </svg>
                           </div>
-                          <div className="rounded-2xl rounded-tl-sm bg-gradient-to-br from-indigo-600 via-indigo-600 to-blue-600 text-white p-4 sm:p-5 shadow-sm">
+                          <div className="rounded-2xl rounded-tl-sm bg-brand-gradient text-white p-4 sm:p-5 shadow-sm">
                             <p className="whitespace-pre-wrap text-sm leading-7">
                               {pendingQuestion}
                             </p>
@@ -1058,7 +1068,7 @@ export default function AssistantPage() {
           {/* ═══════════════════════════════════════════════════════════
               Input Bar
               ═══════════════════════════════════════════════════════════ */}
-          <div className="shrink-0 border-t border-slate-200/80 bg-white px-4 py-3 sm:px-8">
+          <div className="shrink-0 bg-gradient-to-t from-surface via-surface/95 to-transparent px-4 pb-4 pt-2 sm:px-8">
             <form
               onSubmit={(event) => {
                 event.preventDefault();
@@ -1066,7 +1076,7 @@ export default function AssistantPage() {
               }}
               className="mx-auto max-w-3xl"
             >
-              <div className="relative rounded-2xl border border-slate-200 bg-slate-50/80 focus-within:border-indigo-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-indigo-100 transition-all shadow-sm">
+              <div className="relative rounded-2xl border border-line bg-surface shadow-md transition-all focus-within:border-brand-400 focus-within:ring-4 focus-within:ring-brand-500/10">
                 <label htmlFor="question" className="sr-only">
                   Your question
                 </label>
@@ -1089,7 +1099,7 @@ export default function AssistantPage() {
                       }
                     }
                   }}
-                  className="w-full resize-none rounded-2xl border-0 bg-transparent p-4 pr-28 text-sm focus:outline-none disabled:opacity-50 placeholder:text-slate-400"
+                  className="w-full resize-none rounded-2xl border-0 bg-transparent p-4 pr-28 text-sm focus:outline-none disabled:opacity-50 placeholder:text-ink-4"
                 />
 
                 {/* Action buttons inside the input container */}
@@ -1099,7 +1109,7 @@ export default function AssistantPage() {
                     onClick={() => setIsVoiceModalOpen(true)}
                     disabled={busy || loadingHistory}
                     title="Start Live Voice Assistant"
-                    className="p-2.5 rounded-xl text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 transition cursor-pointer disabled:opacity-40"
+                    className="p-2.5 rounded-xl text-ink-3 hover:bg-brand-50 hover:text-brand-600 transition cursor-pointer disabled:opacity-40"
                   >
                     <MicIcon />
                   </button>
@@ -1108,7 +1118,7 @@ export default function AssistantPage() {
                     whileTap={{ scale: 0.95 }}
                     type="submit"
                     disabled={busy || loadingHistory || !input.trim()}
-                    className="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 p-2.5 text-white disabled:opacity-40 cursor-pointer transition-all shadow-sm hover:shadow-md"
+                    className="rounded-xl bg-gradient-to-r from-brand-600 to-accent-600 p-2.5 text-white disabled:opacity-40 cursor-pointer transition-all shadow-sm hover:shadow-md"
                   >
                     {busy ? (
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -1121,7 +1131,7 @@ export default function AssistantPage() {
 
               {/* Footer info */}
               <div className="mt-2 flex items-center justify-between px-1">
-                <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                <span className="text-[11px] text-ink-4 flex items-center gap-1">
                   {selected ? (
                     <>
                       <svg
@@ -1146,7 +1156,7 @@ export default function AssistantPage() {
                     </>
                   )}
                 </span>
-                <span className="hidden sm:inline text-[11px] text-slate-400">
+                <span className="hidden sm:inline text-[11px] text-ink-4">
                   {t('pressEnterTip', 'Enter to send · Shift+Enter for newline')}
                 </span>
               </div>
@@ -1166,7 +1176,7 @@ export default function AssistantPage() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-              className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-200"
+              className="relative w-full max-w-md rounded-2xl bg-surface p-6 shadow-2xl border border-line"
               role="dialog"
               aria-modal="true"
               aria-labelledby="delete-dialog-title"
@@ -1188,12 +1198,12 @@ export default function AssistantPage() {
                   </svg>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 id="delete-dialog-title" className="text-base font-bold text-slate-900">
+                  <h3 id="delete-dialog-title" className="text-base font-bold text-ink">
                     Delete Conversation
                   </h3>
-                  <p className="mt-1.5 text-xs text-slate-600 leading-relaxed">
+                  <p className="mt-1.5 text-xs text-ink-2 leading-relaxed">
                     Are you sure you want to permanently delete{' '}
-                    <strong className="text-slate-800 font-semibold">
+                    <strong className="text-ink font-semibold">
                       &ldquo;{chatToDelete.title}&rdquo;
                     </strong>{' '}
                     and all its messages? This action cannot be undone.
@@ -1206,7 +1216,7 @@ export default function AssistantPage() {
                   type="button"
                   onClick={() => setChatToDelete(null)}
                   disabled={busy}
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition cursor-pointer"
+                  className="rounded-xl border border-line bg-surface px-4 py-2 text-xs font-semibold text-ink-2 hover:bg-surface-2 transition cursor-pointer"
                 >
                   Cancel
                 </button>

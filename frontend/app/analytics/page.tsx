@@ -301,17 +301,17 @@ export default function AnalyticsPage() {
 
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Analytics</h1>
-          <p className="text-sm text-slate-500">Track and visualize your cash flow patterns.</p>
+          <h1 className="text-2xl font-bold text-ink">Analytics</h1>
+          <p className="text-sm text-ink-3">Track and visualize your cash flow patterns.</p>
         </div>
       </div>
 
       <main className="mx-auto max-w-7xl space-y-8 px-4 py-8">
-        <section className="overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-blue-950 to-indigo-900 text-white shadow-2xl">
+        <section className="overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-brand-950 to-brand-900 text-white shadow-2xl">
           <div className="grid gap-6 p-6 lg:grid-cols-[1.2fr_0.8fr] lg:p-8">
             <div>
               <div className="flex flex-wrap items-center gap-2 mb-3">
-                <span className="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-blue-100">
+                <span className="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-white/85">
                   Analytics Hub
                 </span>
                 <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/40 bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-300">
@@ -324,7 +324,7 @@ export default function AnalyticsPage() {
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
                 {t('analyticsTitle', 'Financial Analytics')}
               </h2>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-blue-100 sm:text-base">
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-white/85 sm:text-base">
                 {t(
                   'analyticsSubtitle',
                   'View spending by month, financial year, multiple months, or exact custom dates.',
@@ -332,38 +332,38 @@ export default function AnalyticsPage() {
               </p>
             </div>
             <div className="rounded-3xl border border-white/15 bg-white/10 p-5 backdrop-blur">
-              <p className="text-xs uppercase tracking-[0.18em] text-blue-100">Active Period</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-white/85">Active Period</p>
               <p className="mt-2 text-2xl font-bold">{periodLabel}</p>
               <p
                 className={`mt-4 text-3xl font-bold ${latestMonthNet >= 0 ? 'text-emerald-300' : 'text-red-300'}`}
               >
                 {latestMonth ? formatCurrency(latestMonthNet) : 'No monthly data'}
               </p>
-              <p className="mt-1 text-sm text-blue-100">Latest month net</p>
+              <p className="mt-1 text-sm text-white/85">Latest month net</p>
             </div>
           </div>
         </section>
 
-        <section className="rounded-3xl border border-white bg-white/90 p-5 shadow-sm">
+        <section className="rounded-3xl border border-line bg-surface/90 p-5 shadow-sm">
           <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand-600">
                 Period Filter
               </p>
-              <h2 className="text-2xl font-bold text-gray-900">Choose analytics range</h2>
+              <h2 className="text-2xl font-bold text-ink">Choose analytics range</h2>
             </div>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={clearFilters}
-                className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                className="rounded-xl border border-line-strong px-4 py-2 text-sm font-medium text-ink-2 transition hover:bg-surface-2"
               >
                 All Time
               </button>
               <button
                 type="button"
                 onClick={applyFilters}
-                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+                className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700"
               >
                 Apply
               </button>
@@ -385,8 +385,8 @@ export default function AnalyticsPage() {
                   onClick={() => setPeriodMode(id as PeriodMode)}
                   className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition ${
                     periodMode === id
-                      ? 'border-blue-600 bg-blue-50 text-blue-700'
-                      : 'border-gray-200 bg-white text-gray-700 hover:border-blue-300'
+                      ? 'border-brand-600 bg-brand-50 text-brand-700'
+                      : 'border-line bg-surface text-ink-2 hover:border-brand-300'
                   }`}
                 >
                   {label}
@@ -394,9 +394,9 @@ export default function AnalyticsPage() {
               ))}
             </div>
 
-            <div className="rounded-3xl border border-gray-100 bg-gradient-to-br from-white to-slate-50 p-5">
+            <div className="rounded-3xl border border-line-soft bg-gradient-to-br from-surface to-surface-2 p-5">
               {periodMode === 'all' && (
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-ink-2">
                   Showing analytics for all imported transactions. Select another mode to narrow the
                   period.
                 </p>
@@ -404,27 +404,23 @@ export default function AnalyticsPage() {
 
               {periodMode === 'month' && (
                 <label className="block max-w-xs">
-                  <span className="mb-2 block text-sm font-medium text-gray-700">
-                    Statement Month
-                  </span>
+                  <span className="mb-2 block text-sm font-medium text-ink-2">Statement Month</span>
                   <input
                     type="month"
                     value={selectedMonth}
                     onChange={(event) => setSelectedMonth(event.target.value)}
-                    className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-xl border border-line-strong px-3 py-2.5 text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
                   />
                 </label>
               )}
 
               {periodMode === 'fy' && (
                 <label className="block max-w-xs">
-                  <span className="mb-2 block text-sm font-medium text-gray-700">
-                    FY Start Year
-                  </span>
+                  <span className="mb-2 block text-sm font-medium text-ink-2">FY Start Year</span>
                   <select
                     value={fyStartYear}
                     onChange={(event) => setFyStartYear(event.target.value)}
-                    className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-xl border border-line-strong px-3 py-2.5 text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
                   >
                     {Array.from(
                       { length: 8 },
@@ -435,7 +431,7 @@ export default function AnalyticsPage() {
                       </option>
                     ))}
                   </select>
-                  <span className="mt-2 block text-xs text-gray-500">
+                  <span className="mt-2 block text-xs text-ink-3">
                     Financial year runs from April 1 to March 31.
                   </span>
                 </label>
@@ -444,23 +440,21 @@ export default function AnalyticsPage() {
               {periodMode === 'multi_month' && (
                 <div className="grid max-w-xl gap-4 sm:grid-cols-2">
                   <label>
-                    <span className="mb-2 block text-sm font-medium text-gray-700">
-                      Start Month
-                    </span>
+                    <span className="mb-2 block text-sm font-medium text-ink-2">Start Month</span>
                     <input
                       type="month"
                       value={startMonth}
                       onChange={(event) => setStartMonth(event.target.value)}
-                      className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-xl border border-line-strong px-3 py-2.5 text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
                     />
                   </label>
                   <label>
-                    <span className="mb-2 block text-sm font-medium text-gray-700">End Month</span>
+                    <span className="mb-2 block text-sm font-medium text-ink-2">End Month</span>
                     <input
                       type="month"
                       value={endMonth}
                       onChange={(event) => setEndMonth(event.target.value)}
-                      className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-xl border border-line-strong px-3 py-2.5 text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
                     />
                   </label>
                 </div>
@@ -468,7 +462,7 @@ export default function AnalyticsPage() {
 
               {periodMode === 'custom' && (
                 <div className="max-w-md">
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                  <label className="mb-2 block text-sm font-medium text-ink-2">
                     Custom Date Range
                   </label>
                   <DateRangePicker
@@ -509,18 +503,13 @@ export default function AnalyticsPage() {
             [
               t('netBalance', 'Net'),
               formatCurrency(totals.net),
-              totals.net >= 0 ? 'text-blue-600' : 'text-red-600',
-              'bg-blue-50',
+              totals.net >= 0 ? 'text-brand-600' : 'text-red-600',
+              'bg-brand-50',
             ],
-            [
-              t('transactions', 'Transactions'),
-              String(totals.count),
-              'text-slate-800',
-              'bg-slate-50',
-            ],
+            [t('transactions', 'Transactions'), String(totals.count), 'text-ink', 'bg-surface-2'],
           ].map(([label, value, textClass, bgClass]) => (
-            <div key={label} className="rounded-3xl border border-white bg-white/90 p-5 shadow-sm">
-              <p className="text-sm font-semibold text-gray-500">{label}</p>
+            <div key={label} className="rounded-3xl border border-line bg-surface/90 p-5 shadow-sm">
+              <p className="text-sm font-semibold text-ink-3">{label}</p>
               <p className={`mt-2 text-2xl font-bold ${textClass}`}>{loading ? '...' : value}</p>
               <div className={`mt-4 h-1.5 rounded-full ${bgClass}`} />
             </div>
@@ -528,32 +517,32 @@ export default function AnalyticsPage() {
         </section>
 
         <section className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-3xl border border-blue-100 bg-white p-5 shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">
+          <div className="rounded-3xl border border-brand-100 bg-surface p-5 shadow-sm">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-600">
               {t('category', 'Top Category')}
             </p>
-            <p className="mt-2 text-xl font-bold text-gray-900">{topCategory?.name || 'No data'}</p>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-2 text-xl font-bold text-ink">{topCategory?.name || 'No data'}</p>
+            <p className="mt-1 text-sm text-ink-3">
               {topCategoryShare > 0
                 ? `${topCategoryShare}% of categorized expenses`
                 : 'Upload data to analyze'}
             </p>
           </div>
-          <div className="rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm">
+          <div className="rounded-3xl border border-emerald-100 bg-surface p-5 shadow-sm">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-600">
               {t('savingsRate', 'Savings Rate')}
             </p>
-            <p className="mt-2 text-xl font-bold text-gray-900">{totals.savingsRate}%</p>
-            <p className="mt-1 text-sm text-gray-500">Income retained in this period.</p>
+            <p className="mt-2 text-xl font-bold text-ink">{totals.savingsRate}%</p>
+            <p className="mt-1 text-sm text-ink-3">Income retained in this period.</p>
           </div>
-          <div className="rounded-3xl border border-amber-100 bg-white p-5 shadow-sm">
+          <div className="rounded-3xl border border-amber-100 bg-surface p-5 shadow-sm">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-600">
               Peak Expense Month
             </p>
-            <p className="mt-2 text-xl font-bold text-gray-900">
+            <p className="mt-2 text-xl font-bold text-ink">
               {highestExpenseMonth?.month || 'No data'}
             </p>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-ink-3">
               {highestExpenseMonth
                 ? formatCurrency(toNumber(highestExpenseMonth.expenses))
                 : 'No spending trend yet'}
@@ -562,15 +551,15 @@ export default function AnalyticsPage() {
         </section>
 
         <section className="grid grid-cols-1 gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-          <div className="rounded-[1.75rem] border border-gray-100 bg-white/95 p-5 shadow-sm">
+          <div className="rounded-[1.75rem] border border-line-soft bg-surface/95 p-5 shadow-sm">
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-lg font-bold text-gray-900">
+                <h3 className="text-lg font-bold text-ink">
                   {t('spendingByCategory', 'Category Breakdown')}
                 </h3>
-                <p className="text-sm text-gray-500">Expense mix for {periodLabel}.</p>
+                <p className="text-sm text-ink-3">Expense mix for {periodLabel}.</p>
               </div>
-              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
+              <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-bold text-brand-700">
                 {categoryData.length} categories
               </span>
             </div>
@@ -606,11 +595,11 @@ export default function AnalyticsPage() {
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="rounded-3xl border border-dashed border-blue-200 bg-blue-50/60 px-6 py-10 text-center">
-                  <p className="text-lg font-semibold text-blue-900">
+                <div className="rounded-3xl border border-dashed border-brand-200 bg-brand-50/60 px-6 py-10 text-center">
+                  <p className="text-lg font-semibold text-brand-900">
                     No expense data in this period
                   </p>
-                  <p className="mt-2 text-sm text-blue-700">
+                  <p className="mt-2 text-sm text-brand-700">
                     Try a wider range or upload a statement.
                   </p>
                 </div>
@@ -622,16 +611,16 @@ export default function AnalyticsPage() {
                 {convertedCategoryData.slice(0, 8).map((item, index) => (
                   <div
                     key={item.name}
-                    className="flex items-center justify-between rounded-2xl bg-slate-50 px-3 py-2 text-sm"
+                    className="flex items-center justify-between rounded-2xl bg-surface-2 px-3 py-2 text-sm"
                   >
-                    <span className="flex min-w-0 items-center gap-2 text-gray-700">
+                    <span className="flex min-w-0 items-center gap-2 text-ink-2">
                       <span
                         className="h-2.5 w-2.5 rounded-full"
                         style={{ backgroundColor: COLORS[index % COLORS.length] }}
                       />
                       <span className="truncate">{item.name}</span>
                     </span>
-                    <span className="font-semibold text-gray-900">
+                    <span className="font-semibold text-ink">
                       {formatChartCurrency(toNumber(item.value))}
                     </span>
                   </div>
@@ -640,13 +629,11 @@ export default function AnalyticsPage() {
             )}
           </div>
 
-          <div className="rounded-[1.75rem] border border-gray-100 bg-white/95 p-5 shadow-sm">
+          <div className="rounded-[1.75rem] border border-line-soft bg-surface/95 p-5 shadow-sm">
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-lg font-bold text-gray-900">
-                  {t('monthlyTrends', 'Monthly Flow')}
-                </h3>
-                <p className="text-sm text-gray-500">Income and expenses over time.</p>
+                <h3 className="text-lg font-bold text-ink">{t('monthlyTrends', 'Monthly Flow')}</h3>
+                <p className="text-sm text-ink-3">Income and expenses over time.</p>
               </div>
               <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
                 {monthlyData.length} months
@@ -690,15 +677,15 @@ export default function AnalyticsPage() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-white bg-white/90 p-6 shadow-sm">
+        <section className="rounded-3xl border border-line bg-surface/90 p-6 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-bold text-gray-900">Category Trends</h3>
-              <p className="text-sm text-gray-500">Top month/category expense combinations.</p>
+              <h3 className="text-lg font-bold text-ink">Category Trends</h3>
+              <p className="text-sm text-ink-3">Top month/category expense combinations.</p>
             </div>
             <Link
               href="/transactions"
-              className="text-sm font-semibold text-blue-600 hover:text-blue-700"
+              className="text-sm font-semibold text-brand-600 hover:text-brand-700"
             >
               View transactions
             </Link>
@@ -709,20 +696,20 @@ export default function AnalyticsPage() {
               {topTrends.map((item, index) => (
                 <div
                   key={`${item.month}-${item.category}-${index}`}
-                  className="flex items-center justify-between rounded-2xl border border-gray-100 bg-white px-4 py-3"
+                  className="flex items-center justify-between rounded-2xl border border-line-soft bg-surface px-4 py-3"
                 >
                   <div>
-                    <p className="font-semibold text-gray-900">{item.category || 'Other'}</p>
-                    <p className="text-sm text-gray-500">{item.month}</p>
+                    <p className="font-semibold text-ink">{item.category || 'Other'}</p>
+                    <p className="text-sm text-ink-3">{item.month}</p>
                   </div>
                   <p className="font-bold text-red-600">{formatCurrency(toNumber(item.total))}</p>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="rounded-3xl border border-dashed border-gray-200 bg-slate-50 px-6 py-8 text-center">
-              <p className="font-semibold text-gray-900">No category trends for this period</p>
-              <p className="mt-1 text-sm text-gray-500">
+            <div className="rounded-3xl border border-dashed border-line bg-surface-2 px-6 py-8 text-center">
+              <p className="font-semibold text-ink">No category trends for this period</p>
+              <p className="mt-1 text-sm text-ink-3">
                 Try changing the filter or categorizing transactions.
               </p>
             </div>

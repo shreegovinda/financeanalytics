@@ -133,10 +133,10 @@ export default function DashboardPage() {
       <AuthSessionGuard />
 
       <div className="flex flex-col gap-2 mb-8">
-        <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
+        <h1 className="text-3xl font-extrabold tracking-tight text-ink">
           Welcome back, {user?.name?.split(' ')[0]} 👋
         </h1>
-        <p className="text-slate-500 text-sm">
+        <p className="text-ink-3 text-sm">
           Here is your financial overview. Keep tracking to meet your goals.
         </p>
       </div>
@@ -146,13 +146,13 @@ export default function DashboardPage() {
         {/* Net Balance */}
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-600 to-brand-800 p-6 text-white shadow-lg transition-transform hover:scale-[1.02]">
           <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/10 blur-2xl"></div>
-          <p className="text-sm font-medium text-brand-100 uppercase tracking-wider">
+          <p className="text-sm font-medium text-white/85 uppercase tracking-wider">
             {t('netBalance', 'Net Balance')}
           </p>
           <div className="mt-2 flex items-baseline gap-2">
             <p className="text-4xl font-bold tracking-tight">{formatCurrency(netBalance)}</p>
           </div>
-          <div className="mt-4 flex items-center text-xs text-brand-200">
+          <div className="mt-4 flex items-center text-xs text-white/70">
             <span className="flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 font-medium text-white">
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path
@@ -168,7 +168,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Total Income */}
-        <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 transition-shadow hover:shadow-md">
+        <div className="rounded-2xl bg-surface p-6 shadow-sm ring-1 ring-line-soft transition-shadow hover:shadow-md">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -180,32 +180,32 @@ export default function DashboardPage() {
                 />
               </svg>
             </div>
-            <p className="text-sm font-medium text-slate-500 uppercase tracking-wider">
+            <p className="text-sm font-medium text-ink-3 uppercase tracking-wider">
               {t('totalIncome', 'Income')}
             </p>
           </div>
-          <p className="mt-4 text-2xl font-bold text-slate-900">{formatCurrency(totalIncome)}</p>
+          <p className="mt-4 text-2xl font-bold text-ink">{formatCurrency(totalIncome)}</p>
         </div>
 
         {/* Total Expenses */}
-        <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 transition-shadow hover:shadow-md">
+        <div className="rounded-2xl bg-surface p-6 shadow-sm ring-1 ring-line-soft transition-shadow hover:shadow-md">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-50 text-rose-600">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
               </svg>
             </div>
-            <p className="text-sm font-medium text-slate-500 uppercase tracking-wider">
+            <p className="text-sm font-medium text-ink-3 uppercase tracking-wider">
               {t('totalExpenses', 'Expenses')}
             </p>
           </div>
-          <p className="mt-4 text-2xl font-bold text-slate-900">{formatCurrency(totalExpenses)}</p>
+          <p className="mt-4 text-2xl font-bold text-ink">{formatCurrency(totalExpenses)}</p>
         </div>
 
         {/* Transactions / Highest Category */}
-        <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 transition-shadow hover:shadow-md">
+        <div className="rounded-2xl bg-surface p-6 shadow-sm ring-1 ring-line-soft transition-shadow hover:shadow-md">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-50 text-brand-600">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path
                   strokeLinecap="round"
@@ -215,14 +215,12 @@ export default function DashboardPage() {
                 />
               </svg>
             </div>
-            <p className="text-sm font-medium text-slate-500 uppercase tracking-wider">
-              Top Category
-            </p>
+            <p className="text-sm font-medium text-ink-3 uppercase tracking-wider">Top Category</p>
           </div>
-          <p className="mt-4 text-xl font-bold text-slate-900 truncate" title={topCategory}>
+          <p className="mt-4 text-xl font-bold text-ink truncate" title={topCategory}>
             {topCategory}
           </p>
-          <p className="mt-1 text-xs text-slate-500">{totalTransactions} total transactions</p>
+          <p className="mt-1 text-xs text-ink-3">{totalTransactions} total transactions</p>
         </div>
       </div>
 
@@ -231,33 +229,33 @@ export default function DashboardPage() {
 
       <div className="mt-8 grid gap-6 lg:grid-cols-3">
         {/* Quick Actions */}
-        <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-100 lg:col-span-1">
-          <h2 className="text-lg font-bold text-slate-900 mb-4">Quick Actions</h2>
+        <div className="rounded-2xl bg-surface p-6 shadow-sm ring-1 ring-line-soft lg:col-span-1">
+          <h2 className="text-lg font-bold text-ink mb-4">Quick Actions</h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
             <Link
               href="/statements"
-              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-50 p-4 transition-colors hover:bg-brand-50 hover:text-brand-700 text-slate-600"
+              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-surface-2 p-4 transition-colors hover:bg-brand-50 hover:text-brand-700 text-ink-2"
             >
               <span className="text-2xl">📄</span>
               <span className="text-xs font-semibold">Statements</span>
             </Link>
             <Link
               href="/transactions"
-              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-50 p-4 transition-colors hover:bg-brand-50 hover:text-brand-700 text-slate-600"
+              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-surface-2 p-4 transition-colors hover:bg-brand-50 hover:text-brand-700 text-ink-2"
             >
               <span className="text-2xl">💳</span>
               <span className="text-xs font-semibold">Transactions</span>
             </Link>
             <Link
               href="/analytics"
-              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-50 p-4 transition-colors hover:bg-brand-50 hover:text-brand-700 text-slate-600"
+              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-surface-2 p-4 transition-colors hover:bg-brand-50 hover:text-brand-700 text-ink-2"
             >
               <span className="text-2xl">📊</span>
               <span className="text-xs font-semibold">Analytics</span>
             </Link>
             <Link
               href="/settings"
-              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-50 p-4 transition-colors hover:bg-brand-50 hover:text-brand-700 text-slate-600"
+              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-surface-2 p-4 transition-colors hover:bg-brand-50 hover:text-brand-700 text-ink-2"
             >
               <span className="text-2xl">⚙️</span>
               <span className="text-xs font-semibold">Settings</span>
@@ -273,13 +271,13 @@ export default function DashboardPage() {
               New Feature
             </span>
             <h2 className="text-2xl font-bold mb-2">Talk to your Financial AI</h2>
-            <p className="text-slate-400 text-sm mb-6 leading-relaxed">
+            <p className="text-ink-4 text-sm mb-6 leading-relaxed">
               Ask questions about your spending, extract data from unstructured receipts, or get a
               full breakdown of your month using our new Voice and Text Assistant.
             </p>
             <Link
               href="/assistant"
-              className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 transition-colors hover:bg-brand-50 shadow-md"
+              className="inline-flex items-center gap-2 rounded-xl bg-surface px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-brand-50 shadow-md"
             >
               <svg
                 className="w-4 h-4 text-brand-600"

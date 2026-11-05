@@ -3,21 +3,21 @@ import { LEGAL_CONFIG } from '@/lib/legal';
 
 export default function PrivacyPolicyPage() {
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 sm:px-6">
+    <main className="min-h-screen bg-surface-2 px-4 py-8 text-ink sm:px-6">
       <div className="mx-auto max-w-3xl">
         <div className="mb-6 flex items-center justify-between text-sm">
-          <Link href="/" className="text-indigo-700 hover:underline">
+          <Link href="/" className="text-brand-700 hover:underline">
             ← Home
           </Link>
-          <span className="text-slate-500">Version {LEGAL_CONFIG.policyVersion}</span>
+          <span className="text-ink-3">Version {LEGAL_CONFIG.policyVersion}</span>
         </div>
 
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Privacy Policy</h1>
-        <p className="mt-2 text-sm text-slate-600">Effective Date: {LEGAL_CONFIG.effectiveDate}</p>
+        <p className="mt-2 text-sm text-ink-2">Effective Date: {LEGAL_CONFIG.effectiveDate}</p>
 
-        <div className="mt-8 space-y-6 text-sm leading-relaxed text-slate-700">
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">1. Information We Collect</h2>
+        <div className="mt-8 space-y-6 text-sm leading-relaxed text-ink-2">
+          <section className="rounded-2xl border border-line bg-surface p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-ink">1. Information We Collect</h2>
             <p className="mt-2">
               When using Finlytix, we collect the following types of information:
             </p>
@@ -45,8 +45,8 @@ export default function PrivacyPolicyPage() {
             </ul>
           </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">2. How Your Data Is Processed</h2>
+          <section className="rounded-2xl border border-line bg-surface p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-ink">2. How Your Data Is Processed</h2>
             <p className="mt-2">
               Finlytix extracts transactions from statements so you can categorize spending and
               visualize cash flow. It does not connect directly to banking APIs or move funds.
@@ -60,8 +60,8 @@ export default function PrivacyPolicyPage() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">3. Third-Party AI Providers</h2>
+          <section className="rounded-2xl border border-line bg-surface p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-ink">3. Third-Party AI Providers</h2>
             <p className="mt-2">
               Parsing statements and answering assistant queries utilizes configured AI providers
               (such as Anthropic and Google Gemini). Statements and questions sent to these
@@ -70,8 +70,8 @@ export default function PrivacyPolicyPage() {
             </p>
           </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">4. Retention and Deletion</h2>
+          <section className="rounded-2xl border border-line bg-surface p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-ink">4. Retention and Deletion</h2>
             <p className="mt-2">
               You may delete individual statements and chat history at any time through the
               interface. Deleting a statement removes all associated transactions, drafts, line
@@ -81,11 +81,11 @@ export default function PrivacyPolicyPage() {
             </p>
           </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">5. Contact Us</h2>
+          <section className="rounded-2xl border border-line bg-surface p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-ink">5. Contact Us</h2>
             <p className="mt-2">
               If you have privacy questions or concerns, contact our team at{' '}
-              <a href={`mailto:${LEGAL_CONFIG.supportEmail}`} className="text-indigo-700 underline">
+              <a href={`mailto:${LEGAL_CONFIG.supportEmail}`} className="text-brand-700 underline">
                 {LEGAL_CONFIG.supportEmail}
               </a>
               .
@@ -93,16 +93,16 @@ export default function PrivacyPolicyPage() {
           </section>
         </div>
 
-        <div className="mt-8 flex gap-4 text-xs text-slate-500">
-          <Link href="/terms" className="hover:text-slate-800 underline">
+        <div className="mt-8 flex gap-4 text-xs text-ink-3">
+          <Link href="/terms" className="hover:text-ink underline">
             Terms of Service
           </Link>
           <span>·</span>
-          <Link href="/cookies" className="hover:text-slate-800 underline">
+          <Link href="/cookies" className="hover:text-ink underline">
             Cookie Policy
           </Link>
           <span>·</span>
-          <Link href="/help" className="hover:text-slate-800 underline">
+          <Link href="/help" className="hover:text-ink underline">
             Help & FAQs
           </Link>
         </div>

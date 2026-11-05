@@ -1,7 +1,13 @@
 @import 'tailwindcss';
 
+/* `dark:` follows the app's theme mode (the .dark class on <html>), not the OS setting. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ──────────────────────────────────────────────────────────────
-   Color Palettes (Light & Dark dynamic custom properties)
+   1. Theme palettes
+   Each theme provides a brand ramp (primary actions, focus, selection) and a
+   companion accent ramp (gradients, AI surfaces, highlights). Every colour in the
+   UI comes from these, so switching a theme restyles every page.
    ────────────────────────────────────────────────────────────── */
 
 :root,
@@ -17,6 +23,17 @@
   --brand-800: #1e40af;
   --brand-900: #1e3a8a;
   --brand-950: #172554;
+  --accent-50: #f5f3ff;
+  --accent-100: #ede9fe;
+  --accent-200: #ddd6fe;
+  --accent-300: #c4b5fd;
+  --accent-400: #a78bfa;
+  --accent-500: #8b5cf6;
+  --accent-600: #7c3aed;
+  --accent-700: #6d28d9;
+  --accent-800: #5b21b6;
+  --accent-900: #4c1d95;
+  --accent-950: #2e1065;
 }
 
 [data-theme='emerald'] {
@@ -31,6 +48,17 @@
   --brand-800: #065f46;
   --brand-900: #064e3b;
   --brand-950: #022c22;
+  --accent-50: #f0fdfa;
+  --accent-100: #ccfbf1;
+  --accent-200: #99f6e4;
+  --accent-300: #5eead4;
+  --accent-400: #2dd4bf;
+  --accent-500: #14b8a6;
+  --accent-600: #0d9488;
+  --accent-700: #0f766e;
+  --accent-800: #115e59;
+  --accent-900: #134e4a;
+  --accent-950: #042f2e;
 }
 
 [data-theme='violet'] {
@@ -45,6 +73,17 @@
   --brand-800: #5b21b6;
   --brand-900: #4c1d95;
   --brand-950: #2e1065;
+  --accent-50: #fdf4ff;
+  --accent-100: #fae8ff;
+  --accent-200: #f5d0fe;
+  --accent-300: #f0abfc;
+  --accent-400: #e879f9;
+  --accent-500: #d946ef;
+  --accent-600: #c026d3;
+  --accent-700: #a21caf;
+  --accent-800: #86198f;
+  --accent-900: #701a75;
+  --accent-950: #4a044e;
 }
 
 [data-theme='sunset'] {
@@ -59,6 +98,17 @@
   --brand-800: #92400e;
   --brand-900: #78350f;
   --brand-950: #451a03;
+  --accent-50: #fff1f2;
+  --accent-100: #ffe4e6;
+  --accent-200: #fecdd3;
+  --accent-300: #fda4af;
+  --accent-400: #fb7185;
+  --accent-500: #f43f5e;
+  --accent-600: #e11d48;
+  --accent-700: #be123c;
+  --accent-800: #9f1239;
+  --accent-900: #881337;
+  --accent-950: #4c0519;
 }
 
 [data-theme='crimson'] {
@@ -73,6 +123,17 @@
   --brand-800: #9f1239;
   --brand-900: #881337;
   --brand-950: #4c0519;
+  --accent-50: #fff7ed;
+  --accent-100: #ffedd5;
+  --accent-200: #fed7aa;
+  --accent-300: #fdba74;
+  --accent-400: #fb923c;
+  --accent-500: #f97316;
+  --accent-600: #ea580c;
+  --accent-700: #c2410c;
+  --accent-800: #9a3412;
+  --accent-900: #7c2d12;
+  --accent-950: #431407;
 }
 
 [data-theme='slate'] {
@@ -87,7 +148,70 @@
   --brand-800: #1e293b;
   --brand-900: #0f172a;
   --brand-950: #020617;
+  --accent-50: #ecfeff;
+  --accent-100: #cffafe;
+  --accent-200: #a5f3fc;
+  --accent-300: #67e8f9;
+  --accent-400: #22d3ee;
+  --accent-500: #06b6d4;
+  --accent-600: #0891b2;
+  --accent-700: #0e7490;
+  --accent-800: #155e75;
+  --accent-900: #164e63;
+  --accent-950: #083344;
 }
+
+/* ──────────────────────────────────────────────────────────────
+   2. Semantic neutrals (surface / ink / line) for light and dark
+   Pages use these tokens (bg-surface, text-ink, border-line …) and never
+   need per-class dark overrides.
+   ────────────────────────────────────────────────────────────── */
+
+:root {
+  --bg: #f5f6fb;
+  --surface: #ffffff;
+  --surface-2: #f7f8fc;
+  --surface-3: #eef0f7;
+  --surface-4: #e2e6f0;
+  --line: #e4e7f0;
+  --line-soft: #eceff6;
+  --line-strong: #cfd4e2;
+  --ink: #0e1225;
+  --ink-2: #3a4262;
+  --ink-3: #646d8c;
+  --ink-4: #8a92ae;
+  --shadow-color: 24 30 60;
+  color-scheme: light;
+}
+
+html.dark {
+  --bg: #0a0d16;
+  --surface: #121624;
+  --surface-2: #171c2e;
+  --surface-3: #1e2438;
+  --surface-4: #2a3149;
+  --line: rgb(255 255 255 / 0.09);
+  --line-soft: rgb(255 255 255 / 0.05);
+  --line-strong: rgb(255 255 255 / 0.17);
+  --ink: #f2f4fb;
+  --ink-2: #cdd2e5;
+  --ink-3: #97a0bd;
+  --ink-4: #6d7595;
+  --shadow-color: 0 0 0;
+  color-scheme: dark;
+
+  /* Light ramp steps become translucent tints so soft badges and highlights sit on dark surfaces. */
+  --brand-50: color-mix(in srgb, var(--brand-500) 12%, transparent);
+  --brand-100: color-mix(in srgb, var(--brand-500) 20%, transparent);
+  --brand-200: color-mix(in srgb, var(--brand-500) 32%, transparent);
+  --accent-50: color-mix(in srgb, var(--accent-500) 12%, transparent);
+  --accent-100: color-mix(in srgb, var(--accent-500) 20%, transparent);
+  --accent-200: color-mix(in srgb, var(--accent-500) 32%, transparent);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   3. Tailwind theme wiring
+   ────────────────────────────────────────────────────────────── */
 
 @theme {
   --color-brand-50: var(--brand-50);
@@ -102,11 +226,80 @@
   --color-brand-900: var(--brand-900);
   --color-brand-950: var(--brand-950);
 
+  --color-accent-50: var(--accent-50);
+  --color-accent-100: var(--accent-100);
+  --color-accent-200: var(--accent-200);
+  --color-accent-300: var(--accent-300);
+  --color-accent-400: var(--accent-400);
+  --color-accent-500: var(--accent-500);
+  --color-accent-600: var(--accent-600);
+  --color-accent-700: var(--accent-700);
+  --color-accent-800: var(--accent-800);
+  --color-accent-900: var(--accent-900);
+  --color-accent-950: var(--accent-950);
+
+  /* Legacy hue names used across older screens now follow the active theme. */
+  --color-blue-50: var(--brand-50);
+  --color-blue-100: var(--brand-100);
+  --color-blue-200: var(--brand-200);
+  --color-blue-300: var(--brand-300);
+  --color-blue-400: var(--brand-400);
+  --color-blue-500: var(--brand-500);
+  --color-blue-600: var(--brand-600);
+  --color-blue-700: var(--brand-700);
+  --color-blue-800: var(--brand-800);
+  --color-blue-900: var(--brand-900);
+  --color-blue-950: var(--brand-950);
+  --color-indigo-50: var(--brand-50);
+  --color-indigo-100: var(--brand-100);
+  --color-indigo-200: var(--brand-200);
+  --color-indigo-300: var(--brand-300);
+  --color-indigo-400: var(--brand-400);
+  --color-indigo-500: var(--brand-500);
+  --color-indigo-600: var(--brand-600);
+  --color-indigo-700: var(--brand-700);
+  --color-indigo-800: var(--brand-800);
+  --color-indigo-900: var(--brand-900);
+  --color-indigo-950: var(--brand-950);
+  --color-violet-50: var(--accent-50);
+  --color-violet-100: var(--accent-100);
+  --color-violet-200: var(--accent-200);
+  --color-violet-300: var(--accent-300);
+  --color-violet-400: var(--accent-400);
+  --color-violet-500: var(--accent-500);
+  --color-violet-600: var(--accent-600);
+  --color-violet-700: var(--accent-700);
+  --color-violet-800: var(--accent-800);
+  --color-violet-900: var(--accent-900);
+  --color-violet-950: var(--accent-950);
+  --color-purple-50: var(--accent-50);
+  --color-purple-100: var(--accent-100);
+  --color-purple-200: var(--accent-200);
+  --color-purple-300: var(--accent-300);
+  --color-purple-400: var(--accent-400);
+  --color-purple-500: var(--accent-500);
+  --color-purple-600: var(--accent-600);
+  --color-purple-700: var(--accent-700);
+  --color-purple-800: var(--accent-800);
+  --color-purple-900: var(--accent-900);
+  --color-purple-950: var(--accent-950);
+
   --color-success-500: #10b981;
   --color-success-600: #059669;
 
-  --color-app-bg: var(--background);
-  --color-card-bg: var(--card-bg);
+  --color-app: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-surface-4: var(--surface-4);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-ink-4: var(--ink-4);
+  --color-card-bg: var(--surface);
 
   --font-sans:
     var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
@@ -114,24 +307,51 @@
   --font-mono:
     var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     'Liberation Mono', 'Courier New', monospace;
+
+  /* Softer, layered elevation that works in both modes. */
+  --shadow-xs: 0 1px 2px rgb(var(--shadow-color) / 0.05);
+  --shadow-sm: 0 1px 2px rgb(var(--shadow-color) / 0.05), 0 2px 6px rgb(var(--shadow-color) / 0.05);
+  --shadow-md:
+    0 2px 4px rgb(var(--shadow-color) / 0.05), 0 8px 20px rgb(var(--shadow-color) / 0.08);
+  --shadow-lg:
+    0 4px 8px rgb(var(--shadow-color) / 0.05), 0 16px 36px rgb(var(--shadow-color) / 0.1);
+  --shadow-xl:
+    0 8px 16px rgb(var(--shadow-color) / 0.06), 0 28px 56px rgb(var(--shadow-color) / 0.14);
+  --shadow-2xl: 0 32px 80px rgb(var(--shadow-color) / 0.22);
+
+  --radius-lg: 0.625rem;
+  --radius-xl: 0.875rem;
+  --radius-2xl: 1.125rem;
+  --radius-3xl: 1.5rem;
 }
 
-:root {
-  --background: #f4f7fb;
-  --foreground: #0f172a;
-  --card-bg: #ffffff;
-}
+/* ──────────────────────────────────────────────────────────────
+   4. Base
+   ────────────────────────────────────────────────────────────── */
 
-html.dark {
-  --background: #090d16;
-  --foreground: #f8fafc;
-  --card-bg: #111827;
-  color-scheme: dark;
+html {
+  background-color: var(--bg);
 }
 
 body {
-  background-color: var(--background);
-  color: var(--foreground);
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(
+      1100px 520px at 100% -8%,
+      color-mix(in srgb, var(--brand-500) 9%, transparent),
+      transparent 62%
+    ),
+    radial-gradient(
+      900px 480px at -8% 108%,
+      color-mix(in srgb, var(--accent-500) 8%, transparent),
+      transparent 62%
+    );
+  background-attachment: fixed;
+  color: var(--ink);
+  font-feature-settings:
+    'cv11' 1,
+    'ss01' 1;
+  letter-spacing: -0.003em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition:
@@ -139,37 +359,100 @@ body {
     color 0.25s ease;
 }
 
-/* Scrollbar styling */
+h1,
+h2,
+h3 {
+  letter-spacing: -0.02em;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--brand-500) 28%, transparent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand-500);
+  outline-offset: 2px;
+}
+
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background-color: #cbd5e1;
+  background-color: var(--line-strong);
   border-radius: 20px;
+  border: 3px solid transparent;
+  background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background-color: #94a3b8;
+  background-color: var(--ink-4);
+  background-clip: content-box;
 }
 
-html.dark ::-webkit-scrollbar-thumb {
-  background-color: #334155;
-}
-html.dark ::-webkit-scrollbar-thumb:hover {
-  background-color: #475569;
-}
-
-/* Sleek inputs */
 input,
 textarea,
 select {
-  transition: all 0.2s ease-in-out;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease;
 }
 
-/* Animations */
+input::placeholder,
+textarea::placeholder {
+  color: var(--ink-4);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   5. Reusable utilities
+   ────────────────────────────────────────────────────────────── */
+
+@utility bg-brand-gradient {
+  background-image: linear-gradient(135deg, var(--brand-600), var(--accent-700));
+}
+
+@utility bg-brand-gradient-soft {
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--brand-500) 14%, transparent),
+    color-mix(in srgb, var(--accent-500) 14%, transparent)
+  );
+}
+
+@utility text-brand-gradient {
+  background-image: linear-gradient(120deg, var(--brand-600), var(--accent-600));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility glass {
+  background-color: color-mix(in srgb, var(--surface) 78%, transparent);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+}
+
+@utility card {
+  background-color: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-sm);
+}
+
+@utility ai-glow {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--brand-500) 30%, transparent),
+    0 8px 32px color-mix(in srgb, var(--brand-500) 22%, transparent),
+    0 2px 12px color-mix(in srgb, var(--accent-500) 18%, transparent);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   6. Animations
+   ────────────────────────────────────────────────────────────── */
+
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -188,10 +471,10 @@ select {
 @keyframes pulse-glow {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand-500) 40%, transparent);
   }
   50% {
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--brand-500) 10%, transparent);
   }
 }
 
@@ -199,232 +482,92 @@ select {
   animation: pulse-glow 2s infinite;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* ──────────────────────────────────────────────────────────────
-   Comprehensive Dark Mode Surface Overrides
-   Ensures every dashboard, table, card, dialog, & input adapts seamlessly
+   7. Dark-mode adjustments that cannot be expressed as tokens
+   Status colours (emerald, amber, rose …) keep their meaning in every theme.
+   Strong steps (500/600) stay as fills; text uses of 600/700 are lifted for contrast.
    ────────────────────────────────────────────────────────────── */
 
-html.dark {
-  background-color: #090d16 !important;
+html.dark .bg-amber-50,
+html.dark .bg-amber-100 {
+  background-color: rgb(245 158 11 / 0.15);
 }
-
-html.dark body {
-  background-color: #090d16 !important;
-  color: #f8fafc;
+html.dark .bg-emerald-50,
+html.dark .bg-emerald-100 {
+  background-color: rgb(16 185 129 / 0.15);
 }
-
-html.dark .bg-\[\#f4f7fb\] {
-  background-color: #090d16 !important;
-}
-
-html.dark .bg-white {
-  background-color: #111827 !important;
-  color: #f8fafc;
-}
-
-html.dark .bg-white\/60,
-html.dark .bg-white\/70,
-html.dark .bg-white\/80,
-html.dark .bg-white\/90,
-html.dark .bg-white\/95 {
-  background-color: rgba(17, 24, 39, 0.88) !important;
-}
-
-html.dark .bg-slate-50,
-html.dark .bg-gray-50 {
-  background-color: #172033 !important;
-}
-
-html.dark .bg-slate-50\/50,
-html.dark .bg-slate-50\/60,
-html.dark .bg-slate-50\/70,
-html.dark .bg-slate-50\/80 {
-  background-color: rgba(23, 32, 51, 0.75) !important;
-}
-
-html.dark .bg-slate-100,
-html.dark .bg-gray-100 {
-  background-color: #1e293b !important;
-}
-
-html.dark .bg-slate-100\/80,
-html.dark .bg-slate-100\/90 {
-  background-color: rgba(30, 41, 59, 0.85) !important;
-}
-
-html.dark .border-slate-200,
-html.dark .border-gray-200,
-html.dark .border-slate-100,
-html.dark .border-gray-100,
-html.dark .border-slate-200\/60,
-html.dark .border-slate-200\/70,
-html.dark .border-slate-200\/80,
-html.dark .border-slate-200\/90 {
-  border-color: rgba(255, 255, 255, 0.09) !important;
-}
-
-html.dark .border-slate-300,
-html.dark .border-gray-300 {
-  border-color: rgba(255, 255, 255, 0.16) !important;
-}
-
-html.dark .text-slate-900,
-html.dark .text-gray-900 {
-  color: #f8fafc !important;
-}
-
-html.dark .text-slate-800,
-html.dark .text-gray-800 {
-  color: #f1f5f9 !important;
-}
-
-html.dark .text-slate-700,
-html.dark .text-gray-700 {
-  color: #e2e8f0 !important;
-}
-
-html.dark .text-slate-600,
-html.dark .text-gray-600 {
-  color: #cbd5e1 !important;
-}
-
-html.dark .text-slate-500,
-html.dark .text-gray-500 {
-  color: #94a3b8 !important;
-}
-
-html.dark .text-slate-400,
-html.dark .text-gray-400 {
-  color: #64748b !important;
-}
-
-/* Dark mode inputs, selects & textareas */
-html.dark input:not([type='checkbox']):not([type='radio']):not([type='color']),
-html.dark textarea,
-html.dark select {
-  background-color: #141d2f !important;
-  border-color: rgba(255, 255, 255, 0.14) !important;
-  color: #f8fafc !important;
-}
-
-html.dark input::placeholder,
-html.dark textarea::placeholder {
-  color: #64748b !important;
-}
-
-/* Hover highlights for lists and menu items in dark mode */
-html.dark .hover\:bg-slate-50:hover,
-html.dark .hover\:bg-gray-50:hover {
-  background-color: #182236 !important;
-}
-
-html.dark .hover\:bg-slate-100:hover,
-html.dark .hover\:bg-gray-100:hover {
-  background-color: #222f46 !important;
-}
-
-/* Theme accent card adjustments in dark mode */
-html.dark [data-theme] .bg-brand-50 {
-  background-color: rgba(37, 99, 235, 0.15) !important;
-}
-
-html.dark [data-theme='emerald'] .bg-brand-50 {
-  background-color: rgba(5, 150, 105, 0.15) !important;
-}
-
-html.dark [data-theme='violet'] .bg-brand-50 {
-  background-color: rgba(124, 58, 237, 0.15) !important;
-}
-
-html.dark [data-theme='sunset'] .bg-brand-50 {
-  background-color: rgba(217, 119, 6, 0.15) !important;
-}
-
-html.dark [data-theme='crimson'] .bg-brand-50 {
-  background-color: rgba(225, 29, 72, 0.15) !important;
-}
-
-html.dark [data-theme='slate'] .bg-brand-50 {
-  background-color: rgba(71, 85, 105, 0.2) !important;
-}
-
-/* Dark mode badge and alert color styling */
-html.dark .bg-amber-50 {
-  background-color: rgba(245, 158, 11, 0.15) !important;
-  color: #fde68a !important;
-}
-html.dark .bg-emerald-50 {
-  background-color: rgba(16, 185, 129, 0.15) !important;
-  color: #a7f3d0 !important;
-}
-html.dark .bg-blue-50 {
-  background-color: rgba(59, 130, 246, 0.15) !important;
-  color: #bfdbfe !important;
-}
-html.dark .bg-indigo-50 {
-  background-color: rgba(99, 102, 241, 0.15) !important;
-  color: #c7d2fe !important;
-}
-html.dark .bg-purple-50 {
-  background-color: rgba(168, 85, 247, 0.15) !important;
-  color: #e9d5ff !important;
+html.dark .bg-sky-50,
+html.dark .bg-cyan-50 {
+  background-color: rgb(14 165 233 / 0.15);
 }
 html.dark .bg-rose-50,
-html.dark .bg-red-50 {
-  background-color: rgba(244, 63, 94, 0.15) !important;
-  color: #fecdd3 !important;
+html.dark .bg-red-50,
+html.dark .bg-rose-100,
+html.dark .bg-red-100 {
+  background-color: rgb(244 63 94 / 0.15);
+}
+html.dark .bg-green-50 {
+  background-color: rgb(34 197 94 / 0.15);
 }
 
-html.dark .border-amber-200,
-html.dark .border-amber-100 {
-  border-color: rgba(245, 158, 11, 0.3) !important;
+html.dark .border-amber-100,
+html.dark .border-amber-200 {
+  border-color: rgb(245 158 11 / 0.3);
 }
-html.dark .border-emerald-200,
-html.dark .border-emerald-100 {
-  border-color: rgba(16, 185, 129, 0.3) !important;
+html.dark .border-emerald-100,
+html.dark .border-emerald-200 {
+  border-color: rgb(16 185 129 / 0.3);
 }
-html.dark .border-blue-200,
-html.dark .border-blue-100 {
-  border-color: rgba(59, 130, 246, 0.3) !important;
-}
-html.dark .border-indigo-200,
-html.dark .border-indigo-100 {
-  border-color: rgba(99, 102, 241, 0.3) !important;
-}
-html.dark .border-purple-200,
-html.dark .border-purple-100 {
-  border-color: rgba(168, 85, 247, 0.3) !important;
-}
-html.dark .border-rose-200,
-html.dark .border-red-200,
 html.dark .border-rose-100,
-html.dark .border-red-100 {
-  border-color: rgba(244, 63, 94, 0.3) !important;
+html.dark .border-rose-200,
+html.dark .border-red-100,
+html.dark .border-red-200 {
+  border-color: rgb(244 63 94 / 0.3);
 }
 
+html.dark .text-amber-600,
 html.dark .text-amber-700,
-html.dark .text-amber-600 {
-  color: #fde68a !important;
+html.dark .text-amber-800,
+html.dark .text-amber-900 {
+  color: #fcd34d;
 }
+html.dark .text-emerald-600,
 html.dark .text-emerald-700,
-html.dark .text-emerald-600 {
-  color: #6ee7b7 !important;
+html.dark .text-emerald-800 {
+  color: #6ee7b7;
 }
-html.dark .text-blue-700,
-html.dark .text-blue-600 {
-  color: #93c5fd !important;
-}
-html.dark .text-indigo-700,
-html.dark .text-indigo-600 {
-  color: #a5b4fc !important;
-}
-html.dark .text-purple-700,
-html.dark .text-purple-600 {
-  color: #d8b4fe !important;
-}
-html.dark .text-rose-700,
-html.dark .text-red-700,
 html.dark .text-rose-600,
-html.dark .text-red-600 {
-  color: #fda4af !important;
+html.dark .text-rose-700,
+html.dark .text-red-600,
+html.dark .text-red-700,
+html.dark .text-red-800 {
+  color: #fda4af;
+}
+html.dark .text-green-600,
+html.dark .text-green-700 {
+  color: #86efac;
+}
+html.dark .text-brand-600,
+html.dark .text-brand-700,
+html.dark .text-brand-800,
+html.dark .text-brand-900,
+html.dark .text-brand-950 {
+  color: var(--brand-300);
+}
+html.dark .text-accent-600,
+html.dark .text-accent-700,
+html.dark .text-accent-800,
+html.dark .text-accent-900,
+html.dark .text-accent-950 {
+  color: var(--accent-300);
 }

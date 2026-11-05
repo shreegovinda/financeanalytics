@@ -42,7 +42,7 @@ export default function BackButton({
   const variantClasses =
     variant === 'dark'
       ? 'bg-white/15 hover:bg-white/25 active:bg-white/30 text-white border border-white/25 shadow-xs hover:shadow backdrop-blur-md'
-      : 'bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 hover:text-slate-900 border border-slate-200 shadow-2xs hover:shadow-xs';
+      : 'bg-surface hover:bg-surface-2 active:bg-surface-3 text-ink-2 hover:text-ink border border-line shadow-2xs hover:shadow-xs';
 
   return (
     <button

@@ -64,9 +64,7 @@ interface GridContext {
 function CategoryCellRenderer({ data }: ICellRendererParams<TxnRow>) {
   if (!data) return null;
   if (!data.parentName) {
-    return (
-      <span className="text-gray-400 italic text-xs">{data.aiSuggested || 'Uncategorized'}</span>
-    );
+    return <span className="text-ink-4 italic text-xs">{data.aiSuggested || 'Uncategorized'}</span>;
   }
   return (
     <div className="flex items-center gap-1.5">
@@ -88,7 +86,7 @@ function SubcategoryCellRenderer({ data }: ICellRendererParams<TxnRow>) {
         className="w-2.5 h-2.5 rounded-full flex-shrink-0"
         style={{ backgroundColor: data.subColor }}
       />
-      <span className="text-sm text-gray-600">{data.subName}</span>
+      <span className="text-sm text-ink-2">{data.subName}</span>
     </div>
   );
 }
@@ -133,13 +131,13 @@ function StyledSelect({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
-        className="w-full appearance-none pl-3.5 pr-9 py-2.5 text-sm text-gray-900 bg-white border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-400 cursor-pointer hover:border-gray-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-gray-50"
+        className="w-full appearance-none pl-3.5 pr-9 py-2.5 text-sm text-ink bg-surface border border-line rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-400 cursor-pointer hover:border-line-strong transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-surface-2"
       >
         {children}
       </select>
       <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
         <svg
-          className="w-3.5 h-3.5 text-gray-400"
+          className="w-3.5 h-3.5 text-ink-4"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -160,7 +158,7 @@ function BillCellRenderer({ data, context }: ICellRendererParams<TxnRow, unknown
       className={`px-2.5 py-1 text-xs rounded-md cursor-pointer border ${
         data.hasBill
           ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
-          : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+          : 'bg-surface-2 text-ink-2 border-line hover:bg-surface-3'
       }`}
     >
       {data.hasBill ? '\u{1F9FE} Bill' : '+ Bill'}
@@ -173,7 +171,7 @@ function EditCellRenderer({ data, context }: ICellRendererParams<TxnRow, unknown
   return (
     <button
       onClick={() => context?.onEdit(data)}
-      className="px-2.5 py-1 bg-blue-50 text-blue-600 text-xs rounded-md hover:bg-blue-100 cursor-pointer border border-blue-200"
+      className="px-2.5 py-1 bg-brand-50 text-brand-600 text-xs rounded-md hover:bg-brand-100 cursor-pointer border border-brand-200"
     >
       Edit
     </button>
@@ -556,22 +554,22 @@ export default function TransactionsPage() {
     <div className="animate-fade-in pb-12">
       <AuthSessionGuard />
       {/* ── Header ── */}
-      <header className="bg-white border-b border-gray-200">
+      <header className="bg-surface border-b border-line">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <BackButton />
-            <h1 className="text-xl font-bold text-gray-900">Transactions</h1>
+            <h1 className="text-xl font-bold text-ink">Transactions</h1>
           </div>
           <div className="flex gap-2">
             <Link
               href="/settings"
-              className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition cursor-pointer"
+              className="px-3 py-1.5 text-sm bg-surface-3 text-ink-2 rounded-lg hover:bg-surface-4 transition cursor-pointer"
             >
               Categories
             </Link>
             <Link
               href="/dashboard"
-              className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition cursor-pointer"
+              className="px-3 py-1.5 text-sm bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition cursor-pointer"
             >
               Dashboard
             </Link>
@@ -593,10 +591,8 @@ export default function TransactionsPage() {
         )}
 
         {/* ── Filter panel ── */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-            Filter Period
-          </p>
+        <div className="bg-surface rounded-xl border border-line p-4 space-y-3">
+          <p className="text-xs font-semibold text-ink-3 uppercase tracking-wide">Filter Period</p>
           <div className="flex flex-wrap gap-2">
             {FILTER_CHIPS.map((chip) => (
               <button
@@ -604,8 +600,8 @@ export default function TransactionsPage() {
                 onClick={() => applyFilter(chip.id)}
                 className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors cursor-pointer ${
                   filterMode === chip.id
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400 hover:text-blue-600'
+                    ? 'bg-brand-600 text-white border-brand-600'
+                    : 'bg-surface text-ink-2 border-line-strong hover:border-brand-400 hover:text-brand-600'
                 }`}
               >
                 {chip.label}
@@ -616,7 +612,7 @@ export default function TransactionsPage() {
           {filterMode === 'custom' && (
             <div className="flex flex-wrap gap-3 items-end pt-1">
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">
+                <label className="block text-xs font-medium text-ink-3 mb-1">
                   Custom Date Range
                 </label>
                 <DateRangePicker
@@ -641,7 +637,7 @@ export default function TransactionsPage() {
                     setAppliedStart('');
                     setAppliedEnd('');
                   }}
-                  className="px-3 py-2 bg-gray-100 text-gray-600 text-xs font-medium rounded-xl hover:bg-gray-200 transition cursor-pointer"
+                  className="px-3 py-2 bg-surface-3 text-ink-2 text-xs font-medium rounded-xl hover:bg-surface-4 transition cursor-pointer"
                 >
                   Reset Range
                 </button>
@@ -656,48 +652,48 @@ export default function TransactionsPage() {
             {[1, 2, 3, 4].map((i) => (
               <div
                 key={i}
-                className="bg-white rounded-xl border border-gray-200 p-4 h-24 animate-pulse"
+                className="bg-surface rounded-xl border border-line p-4 h-24 animate-pulse"
               />
             ))}
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <p className="text-xs text-gray-500 mb-1">{t('income', 'Income')}</p>
+            <div className="bg-surface rounded-xl border border-line p-4">
+              <p className="text-xs text-ink-3 mb-1">{t('income', 'Income')}</p>
               <p className="text-xl font-bold text-green-600">{prefs.formatMoney(stats.income)}</p>
-              <p className="text-xs text-gray-400 mt-1">{periodLabel}</p>
+              <p className="text-xs text-ink-4 mt-1">{periodLabel}</p>
             </div>
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <p className="text-xs text-gray-500 mb-1">{t('expense', 'Expenses')}</p>
+            <div className="bg-surface rounded-xl border border-line p-4">
+              <p className="text-xs text-ink-3 mb-1">{t('expense', 'Expenses')}</p>
               <p className="text-xl font-bold text-red-600">{prefs.formatMoney(stats.expenses)}</p>
-              <p className="text-xs text-gray-400 mt-1">{periodLabel}</p>
+              <p className="text-xs text-ink-4 mt-1">{periodLabel}</p>
             </div>
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <p className="text-xs text-gray-500 mb-1">{t('netBalance', 'Net Savings')}</p>
+            <div className="bg-surface rounded-xl border border-line p-4">
+              <p className="text-xs text-ink-3 mb-1">{t('netBalance', 'Net Savings')}</p>
               <p
-                className={`text-xl font-bold ${stats.net >= 0 ? 'text-blue-600' : 'text-red-500'}`}
+                className={`text-xl font-bold ${stats.net >= 0 ? 'text-brand-600' : 'text-red-500'}`}
               >
                 {stats.net >= 0 ? '+' : ''}
                 {prefs.formatMoney(stats.net)}
               </p>
-              <p className="text-xs text-gray-400 mt-1">{periodLabel}</p>
+              <p className="text-xs text-ink-4 mt-1">{periodLabel}</p>
             </div>
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <p className="text-xs text-gray-500 mb-1">{t('transactions', 'Transactions')}</p>
-              <p className="text-xl font-bold text-gray-800">{stats.count}</p>
-              <p className="text-xs text-gray-400 mt-1">{periodLabel}</p>
+            <div className="bg-surface rounded-xl border border-line p-4">
+              <p className="text-xs text-ink-3 mb-1">{t('transactions', 'Transactions')}</p>
+              <p className="text-xl font-bold text-ink">{stats.count}</p>
+              <p className="text-xs text-ink-4 mt-1">{periodLabel}</p>
             </div>
           </div>
         )}
 
         {/* ── Spending by category ── */}
         {!loading && categoryBreakdown.length > 0 && (
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="bg-surface rounded-xl border border-line p-5">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-semibold text-gray-700">
+              <p className="text-sm font-semibold text-ink-2">
                 {t('spendingByCategory', 'Spending by Category')}
               </p>
-              <p className="text-xs text-gray-400">{periodLabel} · debits only</p>
+              <p className="text-xs text-ink-4">{periodLabel} · debits only</p>
             </div>
             <div className="space-y-3">
               {categoryBreakdown.map((cat) => {
@@ -712,16 +708,16 @@ export default function TransactionsPage() {
                           className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                           style={{ backgroundColor: cat.color }}
                         />
-                        <span className="text-sm text-gray-700">{cat.name}</span>
+                        <span className="text-sm text-ink-2">{cat.name}</span>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="text-xs text-gray-400">{share}%</span>
-                        <span className="text-sm font-medium text-gray-800">
+                        <span className="text-xs text-ink-4">{share}%</span>
+                        <span className="text-sm font-medium text-ink">
                           {prefs.formatMoney(cat.total)}
                         </span>
                       </div>
                     </div>
-                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-1.5 bg-surface-3 rounded-full overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all duration-500"
                         style={{ width: `${pct}%`, backgroundColor: cat.color }}
@@ -735,11 +731,11 @@ export default function TransactionsPage() {
         )}
 
         {/* ── AG Grid table ── */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-            <p className="text-sm font-semibold text-gray-700">Transactions</p>
+        <div className="bg-surface rounded-xl border border-line overflow-hidden">
+          <div className="px-5 py-3 border-b border-line-soft flex items-center justify-between">
+            <p className="text-sm font-semibold text-ink-2">Transactions</p>
             <div className="flex items-center gap-3">
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-ink-4">
                 {stats.count} records · click column header to sort · filter in search boxes below
                 headers
               </span>
@@ -747,7 +743,7 @@ export default function TransactionsPage() {
                 onClick={() =>
                   gridApi?.exportDataAsCsv({ fileName: `transactions-${periodLabel}.csv` })
                 }
-                className="px-3 py-1 text-xs text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 cursor-pointer transition"
+                className="px-3 py-1 text-xs text-ink-2 bg-surface-3 rounded-md hover:bg-surface-4 cursor-pointer transition"
               >
                 Export CSV
               </button>
@@ -757,7 +753,7 @@ export default function TransactionsPage() {
           {loading ? (
             <div className="p-8 space-y-3">
               {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="h-8 bg-gray-100 rounded animate-pulse" />
+                <div key={i} className="h-8 bg-surface-3 rounded animate-pulse" />
               ))}
             </div>
           ) : (
@@ -795,15 +791,15 @@ export default function TransactionsPage() {
           }}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4 border border-gray-100"
+            className="bg-surface rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4 border border-line-soft"
             role="dialog"
             aria-modal="true"
           >
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-base font-semibold text-gray-900">Assign Category</h3>
+              <h3 className="text-base font-semibold text-ink">Assign Category</h3>
               <button
                 onClick={() => setEditingTxnId(null)}
-                className="text-gray-400 hover:text-gray-600 cursor-pointer p-1 rounded-lg hover:bg-gray-100 transition-colors"
+                className="text-ink-4 hover:text-ink-2 cursor-pointer p-1 rounded-lg hover:bg-surface-3 transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -818,7 +814,7 @@ export default function TransactionsPage() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                <label className="block text-xs font-medium text-ink-3 mb-1.5">
                   Category <span className="text-red-400">*</span>
                 </label>
                 <StyledSelect
@@ -838,8 +834,8 @@ export default function TransactionsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">
-                  Subcategory <span className="text-gray-400 font-normal">(optional)</span>
+                <label className="block text-xs font-medium text-ink-3 mb-1.5">
+                  Subcategory <span className="text-ink-4 font-normal">(optional)</span>
                 </label>
                 <StyledSelect value={editSubId} onChange={setEditSubId} disabled={!editParentId}>
                   <option value="">No subcategory</option>
@@ -850,7 +846,7 @@ export default function TransactionsPage() {
                   ))}
                 </StyledSelect>
                 {!editParentId && (
-                  <p className="text-xs text-gray-400 mt-1">Select a category first</p>
+                  <p className="text-xs text-ink-4 mt-1">Select a category first</p>
                 )}
               </div>
             </div>
@@ -858,14 +854,14 @@ export default function TransactionsPage() {
             <div className="flex gap-2 justify-end mt-6">
               <button
                 onClick={() => setEditingTxnId(null)}
-                className="px-4 py-2 text-sm text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 cursor-pointer transition-colors"
+                className="px-4 py-2 text-sm text-ink-2 bg-surface-3 rounded-xl hover:bg-surface-4 cursor-pointer transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={() => void saveCategory()}
                 disabled={!editParentId || saving}
-                className="px-4 py-2 text-sm text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 cursor-pointer shadow-sm transition-colors"
+                className="px-4 py-2 text-sm text-white bg-brand-600 rounded-xl hover:bg-brand-700 disabled:opacity-50 cursor-pointer shadow-sm transition-colors"
               >
                 {saving ? 'Saving…' : 'Save'}
               </button>

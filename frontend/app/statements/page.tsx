@@ -168,12 +168,12 @@ export default function StatementsPage() {
       <AuthSessionGuard />
       <div className="space-y-6">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Bank Statements</h1>
-          <p className="text-gray-600">Upload and manage your bank statements</p>
+          <h1 className="text-3xl font-bold text-ink mb-2">Bank Statements</h1>
+          <p className="text-ink-2">Upload and manage your bank statements</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-8 mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Upload New Statement</h2>
+        <div className="bg-surface rounded-lg shadow-md p-8 mb-8">
+          <h2 className="text-xl font-semibold text-ink mb-6">Upload New Statement</h2>
           <FileUploadForm key={uploadVersion} onUploadSuccess={handleUploadSuccess} />
         </div>
 
@@ -185,46 +185,46 @@ export default function StatementsPage() {
         {loading ? (
           <TableSkeletonLoader rows={5} />
         ) : (
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">Your Statements</h2>
+          <div className="bg-surface rounded-lg shadow-md overflow-hidden">
+            <div className="px-6 py-4 border-b border-line">
+              <h2 className="text-xl font-semibold text-ink">Your Statements</h2>
             </div>
 
             {error ? (
               <div className="px-6 py-8 bg-red-50 text-red-700">{error}</div>
             ) : statements.length === 0 ? (
-              <div className="px-6 py-8 text-center text-gray-500">
+              <div className="px-6 py-8 text-center text-ink-3">
                 No statements uploaded yet. Upload your first statement above!
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="border-b border-gray-200 bg-gray-50">
+                  <thead className="border-b border-line bg-surface-2">
                     <tr>
-                      <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
+                      <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-ink-2">
                         {t('banksTabName', 'Bank')}
                       </th>
-                      <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
+                      <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-ink-2">
                         Period
                       </th>
-                      <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
+                      <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-ink-2">
                         File & Format
                       </th>
-                      <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
+                      <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-ink-2">
                         Status
                       </th>
-                      <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
+                      <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-ink-2">
                         Progress
                       </th>
-                      <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
+                      <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-ink-2">
                         {t('date', 'Uploaded')}
                       </th>
-                      <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-700">
+                      <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-ink-2">
                         {t('actions', 'Actions')}
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
+                  <tbody className="divide-y divide-line bg-surface">
                     {statements.map((statement) => {
                       const detectedFormat =
                         statement.file_format ||
@@ -232,7 +232,7 @@ export default function StatementsPage() {
                       return (
                         <tr
                           key={statement.id}
-                          className="transition-colors hover:bg-slate-50/80 cursor-pointer"
+                          className="transition-colors hover:bg-surface-2/80 cursor-pointer"
                           onClick={() =>
                             router.push(
                               statement.status === 'pending_review'
@@ -241,15 +241,15 @@ export default function StatementsPage() {
                             )
                           }
                         >
-                          <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-gray-900">
+                          <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-ink">
                             {statement.bank_name}
                           </td>
                           <td className="whitespace-nowrap px-6 py-4 text-sm">
-                            <span className="font-semibold text-slate-800">
+                            <span className="font-semibold text-ink">
                               {formatMonthYear(statement.statement_month)}
                             </span>
                             {statement.statement_month && (
-                              <span className="block font-mono text-xs text-slate-400">
+                              <span className="block font-mono text-xs text-ink-4">
                                 {statement.statement_month}
                               </span>
                             )}
@@ -266,7 +266,7 @@ export default function StatementsPage() {
                                 {detectedFormat}
                               </span>
                               <span
-                                className="max-w-[200px] truncate font-medium text-gray-700"
+                                className="max-w-[200px] truncate font-medium text-ink-2"
                                 title={statement.file_name}
                               >
                                 {statement.file_name}
@@ -297,7 +297,7 @@ export default function StatementsPage() {
                                   event.stopPropagation();
                                   router.push(`/statements/${statement.id}/preview`);
                                 }}
-                                className="mt-1 block text-xs font-semibold text-blue-600 underline hover:text-blue-800 cursor-pointer"
+                                className="mt-1 block text-xs font-semibold text-brand-600 underline hover:text-brand-800 cursor-pointer"
                               >
                                 Review now
                               </button>
@@ -306,7 +306,7 @@ export default function StatementsPage() {
                           <td className="min-w-72 px-6 py-4">
                             <StatementProcessingProgress statement={statement} />
                           </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-600">
+                          <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-ink-2">
                             {formatDate(statement.uploaded_at)}
                           </td>
                           <td
@@ -324,7 +324,7 @@ export default function StatementsPage() {
                                   )
                                 }
                                 title="Preview statement details"
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200/80 bg-indigo-50/70 px-3 py-1.5 text-xs font-semibold text-indigo-700 shadow-2xs transition-all hover:bg-indigo-100 hover:text-indigo-900 hover:shadow-xs active:scale-95 cursor-pointer"
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-brand-200/80 bg-brand-50/70 px-3 py-1.5 text-xs font-semibold text-brand-700 shadow-2xs transition-all hover:bg-brand-100 hover:text-brand-900 hover:shadow-xs active:scale-95 cursor-pointer"
                               >
                                 <svg
                                   className="h-3.5 w-3.5"

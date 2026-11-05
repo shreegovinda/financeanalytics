@@ -40,8 +40,8 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-          <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full">
+        <div className="min-h-screen flex items-center justify-center bg-surface-2 px-4">
+          <div className="bg-surface rounded-lg shadow-lg p-8 max-w-md w-full">
             <div className="flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mx-auto mb-4">
               <svg
                 className="h-6 w-6 text-red-600"
@@ -57,15 +57,13 @@ export class ErrorBoundary extends Component<Props, State> {
                 />
               </svg>
             </div>
-            <h3 className="text-lg font-medium text-gray-900 text-center mb-2">
-              Something went wrong
-            </h3>
-            <p className="text-sm text-gray-500 text-center mb-4">
+            <h3 className="text-lg font-medium text-ink text-center mb-2">Something went wrong</h3>
+            <p className="text-sm text-ink-3 text-center mb-4">
               We encountered an unexpected error. Please try refreshing the page or going back to
               the dashboard.
             </p>
             {process.env.NODE_ENV === 'development' && (
-              <details className="mt-4 p-3 bg-gray-100 rounded text-xs text-gray-600">
+              <details className="mt-4 p-3 bg-surface-3 rounded text-xs text-ink-2">
                 <summary className="cursor-pointer font-medium">Error details (Dev only)</summary>
                 <pre className="mt-2 overflow-auto max-h-40">{this.state.error?.message}</pre>
               </details>
@@ -74,20 +72,20 @@ export class ErrorBoundary extends Component<Props, State> {
               <div className="flex gap-2">
                 <button
                   onClick={() => (window.location.href = '/dashboard')}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
+                  className="flex-1 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition text-sm font-medium"
                 >
                   Go to Dashboard
                 </button>
                 <button
                   onClick={() => window.location.reload()}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition text-sm font-medium"
+                  className="flex-1 px-4 py-2 bg-surface-4 text-ink rounded-lg hover:bg-line-strong transition text-sm font-medium"
                 >
                   Refresh
                 </button>
               </div>
               <button
                 onClick={() => this.setState({ showCrashModal: true })}
-                className="w-full px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition text-xs font-medium text-center"
+                className="w-full px-4 py-2 border border-line-strong text-ink-2 rounded-lg hover:bg-surface-2 transition text-xs font-medium text-center"
               >
                 Send Diagnostic Report
               </button>

@@ -212,15 +212,13 @@ export default function DateRangePicker({
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex items-center justify-between gap-3 w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-sm text-gray-800 shadow-sm transition hover:border-blue-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer"
+        className="flex items-center justify-between gap-3 w-full rounded-xl border border-line-strong bg-surface px-3.5 py-2 text-sm text-ink shadow-sm transition hover:border-brand-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100 cursor-pointer"
         aria-label="Select date range"
         aria-expanded={isOpen}
       >
         <div className="flex items-center gap-2 truncate">
-          <span className="text-gray-400 text-base">📅</span>
-          <span
-            className={startDate ? 'font-medium text-gray-900 truncate' : 'text-gray-400 truncate'}
-          >
+          <span className="text-ink-4 text-base">📅</span>
+          <span className={startDate ? 'font-medium text-ink truncate' : 'text-ink-4 truncate'}>
             {displayText}
           </span>
         </div>
@@ -231,60 +229,60 @@ export default function DateRangePicker({
               role="button"
               tabIndex={0}
               onClick={handleClear}
-              className="rounded-full p-1 text-xs text-gray-400 hover:text-gray-700 hover:bg-gray-100 cursor-pointer"
+              className="rounded-full p-1 text-xs text-ink-4 hover:text-ink-2 hover:bg-surface-3 cursor-pointer"
               title="Clear date range"
             >
               ✕
             </span>
           )}
-          <span className="text-gray-400 text-xs">▼</span>
+          <span className="text-ink-4 text-xs">▼</span>
         </div>
       </button>
 
       {/* Popover Dropdown */}
       {isOpen && (
-        <div className="absolute left-0 z-50 mt-2 w-[340px] sm:w-[380px] rounded-2xl border border-gray-200 bg-white p-4 shadow-2xl backdrop-blur-xl animate-fade-in">
+        <div className="absolute left-0 z-50 mt-2 w-[340px] sm:w-[380px] rounded-2xl border border-line bg-surface p-4 shadow-2xl backdrop-blur-xl animate-fade-in">
           {/* Quick Presets */}
-          <div className="mb-3 flex flex-wrap gap-1.5 border-b border-gray-100 pb-3">
+          <div className="mb-3 flex flex-wrap gap-1.5 border-b border-line-soft pb-3">
             <button
               type="button"
               onClick={() => applyPreset(0)}
-              className="rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition cursor-pointer"
+              className="rounded-lg bg-surface-3 px-2.5 py-1 text-xs font-medium text-ink-2 hover:bg-brand-50 hover:text-brand-700 transition cursor-pointer"
             >
               Today
             </button>
             <button
               type="button"
               onClick={() => applyPreset(7)}
-              className="rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition cursor-pointer"
+              className="rounded-lg bg-surface-3 px-2.5 py-1 text-xs font-medium text-ink-2 hover:bg-brand-50 hover:text-brand-700 transition cursor-pointer"
             >
               Last 7 Days
             </button>
             <button
               type="button"
               onClick={() => applyPreset(30)}
-              className="rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition cursor-pointer"
+              className="rounded-lg bg-surface-3 px-2.5 py-1 text-xs font-medium text-ink-2 hover:bg-brand-50 hover:text-brand-700 transition cursor-pointer"
             >
               Last 30 Days
             </button>
             <button
               type="button"
               onClick={() => applyPreset('thisMonth')}
-              className="rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition cursor-pointer"
+              className="rounded-lg bg-surface-3 px-2.5 py-1 text-xs font-medium text-ink-2 hover:bg-brand-50 hover:text-brand-700 transition cursor-pointer"
             >
               This Month
             </button>
             <button
               type="button"
               onClick={() => applyPreset('lastMonth')}
-              className="rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition cursor-pointer"
+              className="rounded-lg bg-surface-3 px-2.5 py-1 text-xs font-medium text-ink-2 hover:bg-brand-50 hover:text-brand-700 transition cursor-pointer"
             >
               Last Month
             </button>
             <button
               type="button"
               onClick={() => applyPreset('thisYear')}
-              className="rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition cursor-pointer"
+              className="rounded-lg bg-surface-3 px-2.5 py-1 text-xs font-medium text-ink-2 hover:bg-brand-50 hover:text-brand-700 transition cursor-pointer"
             >
               This Year
             </button>
@@ -295,18 +293,18 @@ export default function DateRangePicker({
             <button
               type="button"
               onClick={handlePrevMonth}
-              className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition cursor-pointer"
+              className="rounded-lg p-1.5 text-ink-3 hover:bg-surface-3 hover:text-ink transition cursor-pointer"
               aria-label="Previous month"
             >
               ◀
             </button>
-            <div className="font-semibold text-sm text-gray-900">
+            <div className="font-semibold text-sm text-ink">
               {MONTHS[viewMonth]} {viewYear}
             </div>
             <button
               type="button"
               onClick={handleNextMonth}
-              className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition cursor-pointer"
+              className="rounded-lg p-1.5 text-ink-3 hover:bg-surface-3 hover:text-ink transition cursor-pointer"
               aria-label="Next month"
             >
               ▶
@@ -314,7 +312,7 @@ export default function DateRangePicker({
           </div>
 
           {/* Weekdays Row */}
-          <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-gray-400 mb-1">
+          <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-ink-4 mb-1">
             {WEEKDAYS.map((w) => (
               <div key={w} className="py-1">
                 {w}
@@ -356,10 +354,10 @@ export default function DateRangePicker({
                     isDisabled
                       ? 'text-gray-300 cursor-not-allowed'
                       : isStart || isEnd
-                        ? 'bg-blue-600 text-white font-bold shadow-sm'
+                        ? 'bg-brand-600 text-white font-bold shadow-sm'
                         : inRange
-                          ? 'bg-blue-100 text-blue-800 rounded-none'
-                          : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600'
+                          ? 'bg-brand-100 text-brand-800 rounded-none'
+                          : 'text-ink-2 hover:bg-brand-50 hover:text-brand-600'
                   }`}
                 >
                   {day}
@@ -369,8 +367,8 @@ export default function DateRangePicker({
           </div>
 
           {/* Staged Range Preview & Actions */}
-          <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3 text-xs">
-            <div className="text-gray-500 truncate max-w-[180px]">
+          <div className="mt-4 flex items-center justify-between border-t border-line-soft pt-3 text-xs">
+            <div className="text-ink-3 truncate max-w-[180px]">
               {stagedStart ? (
                 <span>
                   {formatDate(stagedStart)} {stagedEnd ? `– ${formatDate(stagedEnd)}` : '– ...'}
@@ -384,7 +382,7 @@ export default function DateRangePicker({
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="rounded-lg px-2.5 py-1 text-gray-600 hover:bg-gray-100 transition cursor-pointer"
+                className="rounded-lg px-2.5 py-1 text-ink-2 hover:bg-surface-3 transition cursor-pointer"
               >
                 Cancel
               </button>
@@ -392,7 +390,7 @@ export default function DateRangePicker({
                 type="button"
                 onClick={handleApply}
                 disabled={!stagedStart}
-                className="rounded-lg bg-blue-600 px-3 py-1 font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-40 transition cursor-pointer"
+                className="rounded-lg bg-brand-600 px-3 py-1 font-semibold text-white shadow-sm hover:bg-brand-700 disabled:opacity-40 transition cursor-pointer"
               >
                 Apply
               </button>

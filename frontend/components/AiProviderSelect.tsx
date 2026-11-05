@@ -84,15 +84,15 @@ export default function AiProviderSelect({ embedded = false }: { embedded?: bool
     <div
       className={
         embedded
-          ? 'rounded-lg border border-gray-200 bg-gray-50 px-3 py-3'
-          : 'fixed top-3 right-3 z-40 rounded-xl border border-gray-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur'
+          ? 'rounded-lg border border-line bg-surface-2 px-3 py-3'
+          : 'fixed top-3 right-3 z-40 rounded-xl border border-line bg-surface/95 px-3 py-2 shadow-lg backdrop-blur'
       }
     >
       <label
         className={
           embedded
-            ? 'block text-sm font-medium text-gray-700'
-            : 'flex items-center gap-2 text-xs font-medium text-gray-600'
+            ? 'block text-sm font-medium text-ink-2'
+            : 'flex items-center gap-2 text-xs font-medium text-ink-2'
         }
       >
         <span>AI Model</span>
@@ -105,8 +105,8 @@ export default function AiProviderSelect({ embedded = false }: { embedded?: bool
           disabled={configuredCount === 0}
           className={
             embedded
-              ? 'mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400'
-              : 'rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-900 shadow-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400'
+              ? 'mt-1 w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-ink outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-500 disabled:cursor-not-allowed disabled:bg-surface-3 disabled:text-ink-4'
+              : 'rounded-lg border border-line bg-surface px-2 py-1 text-xs text-ink shadow-sm outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-500 disabled:cursor-not-allowed disabled:bg-surface-3 disabled:text-ink-4'
           }
         >
           {configuredCount === 0 ? (

@@ -105,19 +105,19 @@ function getActionMeta(action: string, category: string): ActionMeta {
       icon: <MailIcon />,
       label: 'Email Updated',
       color: 'blue',
-      dotColor: 'bg-blue-500',
-      bgClass: 'bg-blue-50',
-      textClass: 'text-blue-700',
-      borderClass: 'border-blue-200',
+      dotColor: 'bg-brand-500',
+      bgClass: 'bg-brand-50',
+      textClass: 'text-brand-700',
+      borderClass: 'border-brand-200',
     },
     PHONE_CHANGE: {
       icon: <PhoneIcon />,
       label: 'Phone Updated',
       color: 'indigo',
-      dotColor: 'bg-indigo-500',
-      bgClass: 'bg-indigo-50',
-      textClass: 'text-indigo-700',
-      borderClass: 'border-indigo-200',
+      dotColor: 'bg-brand-500',
+      bgClass: 'bg-brand-50',
+      textClass: 'text-brand-700',
+      borderClass: 'border-brand-200',
     },
     NAME_CHANGE: {
       icon: <UserIcon />,
@@ -132,19 +132,19 @@ function getActionMeta(action: string, category: string): ActionMeta {
       icon: <GearIcon />,
       label: 'Preferences',
       color: 'purple',
-      dotColor: 'bg-purple-500',
-      bgClass: 'bg-purple-50',
-      textClass: 'text-purple-700',
-      borderClass: 'border-purple-200',
+      dotColor: 'bg-accent-500',
+      bgClass: 'bg-accent-50',
+      textClass: 'text-accent-700',
+      borderClass: 'border-accent-200',
     },
     AI_SETTINGS_UPDATE: {
       icon: <BotIcon />,
       label: 'AI Settings',
       color: 'violet',
-      dotColor: 'bg-violet-500',
-      bgClass: 'bg-violet-50',
-      textClass: 'text-violet-700',
-      borderClass: 'border-violet-200',
+      dotColor: 'bg-accent-500',
+      bgClass: 'bg-accent-50',
+      textClass: 'text-accent-700',
+      borderClass: 'border-accent-200',
     },
     STATEMENT_UPLOAD: {
       icon: <UploadIcon />,
@@ -207,9 +207,9 @@ function getActionMeta(action: string, category: string): ActionMeta {
       label: category || 'Activity',
       color: 'slate',
       dotColor: 'bg-slate-400',
-      bgClass: 'bg-slate-50',
-      textClass: 'text-slate-700',
-      borderClass: 'border-slate-200',
+      bgClass: 'bg-surface-2',
+      textClass: 'text-ink-2',
+      borderClass: 'border-line',
     }
   );
 }
@@ -461,7 +461,7 @@ function ClockIcon() {
 function ArrowRightIcon() {
   return (
     <svg
-      className="w-3.5 h-3.5 text-slate-400"
+      className="w-3.5 h-3.5 text-ink-4"
       fill="none"
       stroke="currentColor"
       strokeWidth={2.5}
@@ -498,7 +498,7 @@ function ChevronDownIcon({ className }: { className?: string }) {
 function SearchIcon() {
   return (
     <svg
-      className="w-4 h-4 text-slate-400"
+      className="w-4 h-4 text-ink-4"
       fill="none"
       stroke="currentColor"
       strokeWidth={2}
@@ -616,13 +616,13 @@ function ActivityDiffViewer({
       exit="exit"
       className="mt-4 overflow-hidden"
     >
-      <div className="rounded-2xl border border-slate-200/80 bg-gradient-to-br from-slate-50 to-white p-5 shadow-sm">
+      <div className="rounded-2xl border border-line/80 bg-gradient-to-br from-surface-2 to-surface p-5 shadow-sm">
         {/* Section header */}
         <div className="flex items-center justify-between mb-4">
-          <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2">
-            <span className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-indigo-100">
+          <span className="text-[11px] font-bold uppercase tracking-widest text-ink-4 flex items-center gap-2">
+            <span className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-brand-100">
               <svg
-                className="w-3 h-3 text-indigo-600"
+                className="w-3 h-3 text-brand-600"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth={2.5}
@@ -640,7 +640,7 @@ function ActivityDiffViewer({
           <button
             type="button"
             onClick={() => setShowRaw(!showRaw)}
-            className="text-[11px] font-semibold text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer flex items-center gap-1"
+            className="text-[11px] font-semibold text-ink-4 hover:text-brand-600 transition-colors cursor-pointer flex items-center gap-1"
           >
             <svg
               className="w-3 h-3"
@@ -668,9 +668,9 @@ function ActivityDiffViewer({
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.05 }}
-                className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm"
+                className="rounded-xl border border-line/80 bg-surface p-4 shadow-sm"
               >
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2 block">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-ink-4 mb-2 block">
                   {change.field}
                 </span>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 mt-1">
@@ -709,36 +709,36 @@ function ActivityDiffViewer({
         {action.startsWith('STATEMENT_') && (
           <div className="grid gap-3 sm:grid-cols-3 mt-3">
             {Boolean(details.file_name) && (
-              <div className="rounded-xl border border-slate-200/80 bg-white p-3 shadow-sm">
-                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
+              <div className="rounded-xl border border-line/80 bg-surface p-3 shadow-sm">
+                <span className="text-[10px] uppercase font-bold text-ink-4 block mb-1">
                   📄 File
                 </span>
-                <span className="text-sm font-semibold text-slate-800 truncate block">
+                <span className="text-sm font-semibold text-ink truncate block">
                   {String(details.file_name)}
                 </span>
               </div>
             )}
             {Boolean(details.bank) && (
-              <div className="rounded-xl border border-slate-200/80 bg-white p-3 shadow-sm">
-                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
+              <div className="rounded-xl border border-line/80 bg-surface p-3 shadow-sm">
+                <span className="text-[10px] uppercase font-bold text-ink-4 block mb-1">
                   🏦 Bank
                 </span>
-                <span className="text-sm font-semibold text-slate-800">{String(details.bank)}</span>
+                <span className="text-sm font-semibold text-ink">{String(details.bank)}</span>
               </div>
             )}
             {details.transactions_count !== undefined && (
-              <div className="rounded-xl border border-slate-200/80 bg-white p-3 shadow-sm">
-                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
+              <div className="rounded-xl border border-line/80 bg-surface p-3 shadow-sm">
+                <span className="text-[10px] uppercase font-bold text-ink-4 block mb-1">
                   📊 Parsed
                 </span>
-                <span className="text-sm font-bold text-indigo-600">
+                <span className="text-sm font-bold text-brand-600">
                   {String(details.transactions_count)} txns
                 </span>
               </div>
             )}
             {details.transactions_deleted !== undefined && (
-              <div className="rounded-xl border border-slate-200/80 bg-white p-3 shadow-sm">
-                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
+              <div className="rounded-xl border border-line/80 bg-surface p-3 shadow-sm">
+                <span className="text-[10px] uppercase font-bold text-ink-4 block mb-1">
                   🗑️ Removed
                 </span>
                 <span className="text-sm font-bold text-rose-600">
@@ -755,14 +755,11 @@ function ActivityDiffViewer({
             {Object.entries(details)
               .filter(([k]) => k !== 'changes' && k !== 'before' && k !== 'after')
               .map(([k, v]) => (
-                <div
-                  key={k}
-                  className="rounded-xl border border-slate-200/80 bg-white p-3 shadow-sm"
-                >
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
+                <div key={k} className="rounded-xl border border-line/80 bg-surface p-3 shadow-sm">
+                  <span className="text-[10px] uppercase font-bold text-ink-4 block mb-1">
                     {formatFieldName(k)}
                   </span>
-                  <span className="text-sm font-semibold text-slate-800">
+                  <span className="text-sm font-semibold text-ink">
                     {typeof v === 'object' ? JSON.stringify(v) : String(v)}
                   </span>
                 </div>
@@ -780,9 +777,7 @@ function ActivityDiffViewer({
               className="mt-4 overflow-hidden"
             >
               <div className="rounded-xl bg-slate-900 p-4 text-xs text-emerald-400 font-mono overflow-x-auto shadow-inner border border-slate-700/50">
-                <p className="text-[10px] uppercase font-bold text-slate-500 mb-2">
-                  Raw Audit Payload
-                </p>
+                <p className="text-[10px] uppercase font-bold text-ink-3 mb-2">Raw Audit Payload</p>
                 <pre className="whitespace-pre-wrap leading-relaxed">
                   {JSON.stringify(details, null, 2)}
                 </pre>
@@ -805,13 +800,13 @@ function TimelineSkeleton() {
       {Array.from({ length: 5 }).map((_, i) => (
         <div key={i} className="flex gap-4 animate-pulse">
           <div className="flex flex-col items-center">
-            <div className="w-3 h-3 rounded-full bg-slate-200" />
-            <div className="w-0.5 flex-1 bg-slate-100 mt-1" />
+            <div className="w-3 h-3 rounded-full bg-surface-4" />
+            <div className="w-0.5 flex-1 bg-surface-3 mt-1" />
           </div>
           <div className="flex-1 space-y-2 pb-6">
-            <div className="h-4 bg-slate-200 rounded-lg w-2/5" />
-            <div className="h-3 bg-slate-100 rounded-lg w-3/5" />
-            <div className="h-16 bg-slate-100 rounded-xl w-full" />
+            <div className="h-4 bg-surface-4 rounded-lg w-2/5" />
+            <div className="h-3 bg-surface-3 rounded-lg w-3/5" />
+            <div className="h-16 bg-surface-3 rounded-xl w-full" />
           </div>
         </div>
       ))}
@@ -934,10 +929,10 @@ export default function ActivityLogsPage() {
       {/* ═══════════════════════════════════════════════════════════════
           Hero Header
           ═══════════════════════════════════════════════════════════════ */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-blue-700 to-slate-900 p-6 sm:p-10 text-white shadow-xl">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-600 via-brand-700 to-slate-900 p-6 sm:p-10 text-white shadow-xl">
         {/* Decorative blobs */}
-        <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-400/20 rounded-full blur-3xl" />
-        <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-indigo-400/20 rounded-full blur-3xl" />
+        <div className="absolute -top-20 -right-20 w-64 h-64 bg-brand-400/20 rounded-full blur-3xl" />
+        <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-brand-400/20 rounded-full blur-3xl" />
 
         <div className="relative mx-auto max-w-6xl">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
@@ -946,7 +941,7 @@ export default function ActivityLogsPage() {
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
-                className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-blue-200 backdrop-blur-sm border border-white/10"
+                className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-white/70 backdrop-blur-sm border border-white/10"
               >
                 <svg
                   className="w-3 h-3"
@@ -975,7 +970,7 @@ export default function ActivityLogsPage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.25 }}
-                className="mt-2 text-sm text-blue-200/80 max-w-xl leading-relaxed"
+                className="mt-2 text-sm text-white/60 max-w-xl leading-relaxed"
               >
                 {t(
                   'activitySubtitle',
@@ -1023,7 +1018,7 @@ export default function ActivityLogsPage() {
                   label: 'Profile',
                   value: quickStats.profile,
                   icon: '👤',
-                  accent: 'from-blue-500/20 to-blue-500/5',
+                  accent: 'from-brand-500/20 to-brand-500/5',
                 },
                 {
                   label: 'Financial',
@@ -1038,7 +1033,7 @@ export default function ActivityLogsPage() {
                   className={`rounded-xl bg-gradient-to-br ${stat.accent} backdrop-blur-sm border border-white/10 p-3.5`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-blue-200/70">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-white/55">
                       {stat.label}
                     </span>
                     <span className="text-base">{stat.icon}</span>
@@ -1060,11 +1055,11 @@ export default function ActivityLogsPage() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm"
+          className="rounded-2xl border border-line bg-surface p-4 sm:p-5 shadow-sm"
         >
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             {/* Category Filter Pills */}
-            <div className="inline-flex flex-wrap gap-1 rounded-xl bg-slate-100/80 p-1 border border-slate-200/60">
+            <div className="inline-flex flex-wrap gap-1 rounded-xl bg-surface-3/80 p-1 border border-line/60">
               {categories.map((c) => (
                 <button
                   key={c.id}
@@ -1072,8 +1067,8 @@ export default function ActivityLogsPage() {
                   onClick={() => handleCategoryChange(c.id)}
                   className={`rounded-lg px-3.5 py-2 text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer flex items-center gap-1.5 ${
                     category === c.id
-                      ? 'bg-white text-indigo-700 shadow-sm border border-indigo-100 ring-1 ring-indigo-200/40'
-                      : 'text-slate-500 hover:text-slate-800 hover:bg-white/60'
+                      ? 'bg-surface text-brand-700 shadow-sm border border-brand-100 ring-1 ring-brand-200/40'
+                      : 'text-ink-3 hover:text-ink hover:bg-surface/60'
                   }`}
                 >
                   <span className="text-sm">{c.icon}</span>
@@ -1093,7 +1088,7 @@ export default function ActivityLogsPage() {
                   placeholder="Search events…"
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
-                  className="w-full sm:w-64 rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-8 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-400 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-100 transition-all"
+                  className="w-full sm:w-64 rounded-xl border border-line bg-surface-2 pl-9 pr-8 py-2 text-sm text-ink placeholder:text-ink-4 focus:border-brand-400 focus:bg-surface focus:outline-hidden focus:ring-2 focus:ring-brand-100 transition-all"
                 />
                 {searchInput && (
                   <button
@@ -1103,7 +1098,7 @@ export default function ActivityLogsPage() {
                       setSearch('');
                       setPage(1);
                     }}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 cursor-pointer transition-colors"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-ink-4 hover:text-ink-2 cursor-pointer transition-colors"
                   >
                     ✕
                   </button>
@@ -1111,7 +1106,7 @@ export default function ActivityLogsPage() {
               </div>
               <button
                 type="submit"
-                className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors cursor-pointer shadow-sm"
+                className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 transition-colors cursor-pointer shadow-sm"
               >
                 Search
               </button>
@@ -1141,21 +1136,21 @@ export default function ActivityLogsPage() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden"
+          className="mt-6 rounded-2xl border border-line bg-surface shadow-sm overflow-hidden"
         >
           {/* Timeline header */}
-          <div className="border-b border-slate-100 bg-slate-50/60 px-6 py-4 flex items-center justify-between">
+          <div className="border-b border-line-soft bg-surface-2/60 px-6 py-4 flex items-center justify-between">
             <div>
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-indigo-100">
+              <h2 className="text-base font-bold text-ink flex items-center gap-2">
+                <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-brand-100">
                   <ClockIcon />
                 </span>
                 Activity Timeline
               </h2>
-              <p className="mt-0.5 text-xs text-slate-500">
+              <p className="mt-0.5 text-xs text-ink-3">
                 {totalRecords} event{totalRecords === 1 ? '' : 's'} recorded
                 {search && (
-                  <span className="text-indigo-500 font-medium">
+                  <span className="text-brand-500 font-medium">
                     {' '}
                     · matching &ldquo;{search}&rdquo;
                   </span>
@@ -1165,7 +1160,7 @@ export default function ActivityLogsPage() {
             <button
               type="button"
               onClick={() => fetchLogs(page, category, search)}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition cursor-pointer bg-indigo-50 hover:bg-indigo-100 rounded-lg px-3 py-1.5"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-600 hover:text-brand-800 transition cursor-pointer bg-brand-50 hover:bg-brand-100 rounded-lg px-3 py-1.5"
             >
               <RefreshIcon />
               Refresh
@@ -1181,11 +1176,11 @@ export default function ActivityLogsPage() {
               animate={{ opacity: 1 }}
               className="p-14 text-center"
             >
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-slate-100 mb-4">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-surface-3 mb-4">
                 <span className="text-3xl">📭</span>
               </div>
-              <p className="text-base font-semibold text-slate-800">No activity events found</p>
-              <p className="mt-1.5 text-sm text-slate-500 max-w-sm mx-auto">
+              <p className="text-base font-semibold text-ink">No activity events found</p>
+              <p className="mt-1.5 text-sm text-ink-3 max-w-sm mx-auto">
                 {search || category !== 'all'
                   ? 'Try selecting another category or clearing your search.'
                   : 'Events will appear here as you use your account.'}
@@ -1199,7 +1194,7 @@ export default function ActivityLogsPage() {
                     setSearchInput('');
                     setPage(1);
                   }}
-                  className="mt-5 rounded-xl bg-slate-100 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-200 transition cursor-pointer"
+                  className="mt-5 rounded-xl bg-surface-3 px-5 py-2.5 text-sm font-semibold text-ink-2 hover:bg-surface-4 transition cursor-pointer"
                 >
                   Clear All Filters
                 </button>
@@ -1220,11 +1215,11 @@ export default function ActivityLogsPage() {
                     className="flex items-center gap-3 mb-4 mt-2"
                     style={gi > 0 ? { marginTop: '1.5rem' } : undefined}
                   >
-                    <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                    <span className="text-xs font-bold uppercase tracking-widest text-ink-4">
                       {group.label}
                     </span>
                     <div className="flex-1 h-px bg-gradient-to-r from-slate-200 to-transparent" />
-                    <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 rounded-md px-2 py-0.5">
+                    <span className="text-[10px] font-semibold text-ink-4 bg-surface-3 rounded-md px-2 py-0.5">
                       {group.logs.length} event{group.logs.length === 1 ? '' : 's'}
                     </span>
                   </motion.div>
@@ -1245,10 +1240,10 @@ export default function ActivityLogsPage() {
                         <div className="flex flex-col items-center shrink-0 w-6">
                           <motion.div
                             whileHover={{ scale: 1.4 }}
-                            className={`w-3 h-3 rounded-full ${meta.dotColor} ring-4 ring-white shadow-sm mt-1.5 z-10 transition-transform`}
+                            className={`w-3 h-3 rounded-full ${meta.dotColor} ring-4 ring-surface shadow-sm mt-1.5 z-10 transition-transform`}
                           />
                           {!isLast && (
-                            <div className="w-0.5 flex-1 bg-gradient-to-b from-slate-200 to-slate-100 min-h-[24px]" />
+                            <div className="w-0.5 flex-1 bg-gradient-to-b from-slate-200 to-surface-3 min-h-[24px]" />
                           )}
                         </div>
 
@@ -1257,8 +1252,8 @@ export default function ActivityLogsPage() {
                           <motion.div
                             whileHover={{ x: 2 }}
                             transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                            className={`rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm transition-shadow hover:shadow-md cursor-pointer ${
-                              isExpanded ? 'ring-2 ring-indigo-100 border-indigo-200' : ''
+                            className={`rounded-xl border border-line/80 bg-surface p-4 shadow-sm transition-shadow hover:shadow-md cursor-pointer ${
+                              isExpanded ? 'ring-2 ring-brand-100 border-brand-200' : ''
                             }`}
                             onClick={() =>
                               hasDetails && setExpandedLogId(isExpanded ? null : log.id)
@@ -1281,14 +1276,14 @@ export default function ActivityLogsPage() {
                                     >
                                       {meta.label}
                                     </span>
-                                    <span className="text-sm font-medium text-slate-800 truncate">
+                                    <span className="text-sm font-medium text-ink truncate">
                                       {log.description}
                                     </span>
                                   </div>
 
                                   {/* Timestamp row */}
-                                  <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-slate-500">
-                                    <span className="inline-flex items-center gap-1 font-medium text-slate-500">
+                                  <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-ink-3">
+                                    <span className="inline-flex items-center gap-1 font-medium text-ink-3">
                                       <ClockIcon />
                                       {formatDateTime(
                                         log.created_at,
@@ -1297,11 +1292,11 @@ export default function ActivityLogsPage() {
                                         prefs.timezone,
                                       )}
                                     </span>
-                                    <span className="text-indigo-500 font-semibold bg-indigo-50 rounded-md px-1.5 py-0.5 text-[10px]">
+                                    <span className="text-brand-500 font-semibold bg-brand-50 rounded-md px-1.5 py-0.5 text-[10px]">
                                       {relativeTime(log.created_at)}
                                     </span>
                                     {log.ip_address && (
-                                      <span className="text-slate-400 font-mono text-[11px]">
+                                      <span className="text-ink-4 font-mono text-[11px]">
                                         IP {log.ip_address}
                                       </span>
                                     )}
@@ -1360,22 +1355,22 @@ export default function ActivityLogsPage() {
                                           {preview.map((c, i) => (
                                             <span
                                               key={i}
-                                              className="inline-flex items-center gap-1 text-[11px] bg-slate-50 rounded-md border border-slate-200/80 px-2 py-0.5"
+                                              className="inline-flex items-center gap-1 text-[11px] bg-surface-2 rounded-md border border-line/80 px-2 py-0.5"
                                             >
-                                              <span className="font-medium text-slate-500">
+                                              <span className="font-medium text-ink-3">
                                                 {formatFieldName(c.field)}:
                                               </span>
                                               <span className="text-rose-500 line-through">
                                                 {formatDiffVal(c.before)}
                                               </span>
-                                              <span className="text-slate-400">→</span>
+                                              <span className="text-ink-4">→</span>
                                               <span className="text-emerald-600 font-semibold">
                                                 {formatDiffVal(c.after)}
                                               </span>
                                             </span>
                                           ))}
                                           {previewChanges.length > 2 && (
-                                            <span className="text-[10px] text-indigo-500 font-semibold">
+                                            <span className="text-[10px] text-brand-500 font-semibold">
                                               +{previewChanges.length - 2} more
                                             </span>
                                           )}
@@ -1391,7 +1386,7 @@ export default function ActivityLogsPage() {
                                   <motion.div
                                     animate={{ rotate: isExpanded ? 180 : 0 }}
                                     transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                                    className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                                    className="w-7 h-7 rounded-lg bg-surface-3 flex items-center justify-center text-ink-3 hover:bg-brand-50 hover:text-brand-600 transition-colors"
                                   >
                                     <ChevronDownIcon className="w-4 h-4" />
                                   </motion.div>
@@ -1420,10 +1415,10 @@ export default function ActivityLogsPage() {
 
           {/* ── Pagination ── */}
           {totalPages > 1 && (
-            <div className="border-t border-slate-100 bg-slate-50/50 px-6 py-4 flex items-center justify-between">
-              <span className="text-xs text-slate-500">
-                Page <span className="font-bold text-slate-700">{page}</span> of{' '}
-                <span className="font-bold text-slate-700">{totalPages}</span>
+            <div className="border-t border-line-soft bg-surface-2/50 px-6 py-4 flex items-center justify-between">
+              <span className="text-xs text-ink-3">
+                Page <span className="font-bold text-ink-2">{page}</span> of{' '}
+                <span className="font-bold text-ink-2">{totalPages}</span>
                 <span className="hidden sm:inline"> · {totalRecords} total records</span>
               </span>
               <div className="flex items-center gap-2">
@@ -1431,7 +1426,7 @@ export default function ActivityLogsPage() {
                   type="button"
                   disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+                  className="rounded-xl border border-line bg-surface px-4 py-2 text-xs font-semibold text-ink-2 shadow-sm hover:bg-surface-2 hover:border-line-strong disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
                 >
                   ← Previous
                 </button>
@@ -1456,8 +1451,8 @@ export default function ActivityLogsPage() {
                         onClick={() => setPage(pageNum)}
                         className={`w-8 h-8 rounded-lg text-xs font-semibold transition cursor-pointer ${
                           pageNum === page
-                            ? 'bg-indigo-600 text-white shadow-sm'
-                            : 'text-slate-600 hover:bg-slate-100'
+                            ? 'bg-brand-600 text-white shadow-sm'
+                            : 'text-ink-2 hover:bg-surface-3'
                         }`}
                       >
                         {pageNum}
@@ -1470,7 +1465,7 @@ export default function ActivityLogsPage() {
                   type="button"
                   disabled={page >= totalPages}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+                  className="rounded-xl border border-line bg-surface px-4 py-2 text-xs font-semibold text-ink-2 shadow-sm hover:bg-surface-2 hover:border-line-strong disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
                 >
                   Next →
                 </button>

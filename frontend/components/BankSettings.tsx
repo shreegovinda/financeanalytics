@@ -164,33 +164,31 @@ export default function BankSettings() {
       )}
 
       {/* Linked Banks Card */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+      <section className="rounded-2xl border border-line bg-surface p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Your Linked Banks</h2>
-            <p className="mt-1 text-sm text-gray-500">
+            <h2 className="text-lg font-semibold text-ink">Your Linked Banks</h2>
+            <p className="mt-1 text-sm text-ink-3">
               Only active banks appear as options when uploading statements.
             </p>
           </div>
-          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+          <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
             {banks.length} linked
           </span>
         </div>
 
         {loading ? (
-          <div className="mt-6 flex items-center justify-center py-8 text-sm text-gray-400">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent mr-2" />
+          <div className="mt-6 flex items-center justify-center py-8 text-sm text-ink-4">
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-brand-600 border-t-transparent mr-2" />
             Loading your bank accounts…
           </div>
         ) : banks.length === 0 ? (
-          <div className="mt-6 rounded-xl border border-dashed border-gray-200 bg-gray-50/50 p-8 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 text-xl font-bold">
+          <div className="mt-6 rounded-xl border border-dashed border-line bg-surface-2/50 p-8 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-600 text-xl font-bold">
               🏦
             </div>
-            <h3 className="mt-3 text-sm font-semibold text-gray-900">
-              No bank accounts linked yet
-            </h3>
-            <p className="mt-1 text-xs text-gray-500 max-w-sm mx-auto">
+            <h3 className="mt-3 text-sm font-semibold text-ink">No bank accounts linked yet</h3>
+            <p className="mt-1 text-xs text-ink-3 max-w-sm mx-auto">
               Link your Indian bank accounts below to start uploading statements and tracking your
               cash flow.
             </p>
@@ -200,28 +198,26 @@ export default function BankSettings() {
             {banks.map((bank) => (
               <div
                 key={bank.id}
-                className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:border-gray-300"
+                className="flex items-center justify-between rounded-xl border border-line bg-surface p-4 shadow-sm transition hover:border-line-strong"
               >
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 font-bold text-white text-sm shadow-sm">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 font-bold text-white text-sm shadow-sm">
                     {bank.name.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <h4 className="font-semibold text-sm text-gray-900 leading-tight">
-                      {bank.name}
-                    </h4>
+                    <h4 className="font-semibold text-sm text-ink leading-tight">{bank.name}</h4>
                     <div className="mt-1 flex flex-wrap items-center gap-1.5">
                       <span
                         className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                           bank.active
                             ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : 'bg-gray-100 text-gray-600 border border-gray-200'
+                            : 'bg-surface-3 text-ink-2 border border-line'
                         }`}
                       >
                         {bank.active ? 'Active' : 'Inactive'}
                       </span>
                       {bank.has_statements && (
-                        <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700 border border-blue-200">
+                        <span className="inline-flex items-center rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-medium text-brand-700 border border-brand-200">
                           Statements
                         </span>
                       )}
@@ -237,8 +233,8 @@ export default function BankSettings() {
                     title={bank.active ? 'Deactivate this bank' : 'Reactivate this bank'}
                     className={`rounded-lg px-2.5 py-1 text-xs font-medium transition cursor-pointer disabled:opacity-50 ${
                       bank.active
-                        ? 'border border-gray-200 text-gray-700 hover:bg-gray-100'
-                        : 'border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+                        ? 'border border-line text-ink-2 hover:bg-surface-3'
+                        : 'border border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100'
                     }`}
                   >
                     {bank.active ? 'Deactivate' : 'Activate'}
@@ -249,7 +245,7 @@ export default function BankSettings() {
                       disabled={busy}
                       onClick={() => void change('remove', bank)}
                       title="Remove unlinked bank"
-                      className="rounded-lg p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 transition cursor-pointer disabled:opacity-50"
+                      className="rounded-lg p-1 text-ink-4 hover:text-red-600 hover:bg-red-50 transition cursor-pointer disabled:opacity-50"
                     >
                       <span className="sr-only">Remove</span>
                       🗑️
@@ -263,14 +259,14 @@ export default function BankSettings() {
       </section>
 
       {/* Add Bank Section */}
-      <section className="rounded-2xl border border-indigo-100 bg-gradient-to-b from-indigo-50/40 to-white p-6 shadow-sm">
+      <section className="rounded-2xl border border-brand-100 bg-gradient-to-b from-brand-50/40 to-surface p-6 shadow-sm">
         <div className="flex items-center gap-2.5 mb-1">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-white text-xs font-bold">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-600 text-white text-xs font-bold">
             +
           </div>
-          <h2 className="text-lg font-bold text-gray-900">Add a Bank Account</h2>
+          <h2 className="text-lg font-bold text-ink">Add a Bank Account</h2>
         </div>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-ink-2">
           Search the RBI-recognized catalogue of 80+ Indian commercial, private, and regional rural
           banks.
         </p>
@@ -278,7 +274,7 @@ export default function BankSettings() {
         {/* Popular Banks Chips */}
         {popularUnlinked.length > 0 && (
           <div className="mt-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-ink-3 mb-2">
               Popular Indian Banks
             </p>
             <div className="flex flex-wrap gap-2">
@@ -288,7 +284,7 @@ export default function BankSettings() {
                   type="button"
                   disabled={busy}
                   onClick={() => void change('add', undefined, pop.id)}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-white px-3 py-1.5 text-xs font-semibold text-indigo-900 shadow-sm transition hover:border-indigo-400 hover:bg-indigo-50 active:scale-95 cursor-pointer disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-brand-200 bg-surface px-3 py-1.5 text-xs font-semibold text-brand-900 shadow-sm transition hover:border-brand-400 hover:bg-brand-50 active:scale-95 cursor-pointer disabled:opacity-50"
                 >
                   <span>+</span>
                   <span>{pop.name}</span>
@@ -302,12 +298,12 @@ export default function BankSettings() {
         <div className="mt-5">
           <label
             htmlFor="bank-search"
-            className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5"
+            className="block text-xs font-semibold uppercase tracking-wide text-ink-2 mb-1.5"
           >
             Search All Banks
           </label>
           <div className="relative">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400 pointer-events-none">
+            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-ink-4 pointer-events-none">
               🔍
             </span>
             <input
@@ -317,7 +313,7 @@ export default function BankSettings() {
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Search by bank name or code, e.g. HDFC, SBI, Axis, ICICI..."
-              className="w-full rounded-xl border border-gray-300 bg-white pl-10 pr-10 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 shadow-sm"
+              className="w-full rounded-xl border border-line-strong bg-surface pl-10 pr-10 py-2.5 text-sm text-ink placeholder:text-ink-4 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100 shadow-sm"
             />
             {search && (
               <button
@@ -326,7 +322,7 @@ export default function BankSettings() {
                   setSearch('');
                   setSelectedId('');
                 }}
-                className="absolute inset-y-0 right-0 flex items-center pr-3 text-xs text-gray-400 hover:text-gray-600 cursor-pointer"
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-xs text-ink-4 hover:text-ink-2 cursor-pointer"
               >
                 ✕
               </button>
@@ -336,13 +332,13 @@ export default function BankSettings() {
 
         {/* Search Results / Bank Selection Cards */}
         <div className="mt-3">
-          <p className="text-xs text-gray-500 mb-2">
+          <p className="text-xs text-ink-3 mb-2">
             {filtered.length} bank{filtered.length === 1 ? '' : 's'} available to add
           </p>
 
-          <div className="max-h-60 overflow-y-auto space-y-1.5 rounded-xl border border-gray-200 bg-white p-2 shadow-inner">
+          <div className="max-h-60 overflow-y-auto space-y-1.5 rounded-xl border border-line bg-surface p-2 shadow-inner">
             {filtered.length === 0 ? (
-              <div className="py-6 text-center text-xs text-gray-500">
+              <div className="py-6 text-center text-xs text-ink-3">
                 No matching banks found for &quot;{search}&quot;. Try another bank name.
               </div>
             ) : (
@@ -354,21 +350,21 @@ export default function BankSettings() {
                     onClick={() => setSelectedId(c.id)}
                     className={`flex items-center justify-between gap-3 rounded-lg p-2.5 transition cursor-pointer ${
                       isCurrent
-                        ? 'bg-indigo-50 border border-indigo-300 shadow-sm'
-                        : 'border border-transparent hover:bg-gray-50'
+                        ? 'bg-brand-50 border border-brand-300 shadow-sm'
+                        : 'border border-transparent hover:bg-surface-2'
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div
                         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                          isCurrent ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600'
+                          isCurrent ? 'bg-brand-600 text-white' : 'bg-surface-3 text-ink-2'
                         }`}
                       >
                         {c.name.charAt(0)}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{c.name}</p>
-                        <p className="text-[11px] text-gray-500 truncate">{c.category}</p>
+                        <p className="text-sm font-medium text-ink truncate">{c.name}</p>
+                        <p className="text-[11px] text-ink-3 truncate">{c.category}</p>
                       </div>
                     </div>
 
@@ -380,7 +376,7 @@ export default function BankSettings() {
                           e.stopPropagation();
                           void change('add', undefined, c.id);
                         }}
-                        className="rounded-lg bg-indigo-600 px-3 py-1 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700 active:scale-95 transition cursor-pointer disabled:opacity-50"
+                        className="rounded-lg bg-brand-600 px-3 py-1 text-xs font-semibold text-white shadow-sm hover:bg-brand-700 active:scale-95 transition cursor-pointer disabled:opacity-50"
                       >
                         + Add Bank
                       </button>
@@ -394,8 +390,8 @@ export default function BankSettings() {
 
         {/* Selected Bank Confirmation Action */}
         {selectedBank && (
-          <div className="mt-4 flex items-center justify-between rounded-xl border border-indigo-200 bg-indigo-50/80 p-3">
-            <div className="flex items-center gap-2 text-xs text-indigo-900">
+          <div className="mt-4 flex items-center justify-between rounded-xl border border-brand-200 bg-brand-50/80 p-3">
+            <div className="flex items-center gap-2 text-xs text-brand-900">
               <span className="font-bold">Selected:</span>
               <span>
                 {selectedBank.name} ({selectedBank.category})
@@ -405,14 +401,14 @@ export default function BankSettings() {
               type="button"
               disabled={busy}
               onClick={() => void change('add')}
-              className="rounded-xl bg-indigo-600 px-4 py-1.5 text-xs font-bold text-white shadow hover:bg-indigo-700 active:scale-95 transition cursor-pointer disabled:opacity-50"
+              className="rounded-xl bg-brand-600 px-4 py-1.5 text-xs font-bold text-white shadow hover:bg-brand-700 active:scale-95 transition cursor-pointer disabled:opacity-50"
             >
               {busy ? 'Adding…' : `Confirm Add ${selectedBank.name}`}
             </button>
           </div>
         )}
 
-        <p className="mt-3 text-xs text-gray-500">
+        <p className="mt-3 text-xs text-ink-3">
           Note: Cooperative banks are governed by state registrars and are not yet part of the
           central RBI schedule.
         </p>

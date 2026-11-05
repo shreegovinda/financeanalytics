@@ -93,9 +93,9 @@ function NavLinks({
   onNavigate: () => void;
 }) {
   return (
-    <ul className="space-y-1">
+    <ul className="space-y-0.5">
       {items.map((item) => {
-        const isActive = pathname === item.href;
+        const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`);
         const Icon = item.icon;
 
         return (
@@ -103,34 +103,38 @@ function NavLinks({
             <Link
               href={item.href}
               onClick={onNavigate}
+              aria-current={isActive ? 'page' : undefined}
               className={cn(
-                'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 relative overflow-hidden',
+                'group relative flex items-center gap-3 rounded-xl px-3 py-2 text-[13.5px] font-medium transition-colors duration-150',
                 isActive
-                  ? 'text-brand-700 bg-brand-50'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80',
+                  ? 'bg-brand-gradient-soft text-ink shadow-xs ring-1 ring-brand-500/15'
+                  : 'text-ink-3 hover:bg-surface-3/70 hover:text-ink',
               )}
             >
               {isActive && (
-                <motion.div
-                  layoutId="activeTab"
-                  className="absolute left-0 top-0 bottom-0 w-1 bg-brand-600 rounded-r-full"
+                <motion.span
+                  layoutId="nav-indicator"
+                  className="absolute -left-4 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-brand-gradient"
                   initial={false}
-                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                  transition={{ type: 'spring', stiffness: 380, damping: 32 }}
                 />
               )}
-              <Icon
-                size={18}
+              <span
                 className={cn(
-                  'transition-colors',
-                  isActive ? 'text-brand-600' : 'text-slate-400 group-hover:text-slate-600',
-                  item.highlight && !isActive && 'text-amber-500',
+                  'flex h-7 w-7 items-center justify-center rounded-lg transition-colors',
+                  isActive
+                    ? 'bg-brand-gradient text-white shadow-sm'
+                    : 'bg-surface-3/60 text-ink-3 group-hover:text-ink',
                 )}
-              />
-              <span className="relative z-10">{item.label}</span>
+              >
+                <Icon size={15} />
+              </span>
+              <span>{item.label}</span>
 
               {item.highlight && (
-                <span className="ml-auto flex h-5 items-center rounded-full bg-gradient-to-r from-amber-200 to-amber-100 px-2 text-[10px] font-bold text-amber-700">
-                  NEW
+                <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-accent-100 px-2 py-0.5 text-[10px] font-bold tracking-wide text-accent-700">
+                  <Sparkles size={9} />
+                  AI
                 </span>
               )}
             </Link>
@@ -138,6 +142,23 @@ function NavLinks({
         );
       })}
     </ul>
+  );
+}
+
+function BrandMark({ size = 'md' }: { size?: 'sm' | 'md' }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <div
+        className={cn(
+          'relative flex items-center justify-center rounded-xl bg-brand-gradient font-bold text-white shadow-md ring-1 ring-white/20',
+          size === 'md' ? 'h-9 w-9 text-[15px]' : 'h-8 w-8 text-sm',
+        )}
+      >
+        F
+        <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-surface" />
+      </div>
+      <span className="text-[17px] font-semibold tracking-tight text-ink">Finlytix</span>
+    </div>
   );
 }
 
@@ -160,21 +181,19 @@ export function AppShell({ children }: AppShellProps) {
     return <>{children}</>;
   }
 
+  const closeMenu = () => setIsMobileMenuOpen(false);
+
   return (
-    <div className="flex h-screen w-full bg-[#f4f7fb] dark:bg-[#090d16] text-slate-900 dark:text-slate-100 overflow-hidden selection:bg-brand-200 selection:text-brand-900">
+    <div className="flex h-screen w-full overflow-hidden text-ink selection:bg-brand-200">
       {/* Mobile Header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-white/85 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 z-50 flex items-center justify-between px-4">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-white font-bold shadow-sm">
-            F
-          </div>
-          <span className="font-bold text-slate-900 dark:text-white tracking-tight">Finlytix</span>
-        </div>
+      <div className="glass fixed inset-x-0 top-0 z-50 flex h-14 items-center justify-between border-b border-line px-4 md:hidden">
+        <BrandMark size="sm" />
         <div className="flex items-center gap-2">
           <ThemeQuickToggle />
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
+            className="cursor-pointer rounded-lg p-2 text-ink-3 transition-colors hover:bg-surface-3"
           >
             {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
@@ -188,93 +207,71 @@ export function AppShell({ children }: AppShellProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="md:hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40"
+            onClick={closeMenu}
+            className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-sm md:hidden"
           />
         )}
       </AnimatePresence>
 
       {/* Sidebar */}
-      <motion.aside
+      <aside
         className={cn(
-          'fixed md:static inset-y-0 left-0 z-50 flex h-full w-72 flex-col border-r border-slate-200/70 dark:border-slate-800/80 bg-white/75 dark:bg-slate-900/85 backdrop-blur-3xl transition-transform duration-300 ease-in-out md:translate-x-0',
+          'glass fixed inset-y-0 left-0 z-50 flex h-full w-64 flex-col border-r border-line transition-transform duration-300 ease-in-out md:static md:translate-x-0',
           isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full',
         )}
       >
-        <div className="flex h-16 shrink-0 items-center justify-between px-5 pt-6 md:pt-0">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white font-bold shadow-sm ring-1 ring-brand-900/5">
-              F
-            </div>
-            <span className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-              Finlytix
-            </span>
-          </div>
-          <ThemeQuickToggle />
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-4 py-6 scrollbar-none">
-          <div className="space-y-6">
-            <div>
-              <p className="px-3 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">
-                Main Menu
-              </p>
-              <NavLinks
-                items={NAV_ITEMS}
-                pathname={pathname}
-                onNavigate={() => setIsMobileMenuOpen(false)}
-              />
-            </div>
-
-            <div>
-              <p className="px-3 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">
-                Preferences
-              </p>
-              <NavLinks
-                items={SECONDARY_NAV_ITEMS}
-                pathname={pathname}
-                onNavigate={() => setIsMobileMenuOpen(false)}
-              />
-            </div>
+        <div className="flex h-16 shrink-0 items-center justify-between px-5">
+          <BrandMark />
+          <div className="hidden md:block">
+            <ThemeQuickToggle />
           </div>
         </div>
 
-        <div className="p-4 border-t border-slate-200/60 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-800/40 m-2 rounded-2xl">
-          <div className="flex items-center gap-3 px-2 py-1 mb-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-100 dark:bg-brand-950/60 text-brand-700 dark:text-brand-300 font-bold border border-brand-200 dark:border-brand-800">
-              {user?.name?.charAt(0) || <UserIcon size={16} />}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
-                {user?.name || 'User'}
-              </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                {user?.email || 'email@example.com'}
-              </p>
-            </div>
+        <nav className="flex-1 space-y-6 overflow-y-auto px-4 py-4" aria-label="Primary">
+          <div>
+            <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-4">
+              Workspace
+            </p>
+            <NavLinks items={NAV_ITEMS} pathname={pathname} onNavigate={closeMenu} />
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 transition-colors hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-700 dark:hover:text-red-400 group cursor-pointer"
-          >
-            <LogOut
-              size={16}
-              className="text-slate-400 group-hover:text-red-500 transition-colors"
-            />
-            Sign Out
-          </button>
+
+          <div>
+            <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-4">
+              Account
+            </p>
+            <NavLinks items={SECONDARY_NAV_ITEMS} pathname={pathname} onNavigate={closeMenu} />
+          </div>
+        </nav>
+
+        <div className="m-3 rounded-2xl border border-line bg-surface-2/70 p-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-gradient text-sm font-bold text-white shadow-sm">
+              {user?.name?.charAt(0)?.toUpperCase() || <UserIcon size={16} />}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-ink">{user?.name || 'User'}</p>
+              <p className="truncate text-xs text-ink-3">{user?.email || 'email@example.com'}</p>
+            </div>
+            <button
+              onClick={handleLogout}
+              title="Sign out"
+              aria-label="Sign out"
+              className="cursor-pointer rounded-lg p-2 text-ink-4 transition-colors hover:bg-rose-50 hover:text-rose-600"
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
         </div>
-      </motion.aside>
+      </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 h-screen overflow-y-auto bg-[#f4f7fb] dark:bg-[#090d16] pt-16 md:pt-0 relative">
-        <div className="mx-auto max-w-7xl h-full p-4 sm:p-6 lg:p-8">
+      <main className="relative h-screen flex-1 overflow-y-auto pt-14 md:pt-0">
+        <div className="mx-auto h-full max-w-7xl p-4 sm:p-6 lg:p-8">
           <motion.div
             key={pathname}
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
+            transition={{ duration: 0.28, ease: 'easeOut' }}
             className="h-full"
           >
             {children}

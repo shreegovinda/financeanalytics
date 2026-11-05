@@ -73,7 +73,7 @@ export default function CrashReportModal({
       aria-modal="true"
       aria-labelledby="crash-modal-title"
     >
-      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-slate-200">
+      <div className="w-full max-w-lg rounded-2xl bg-surface p-6 shadow-2xl border border-line">
         {submittedId ? (
           <div className="text-center py-4">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 mb-3">
@@ -86,13 +86,13 @@ export default function CrashReportModal({
                 />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-slate-900" id="crash-modal-title">
+            <h3 className="text-lg font-semibold text-ink" id="crash-modal-title">
               Report Sent
             </h3>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 text-sm text-ink-2">
               Thank you for helping us make Finlytix more reliable. Reference ID:
             </p>
-            <p className="mt-2 font-mono text-xs text-blue-600 bg-blue-50 py-1.5 px-3 rounded-lg inline-block">
+            <p className="mt-2 font-mono text-xs text-brand-600 bg-brand-50 py-1.5 px-3 rounded-lg inline-block">
               {submittedId}
             </p>
             <div className="mt-6">
@@ -107,22 +107,22 @@ export default function CrashReportModal({
           </div>
         ) : (
           <div>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-lg font-semibold text-slate-900" id="crash-modal-title">
+            <div className="flex items-center justify-between pb-3 border-b border-line-soft">
+              <h3 className="text-lg font-semibold text-ink" id="crash-modal-title">
                 Send Diagnostic Report
               </h3>
               <button
                 type="button"
                 onClick={onClose}
-                className="text-slate-400 hover:text-slate-600 text-sm font-bold p-1"
+                className="text-ink-4 hover:text-ink-2 text-sm font-bold p-1"
                 aria-label="Close dialog"
               >
                 ✕
               </button>
             </div>
 
-            <div className="mt-4 text-xs bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-700">
-              <p className="font-semibold text-slate-800 mb-1">Privacy Guarantee:</p>
+            <div className="mt-4 text-xs bg-surface-2 border border-line rounded-xl p-3 text-ink-2">
+              <p className="font-semibold text-ink mb-1">Privacy Guarantee:</p>
               <p>
                 Diagnostics contain strictly sanitized application errors, browser class, and URLs.
                 Financial balances, transaction details, bank account numbers, passwords, and auth
@@ -132,19 +132,14 @@ export default function CrashReportModal({
 
             <div className="mt-4 space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  Error Summary
-                </label>
-                <div className="p-2.5 bg-slate-100 text-slate-800 text-xs font-mono rounded-lg break-all">
+                <label className="block text-xs font-semibold text-ink-2 mb-1">Error Summary</label>
+                <div className="p-2.5 bg-surface-3 text-ink text-xs font-mono rounded-lg break-all">
                   {error?.message || 'Unexpected application error'}
                 </div>
               </div>
 
               <div>
-                <label
-                  htmlFor="crash-note"
-                  className="block text-xs font-semibold text-slate-600 mb-1"
-                >
+                <label htmlFor="crash-note" className="block text-xs font-semibold text-ink-2 mb-1">
                   What were you doing when this happened? (optional)
                 </label>
                 <textarea
@@ -153,7 +148,7 @@ export default function CrashReportModal({
                   value={userNote}
                   onChange={(e) => setUserNote(e.target.value)}
                   placeholder="e.g. Navigated to statements tab after uploading a PDF..."
-                  className="w-full rounded-xl border border-slate-300 p-2.5 text-xs text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full rounded-xl border border-line-strong p-2.5 text-xs text-ink focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
                 />
               </div>
             </div>
@@ -167,7 +162,7 @@ export default function CrashReportModal({
                 type="button"
                 onClick={onClose}
                 disabled={isSubmitting}
-                className="rounded-xl border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition disabled:opacity-50"
+                className="rounded-xl border border-line-strong px-4 py-2 text-xs font-medium text-ink-2 hover:bg-surface-2 transition disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -175,7 +170,7 @@ export default function CrashReportModal({
                 type="button"
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-medium text-white hover:bg-blue-700 transition disabled:opacity-50 flex items-center gap-1.5"
+                className="rounded-xl bg-brand-600 px-4 py-2 text-xs font-medium text-white hover:bg-brand-700 transition disabled:opacity-50 flex items-center gap-1.5"
               >
                 {isSubmitting ? 'Sending...' : 'Send Diagnostic Report'}
               </button>

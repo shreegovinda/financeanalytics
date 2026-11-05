@@ -37,9 +37,9 @@ export default function StatementProcessingProgress({
 
   return (
     <div className="space-y-2">
-      <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+      <div className="h-2 w-full overflow-hidden rounded-full bg-surface-3">
         <div
-          className={`h-full rounded-full transition-all duration-500 ${isFailed ? 'bg-red-500' : 'bg-blue-600'}`}
+          className={`h-full rounded-full transition-all duration-500 ${isFailed ? 'bg-red-500' : 'bg-brand-600'}`}
           style={{ width: `${progress}%` }}
         />
       </div>
@@ -61,8 +61,8 @@ export default function StatementProcessingProgress({
                   : isDone
                     ? 'bg-green-100 text-green-700'
                     : isCurrent
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'bg-gray-100 text-gray-500'
+                      ? 'bg-brand-100 text-brand-700'
+                      : 'bg-surface-3 text-ink-3'
               }`}
             >
               {item.label}

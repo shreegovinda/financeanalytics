@@ -180,26 +180,26 @@ export default function PhoneInput({
     <div
       className={`relative flex items-center rounded-xl border transition ${
         isDark
-          ? 'border-white/20 bg-white/10 text-white focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-400/20'
-          : 'border-gray-300 bg-white text-gray-900 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100'
+          ? 'border-white/20 bg-white/10 text-white focus-within:border-brand-400 focus-within:ring-2 focus-within:ring-brand-400/20'
+          : 'border-line-strong bg-surface text-ink focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-100'
       } ${className} ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
     >
       {/* Country dropdown with flag and dial code */}
       <div
         className={`relative flex items-center border-r rounded-l-xl pl-3 pr-2 py-2 shrink-0 ${
-          isDark ? 'border-white/15 bg-white/10' : 'border-gray-200 bg-gray-50/80'
+          isDark ? 'border-white/15 bg-white/10' : 'border-line bg-surface-2/80'
         }`}
       >
         <span className="text-base mr-1.5 select-none">{country.flag}</span>
         <span
           className={`text-xs font-semibold select-none mr-1 ${
-            isDark ? 'text-white' : 'text-gray-700'
+            isDark ? 'text-white' : 'text-ink-2'
           }`}
         >
           {country.dialCode}
         </span>
         <svg
-          className={`w-3.5 h-3.5 pointer-events-none ${isDark ? 'text-gray-300' : 'text-gray-400'}`}
+          className={`w-3.5 h-3.5 pointer-events-none ${isDark ? 'text-gray-300' : 'text-ink-4'}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -215,7 +215,7 @@ export default function PhoneInput({
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
         >
           {COUNTRIES.map((c) => (
-            <option key={c.code} value={c.code} className="text-gray-900 bg-white">
+            <option key={c.code} value={c.code} className="text-ink bg-surface">
               {c.flag} {c.name} ({c.dialCode})
             </option>
           ))}
@@ -233,9 +233,7 @@ export default function PhoneInput({
         required={required}
         placeholder={country.formatPlaceholder}
         className={`w-full bg-transparent px-3 py-2.5 text-sm focus:outline-none ${
-          isDark
-            ? 'text-white placeholder:text-gray-400'
-            : 'text-gray-900 placeholder:text-gray-400'
+          isDark ? 'text-white placeholder:text-ink-4' : 'text-ink placeholder:text-ink-4'
         }`}
       />
     </div>
