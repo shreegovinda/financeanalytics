@@ -215,3 +215,39 @@ test('help greetings follow the selected language without an AI call', async () 
   assert.match(result.answer, /नमस्ते/);
   assert.deepEqual(result.sources, []);
 });
+
+test('canned greeting is used only when it matches the selected language', async () => {
+  const pool = { query: () => assert.fail('No database retrieval for a canned greeting') };
+  const noAi = () => assert.fail('No AI call');
+  for (const [message, language, pattern] of [
+    ['नमस्ते', 'hi-IN', /नमस्ते/],
+    ['Hello', 'en-IN', /Hello!/],
+    ['Hello', undefined, /Hello!/],
+    ['ನಮಸ್ಕಾರ', 'kn-IN', /ನಮಸ್ಕಾರ/],
+  ]) {
+    const result = await answerQuestion(pool, 'owner', message, [], undefined, noAi, { language });
+    assert.match(result.answer, pattern);
+  }
+});
+
+test('greeting in a different language than selected goes to the model', async () => {
+  const client = { query: async () => ({ rows: [] }), release() {} };
+  const prompts = [];
+  const generate = async (prompt) => {
+    prompts.push(prompt);
+    if (prompts.length === 1) return { requests: [{ tool: 'product' }] };
+    return { answer: 'नमस्ते! आप कैसे हैं?', sourceIds: ['product'] };
+  };
+  const result = await answerQuestion(
+    { connect: async () => client },
+    'owner',
+    'Hello',
+    [],
+    { providerId: 'gemini', model: null, apiKey: null },
+    generate,
+    { language: 'hi-IN' },
+  );
+  assert.equal(prompts.length, 2);
+  assert.match(prompts[1], /Reply entirely in Hindi/);
+  assert.match(result.answer, /नमस्ते/);
+});

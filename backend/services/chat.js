@@ -144,8 +144,23 @@ async function answerQuestion(
     नमस्ते: 'नमस्ते! अपने खर्च, आय या बैंक स्टेटमेंट के बारे में पूछिए।',
     ನಮಸ್ಕಾರ: 'ನಮಸ್ಕಾರ! ನಿಮ್ಮ ಖರ್ಚು, ಆದಾಯ ಅಥವಾ ಬ್ಯಾಂಕ್ ಸ್ಟೇಟ್‌ಮೆಂಟ್‌ಗಳ ಬಗ್ಗೆ ಕೇಳಿ.',
   };
-  const skipFinanceGreeting = language && !String(language).toLowerCase().startsWith('en');
-  if (!helpOnly && !skipFinanceGreeting && Object.hasOwn(greetings, greeting)) {
+  const greetingLanguages = {
+    hello: 'en',
+    hi: 'en',
+    hey: 'en',
+    హలో: 'te',
+    హాలో: 'te',
+    హెల్లో: 'te',
+    నమస్కారం: 'te',
+    नमस्ते: 'hi',
+    ನಮಸ್ಕಾರ: 'kn',
+  };
+  // A canned greeting is only right when it is in the selected speech language;
+  // otherwise let the model reply in that language.
+  const greetingMatchesLanguage =
+    !language ||
+    greetingLanguages[greeting] === String(language).toLowerCase().split('-')[0];
+  if (!helpOnly && greetingMatchesLanguage && Object.hasOwn(greetings, greeting)) {
     return {
       answer: greetings[greeting],
       sources: [],
