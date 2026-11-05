@@ -168,9 +168,15 @@ export function AppShell({ children }: AppShellProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const user = useSyncExternalStore(subscribeToStoredUser, readStoredUser, serverUser);
 
-  // The landing and auth pages are public and render without the app shell
+  // Public pages render without the app shell
   const isAuthPage =
-    pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/verify-email');
+    pathname === '/' ||
+    pathname === '/help' ||
+    pathname === '/privacy' ||
+    pathname === '/terms' ||
+    pathname === '/cookies' ||
+    pathname?.startsWith('/auth') ||
+    pathname?.startsWith('/verify-email');
 
   const handleLogout = () => {
     localStorage.removeItem('token');
