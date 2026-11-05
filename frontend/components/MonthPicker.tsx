@@ -73,14 +73,14 @@ export default function MonthPicker({
         <button
           type="button"
           onClick={() => setYear((y) => y - 1)}
-          className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50"
+          className="rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-ink-2 transition hover:bg-surface-2"
           aria-label="Previous year"
         >
           ←
         </button>
         <div className="text-center">
-          <span className="text-lg font-bold text-gray-900">{year}</span>
-          <span className="ml-2 text-xs text-gray-500">
+          <span className="text-lg font-bold text-ink">{year}</span>
+          <span className="ml-2 text-xs text-ink-3">
             {takenThisYear > 0 ? `${takenThisYear} already imported` : 'nothing imported yet'}
           </span>
         </div>
@@ -88,7 +88,7 @@ export default function MonthPicker({
           type="button"
           onClick={() => setYear((y) => y + 1)}
           disabled={year >= currentYear}
-          className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-ink-2 transition hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Next year"
         >
           →
@@ -121,14 +121,14 @@ export default function MonthPicker({
               className={[
                 'relative rounded-lg border px-3 py-2.5 text-sm font-medium transition',
                 isSelected
-                  ? 'border-blue-600 bg-blue-600 text-white shadow-sm'
+                  ? 'border-brand-600 bg-brand-600 text-white shadow-sm'
                   : status === 'pending_review'
                     ? 'cursor-not-allowed border-amber-200 bg-amber-50 text-amber-700'
                     : status
                       ? 'cursor-not-allowed border-green-200 bg-green-50 text-green-700'
                       : isFuture
-                        ? 'cursor-not-allowed border-gray-100 bg-gray-50 text-gray-300'
-                        : 'border-gray-200 bg-white text-gray-700 hover:border-blue-400 hover:bg-blue-50',
+                        ? 'cursor-not-allowed border-line-soft bg-surface-2 text-gray-300'
+                        : 'border-line bg-surface text-ink-2 hover:border-brand-400 hover:bg-brand-50',
               ].join(' ')}
             >
               {label}
@@ -139,10 +139,10 @@ export default function MonthPicker({
         })}
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-3">
         <Legend swatch="bg-green-100 border-green-200" label="Already imported" />
         <Legend swatch="bg-amber-100 border-amber-200" label="Awaiting review" />
-        <Legend swatch="bg-white border-gray-300" label="Available" />
+        <Legend swatch="bg-surface border-line-strong" label="Available" />
       </div>
     </div>
   );

@@ -567,8 +567,8 @@ export default function SettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-surface-2 flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -578,17 +578,17 @@ export default function SettingsPage() {
       <AuthSessionGuard />
       <div className="space-y-6">
         {/* Header Hero Card */}
-        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-indigo-600 to-slate-900 p-6 sm:p-8 text-white shadow-lg">
+        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-600 via-brand-600 to-slate-900 p-6 sm:p-8 text-white shadow-lg">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.22),transparent_32%)]" />
           <div className="relative z-10 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-blue-200">
+              <p className="text-xs font-semibold uppercase tracking-wider text-white/70">
                 Account & Platform Settings
               </p>
               <h1 className="mt-1 text-3xl font-extrabold tracking-tight">
                 Settings & Preferences
               </h1>
-              <p className="mt-2 max-w-2xl text-sm text-blue-100">
+              <p className="mt-2 max-w-2xl text-sm text-white/85">
                 Manage personal details, regional formatting, AI models & keys, bank accounts,
                 categories, and data privacy.
               </p>
@@ -612,8 +612,8 @@ export default function SettingsPage() {
               onClick={() => setActiveTab('profile')}
               className={`relative z-10 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all duration-150 cursor-pointer ${
                 activeTab === 'profile'
-                  ? 'bg-white text-blue-950 shadow-md font-bold scale-[1.02]'
-                  : 'text-blue-100 hover:text-white hover:bg-white/15'
+                  ? 'bg-surface text-ink shadow-md font-bold scale-[1.02]'
+                  : 'text-white/85 hover:text-white hover:bg-white/15'
               }`}
             >
               <span>👤</span>
@@ -624,8 +624,8 @@ export default function SettingsPage() {
               onClick={() => setActiveTab('preferences')}
               className={`relative z-10 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all duration-150 cursor-pointer ${
                 activeTab === 'preferences'
-                  ? 'bg-white text-blue-950 shadow-md font-bold scale-[1.02]'
-                  : 'text-blue-100 hover:text-white hover:bg-white/15'
+                  ? 'bg-surface text-ink shadow-md font-bold scale-[1.02]'
+                  : 'text-white/85 hover:text-white hover:bg-white/15'
               }`}
             >
               <span>🌐</span>
@@ -636,8 +636,8 @@ export default function SettingsPage() {
               onClick={() => setActiveTab('ai')}
               className={`relative z-10 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all duration-150 cursor-pointer ${
                 activeTab === 'ai'
-                  ? 'bg-white text-blue-950 shadow-md font-bold scale-[1.02]'
-                  : 'text-blue-100 hover:text-white hover:bg-white/15'
+                  ? 'bg-surface text-ink shadow-md font-bold scale-[1.02]'
+                  : 'text-white/85 hover:text-white hover:bg-white/15'
               }`}
             >
               <span>🤖</span>
@@ -648,8 +648,8 @@ export default function SettingsPage() {
               onClick={() => setActiveTab('banks')}
               className={`relative z-10 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all duration-150 cursor-pointer ${
                 activeTab === 'banks'
-                  ? 'bg-white text-blue-950 shadow-md font-bold scale-[1.02]'
-                  : 'text-blue-100 hover:text-white hover:bg-white/15'
+                  ? 'bg-surface text-ink shadow-md font-bold scale-[1.02]'
+                  : 'text-white/85 hover:text-white hover:bg-white/15'
               }`}
             >
               <span>🏦</span>
@@ -660,8 +660,8 @@ export default function SettingsPage() {
               onClick={() => setActiveTab('categories')}
               className={`relative z-10 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all duration-150 cursor-pointer ${
                 activeTab === 'categories'
-                  ? 'bg-white text-blue-950 shadow-md font-bold scale-[1.02]'
-                  : 'text-blue-100 hover:text-white hover:bg-white/15'
+                  ? 'bg-surface text-ink shadow-md font-bold scale-[1.02]'
+                  : 'text-white/85 hover:text-white hover:bg-white/15'
               }`}
             >
               <span>🏷️</span>
@@ -672,8 +672,8 @@ export default function SettingsPage() {
               onClick={() => setActiveTab('data')}
               className={`relative z-10 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all duration-150 cursor-pointer ${
                 activeTab === 'data'
-                  ? 'bg-white text-blue-950 shadow-md font-bold scale-[1.02]'
-                  : 'text-blue-100 hover:text-white hover:bg-white/15'
+                  ? 'bg-surface text-ink shadow-md font-bold scale-[1.02]'
+                  : 'text-white/85 hover:text-white hover:bg-white/15'
               }`}
             >
               <span>🛡️</span>
@@ -716,17 +716,17 @@ export default function SettingsPage() {
               {/* Personal Details Form */}
               <form
                 onSubmit={handleSaveProfile}
-                className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
+                className="rounded-2xl border border-line bg-surface p-6 shadow-sm"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-lg font-semibold text-gray-900">Personal Details</h2>
-                    <p className="mt-1 text-sm text-gray-500">
+                    <h2 className="text-lg font-semibold text-ink">Personal Details</h2>
+                    <p className="mt-1 text-sm text-ink-3">
                       Update your name and primary contact number.
                     </p>
                   </div>
                   {profile?.role && (
-                    <span className="rounded-full bg-indigo-50 border border-indigo-200 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-indigo-700">
+                    <span className="rounded-full bg-brand-50 border border-brand-200 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-brand-700">
                       {profile.role === 'admin' ? 'Administrator' : 'Standard User'}
                     </span>
                   )}
@@ -734,7 +734,7 @@ export default function SettingsPage() {
 
                 <div className="mt-6 grid gap-5 sm:grid-cols-2">
                   <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5">
+                    <label className="block text-xs font-semibold uppercase tracking-wide text-ink-2 mb-1.5">
                       Full Name
                     </label>
                     <input
@@ -742,17 +742,17 @@ export default function SettingsPage() {
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="Your full name"
-                      className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                      className="w-full rounded-xl border border-line-strong px-4 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5 flex justify-between">
+                    <label className="block text-xs font-semibold uppercase tracking-wide text-ink-2 mb-1.5 flex justify-between">
                       <span>Email Address</span>
                       <button
                         type="button"
                         onClick={() => setShowEmailModal(true)}
-                        className="text-indigo-600 hover:text-indigo-800 transition cursor-pointer"
+                        className="text-brand-600 hover:text-brand-800 transition cursor-pointer"
                       >
                         Change
                       </button>
@@ -764,7 +764,7 @@ export default function SettingsPage() {
                         readOnly
                         aria-readonly="true"
                         placeholder="name@example.com"
-                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-700 pr-24 cursor-default"
+                        className="w-full rounded-xl border border-line bg-surface-2 px-4 py-2.5 text-sm text-ink-2 pr-24 cursor-default"
                       />
                       {profile?.email_verified && email === profile?.email && (
                         <span className="absolute right-2.5 top-2.5 rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
@@ -772,18 +772,18 @@ export default function SettingsPage() {
                         </span>
                       )}
                     </div>
-                    <p className="mt-1 text-xs text-gray-400">
+                    <p className="mt-1 text-xs text-ink-4">
                       Primary email used for sign-in and account recovery.
                     </p>
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5 flex justify-between">
+                    <label className="block text-xs font-semibold uppercase tracking-wide text-ink-2 mb-1.5 flex justify-between">
                       <span>Mobile Number</span>
                       <button
                         type="button"
                         onClick={() => setShowPhoneModal(true)}
-                        className="text-indigo-600 hover:text-indigo-800 transition cursor-pointer"
+                        className="text-brand-600 hover:text-brand-800 transition cursor-pointer"
                       >
                         Change
                       </button>
@@ -795,10 +795,10 @@ export default function SettingsPage() {
                         readOnly
                         aria-readonly="true"
                         placeholder="+919876543210"
-                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-700 cursor-default"
+                        className="w-full rounded-xl border border-line bg-surface-2 px-4 py-2.5 text-sm text-ink-2 cursor-default"
                       />
                     </div>
-                    <p className="mt-1.5 text-xs text-gray-400">
+                    <p className="mt-1.5 text-xs text-ink-4">
                       Used for WhatsApp statement ingestion and passwordless sign-in.
                     </p>
                   </div>
@@ -826,7 +826,7 @@ export default function SettingsPage() {
                   <button
                     type="submit"
                     disabled={isSavingProfile || !isProfileDirty}
-                    className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition cursor-pointer"
+                    className="rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white shadow hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed transition cursor-pointer"
                   >
                     {isSavingProfile
                       ? 'Saving Details...'
@@ -838,11 +838,11 @@ export default function SettingsPage() {
               </form>
 
               {/* Password & Security Card */}
-              <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+              <div className="rounded-2xl border border-line bg-surface p-6 shadow-sm">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h2 className="text-lg font-semibold text-gray-900">Security & Password</h2>
-                    <p className="mt-1 text-sm text-gray-500">
+                    <h2 className="text-lg font-semibold text-ink">Security & Password</h2>
+                    <p className="mt-1 text-sm text-ink-3">
                       Rotate your account password regularly to protect your financial data.
                     </p>
                     {isPasswordStale && (
@@ -855,18 +855,18 @@ export default function SettingsPage() {
                   <button
                     type="button"
                     onClick={() => setShowPasswordForm((prev) => !prev)}
-                    className="rounded-xl border border-gray-300 px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition cursor-pointer"
+                    className="rounded-xl border border-line-strong px-4 py-2 text-xs font-semibold text-ink-2 hover:bg-surface-2 transition cursor-pointer"
                   >
                     {showPasswordForm ? 'Hide Password Form' : 'Change Password'}
                   </button>
                 </div>
 
-                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-gray-100 pt-6">
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-line-soft pt-6">
                   <div>
-                    <h3 className="text-sm font-semibold text-gray-900">
+                    <h3 className="text-sm font-semibold text-ink">
                       Two-Factor Authentication (2FA)
                     </h3>
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className="mt-1 text-xs text-ink-3">
                       {twoFactorMethod === 'none'
                         ? 'Add an extra layer of security to your account.'
                         : `2FA is currently enabled via ${twoFactorMethod}.`}
@@ -875,7 +875,7 @@ export default function SettingsPage() {
                   <button
                     type="button"
                     onClick={() => setShowTwoFactorModal(true)}
-                    className={`rounded-xl px-4 py-2 text-xs font-semibold transition cursor-pointer ${twoFactorMethod === 'none' ? 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100' : 'border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+                    className={`rounded-xl px-4 py-2 text-xs font-semibold transition cursor-pointer ${twoFactorMethod === 'none' ? 'bg-brand-50 text-brand-700 hover:bg-brand-100' : 'border border-line-strong text-ink-2 hover:bg-surface-2'}`}
                   >
                     {twoFactorMethod === 'none' ? 'Enable 2FA' : 'Manage 2FA'}
                   </button>
@@ -884,11 +884,11 @@ export default function SettingsPage() {
                 {showPasswordForm && (
                   <form
                     onSubmit={handlePasswordSave}
-                    className="mt-5 space-y-4 rounded-2xl bg-slate-50 p-5"
+                    className="mt-5 space-y-4 rounded-2xl bg-surface-2 p-5"
                   >
                     <div className="grid gap-4 sm:grid-cols-3">
                       <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5">
+                        <label className="block text-xs font-semibold uppercase tracking-wide text-ink-2 mb-1.5">
                           Current Password
                         </label>
                         <input
@@ -896,11 +896,11 @@ export default function SettingsPage() {
                           required
                           value={currentPassword}
                           onChange={(e) => setCurrentPassword(e.target.value)}
-                          className="w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
+                          className="w-full rounded-xl border border-line-strong bg-surface px-3.5 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5">
+                        <label className="block text-xs font-semibold uppercase tracking-wide text-ink-2 mb-1.5">
                           New Password
                         </label>
                         <input
@@ -910,11 +910,11 @@ export default function SettingsPage() {
                           value={newPassword}
                           onChange={(e) => setNewPassword(e.target.value)}
                           placeholder="At least 8 characters"
-                          className="w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
+                          className="w-full rounded-xl border border-line-strong bg-surface px-3.5 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5">
+                        <label className="block text-xs font-semibold uppercase tracking-wide text-ink-2 mb-1.5">
                           Confirm New Password
                         </label>
                         <input
@@ -923,7 +923,7 @@ export default function SettingsPage() {
                           minLength={8}
                           value={confirmNewPassword}
                           onChange={(e) => setConfirmNewPassword(e.target.value)}
-                          className="w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
+                          className="w-full rounded-xl border border-line-strong bg-surface px-3.5 py-2 text-sm text-ink focus:border-brand-500 focus:outline-none"
                         />
                       </div>
                     </div>
@@ -942,18 +942,18 @@ export default function SettingsPage() {
               </div>
 
               {/* Cost Transparency & Resource Footprint Card */}
-              <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+              <div className="rounded-2xl border border-line bg-surface p-6 shadow-sm">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h2 className="text-lg font-semibold text-gray-900">
+                      <h2 className="text-lg font-semibold text-ink">
                         Cost Transparency & Resource Footprint
                       </h2>
                       <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
                         Open Transparency
                       </span>
                     </div>
-                    <p className="mt-1 text-sm text-gray-500">
+                    <p className="mt-1 text-sm text-ink-3">
                       Committed to user information rights. See the exact itemized cloud compute,
                       encrypted vault storage, and AI processing Finlytix expends on your account.
                     </p>
@@ -974,7 +974,7 @@ export default function SettingsPage() {
                       }
                     }}
                     disabled={isLoadingCost}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition cursor-pointer disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-line-strong px-3.5 py-2 text-xs font-semibold text-ink-2 hover:bg-surface-2 transition cursor-pointer disabled:opacity-50"
                   >
                     <span>↻</span> {isLoadingCost ? 'Refreshing...' : 'Refresh Costs'}
                   </button>
@@ -984,18 +984,18 @@ export default function SettingsPage() {
                   <div className="mt-6 space-y-6">
                     {/* Metric Highlights */}
                     <div className="grid gap-4 sm:grid-cols-4">
-                      <div className="rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50/70 to-indigo-50/50 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">
+                      <div className="rounded-xl border border-brand-100 bg-gradient-to-br from-brand-50/70 to-brand-50/50 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-brand-700">
                           Total Cost-to-Serve
                         </p>
-                        <p className="mt-1 text-2xl font-bold text-gray-900">
+                        <p className="mt-1 text-2xl font-bold text-ink">
                           {formatCurrency(
                             costTransparency.costs.total_platform_cost,
                             costTransparency.currency,
                             locale,
                           )}
                         </p>
-                        <p className="mt-1 text-xs text-gray-500">Cumulative platform expense</p>
+                        <p className="mt-1 text-xs text-ink-3">Cumulative platform expense</p>
                       </div>
 
                       <div className="rounded-xl border border-emerald-100 bg-gradient-to-br from-emerald-50/70 to-teal-50/50 p-4">
@@ -1009,7 +1009,7 @@ export default function SettingsPage() {
                             </span>
                           )}
                         </div>
-                        <p className="mt-1 text-2xl font-bold text-gray-900">
+                        <p className="mt-1 text-2xl font-bold text-ink">
                           {formatCurrency(
                             costTransparency.costs.total_ai_cost,
                             costTransparency.currency,
@@ -1023,14 +1023,14 @@ export default function SettingsPage() {
                         </p>
                       </div>
 
-                      <div className="rounded-xl border border-purple-100 bg-gradient-to-br from-purple-50/70 to-fuchsia-50/50 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-wider text-purple-700">
+                      <div className="rounded-xl border border-accent-100 bg-gradient-to-br from-accent-50/70 to-fuchsia-50/50 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-accent-700">
                           Encrypted Vault
                         </p>
-                        <p className="mt-1 text-2xl font-bold text-gray-900">
+                        <p className="mt-1 text-2xl font-bold text-ink">
                           {costTransparency.usage.storage_formatted}
                         </p>
-                        <p className="mt-1 text-xs text-purple-600 font-medium">
+                        <p className="mt-1 text-xs text-accent-600 font-medium">
                           {formatCurrency(
                             costTransparency.costs.storage_cost,
                             costTransparency.currency,
@@ -1044,7 +1044,7 @@ export default function SettingsPage() {
                         <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">
                           Compute & Ledger DB
                         </p>
-                        <p className="mt-1 text-2xl font-bold text-gray-900">
+                        <p className="mt-1 text-2xl font-bold text-ink">
                           {formatCurrency(
                             costTransparency.costs.compute_cost,
                             costTransparency.currency,
@@ -1058,30 +1058,30 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Itemized Breakdown Table */}
-                    <div className="overflow-x-auto rounded-xl border border-gray-200">
-                      <table className="min-w-full divide-y divide-gray-200 text-left text-sm">
-                        <thead className="bg-gray-50 text-xs font-semibold uppercase tracking-wider text-gray-600">
+                    <div className="overflow-x-auto rounded-xl border border-line">
+                      <table className="min-w-full divide-y divide-line text-left text-sm">
+                        <thead className="bg-surface-2 text-xs font-semibold uppercase tracking-wider text-ink-2">
                           <tr>
                             <th className="px-4 py-3">Resource Component</th>
                             <th className="px-4 py-3">Units & Workload</th>
                             <th className="px-4 py-3 text-right">Incurred Cost</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-200 bg-white">
+                        <tbody className="divide-y divide-line bg-surface">
                           <tr>
                             <td className="px-4 py-3">
-                              <div className="font-medium text-gray-900">
+                              <div className="font-medium text-ink">
                                 AI Statement Extraction & Parsing
                               </div>
-                              <div className="text-xs text-gray-500">
+                              <div className="text-xs text-ink-3">
                                 Multimodal document OCR and schema parsing via{' '}
                                 {costTransparency.ai_provider}
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-gray-600 text-xs">
+                            <td className="px-4 py-3 text-ink-2 text-xs">
                               {costTransparency.usage.statements_processed} statements processed
                             </td>
-                            <td className="px-4 py-3 text-right font-medium text-gray-900">
+                            <td className="px-4 py-3 text-right font-medium text-ink">
                               {formatCurrency(
                                 costTransparency.costs.ai_parsing_cost,
                                 costTransparency.currency,
@@ -1091,17 +1091,17 @@ export default function SettingsPage() {
                           </tr>
                           <tr>
                             <td className="px-4 py-3">
-                              <div className="font-medium text-gray-900">
+                              <div className="font-medium text-ink">
                                 AI Intelligent Categorization Engine
                               </div>
-                              <div className="text-xs text-gray-500">
+                              <div className="text-xs text-ink-3">
                                 Automated merchant tagging, spend categorization & taxonomy
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-gray-600 text-xs">
+                            <td className="px-4 py-3 text-ink-2 text-xs">
                               {costTransparency.usage.transactions_count} ledger transactions
                             </td>
-                            <td className="px-4 py-3 text-right font-medium text-gray-900">
+                            <td className="px-4 py-3 text-right font-medium text-ink">
                               {formatCurrency(
                                 costTransparency.costs.ai_categorization_cost,
                                 costTransparency.currency,
@@ -1111,17 +1111,17 @@ export default function SettingsPage() {
                           </tr>
                           <tr>
                             <td className="px-4 py-3">
-                              <div className="font-medium text-gray-900">
+                              <div className="font-medium text-ink">
                                 Finlytix AI Copilot & Assistant
                               </div>
-                              <div className="text-xs text-gray-500">
+                              <div className="text-xs text-ink-3">
                                 Financial queries, chat analysis & deep-dive questions
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-gray-600 text-xs">
+                            <td className="px-4 py-3 text-ink-2 text-xs">
                               {costTransparency.usage.chat_messages_count} messages answered
                             </td>
-                            <td className="px-4 py-3 text-right font-medium text-gray-900">
+                            <td className="px-4 py-3 text-right font-medium text-ink">
                               {formatCurrency(
                                 costTransparency.costs.ai_chat_cost,
                                 costTransparency.currency,
@@ -1131,18 +1131,16 @@ export default function SettingsPage() {
                           </tr>
                           <tr>
                             <td className="px-4 py-3">
-                              <div className="font-medium text-gray-900">
-                                Encrypted Vault Storage
-                              </div>
-                              <div className="text-xs text-gray-500">
+                              <div className="font-medium text-ink">Encrypted Vault Storage</div>
+                              <div className="text-xs text-ink-3">
                                 AES encrypted bank statement PDFs, spreadsheets & artifacts
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-gray-600 text-xs">
+                            <td className="px-4 py-3 text-ink-2 text-xs">
                               {costTransparency.usage.storage_formatted} (
                               {costTransparency.usage.statements_total} files)
                             </td>
-                            <td className="px-4 py-3 text-right font-medium text-gray-900">
+                            <td className="px-4 py-3 text-right font-medium text-ink">
                               {formatCurrency(
                                 costTransparency.costs.storage_cost,
                                 costTransparency.currency,
@@ -1152,19 +1150,19 @@ export default function SettingsPage() {
                           </tr>
                           <tr>
                             <td className="px-4 py-3">
-                              <div className="font-medium text-gray-900">
+                              <div className="font-medium text-ink">
                                 PostgreSQL Ledger & Compute Indexing
                               </div>
-                              <div className="text-xs text-gray-500">
+                              <div className="text-xs text-ink-3">
                                 ACID transactional integrity, index maintenance, search & audit logs
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-gray-600 text-xs">
+                            <td className="px-4 py-3 text-ink-2 text-xs">
                               {costTransparency.usage.transactions_count +
                                 costTransparency.usage.chat_messages_count}{' '}
                               operations
                             </td>
-                            <td className="px-4 py-3 text-right font-medium text-gray-900">
+                            <td className="px-4 py-3 text-right font-medium text-ink">
                               {formatCurrency(
                                 costTransparency.costs.compute_cost,
                                 costTransparency.currency,
@@ -1173,7 +1171,7 @@ export default function SettingsPage() {
                             </td>
                           </tr>
                         </tbody>
-                        <tfoot className="bg-gray-50 font-semibold text-gray-900">
+                        <tfoot className="bg-surface-2 font-semibold text-ink">
                           <tr>
                             <td
                               colSpan={2}
@@ -1181,7 +1179,7 @@ export default function SettingsPage() {
                             >
                               Total Incurred Platform Cost:
                             </td>
-                            <td className="px-4 py-3 text-right text-base font-bold text-blue-600">
+                            <td className="px-4 py-3 text-right text-base font-bold text-brand-600">
                               {formatCurrency(
                                 costTransparency.costs.total_platform_cost,
                                 costTransparency.currency,
@@ -1194,22 +1192,22 @@ export default function SettingsPage() {
                     </div>
 
                     {/* BYOK & Transparency Disclosures */}
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-700 space-y-2">
-                      <div className="flex items-center gap-2 font-semibold text-slate-900">
+                    <div className="rounded-xl border border-line bg-surface-2 p-4 text-xs text-ink-2 space-y-2">
+                      <div className="flex items-center gap-2 font-semibold text-ink">
                         <span className="text-sm">🛡️</span>{' '}
                         {costTransparency.disclosures.transparency_commitment}
                       </div>
-                      <p className="text-slate-600 leading-relaxed">
+                      <p className="text-ink-2 leading-relaxed">
                         {costTransparency.disclosures.byok_notice}
                       </p>
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-1 border-t border-slate-200">
-                        <span className="text-slate-500">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-1 border-t border-line">
+                        <span className="text-ink-3">
                           {costTransparency.disclosures.rates_notice}
                         </span>
                         <button
                           type="button"
                           onClick={() => setActiveTab('ai')}
-                          className="text-blue-600 hover:text-blue-700 font-semibold hover:underline cursor-pointer inline-flex items-center gap-1"
+                          className="text-brand-600 hover:text-brand-700 font-semibold hover:underline cursor-pointer inline-flex items-center gap-1"
                         >
                           Configure AI & BYOK Keys →
                         </button>
@@ -1217,7 +1215,7 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="mt-6 flex items-center justify-center p-8 rounded-xl border border-dashed border-gray-200 text-sm text-gray-500">
+                  <div className="mt-6 flex items-center justify-center p-8 rounded-xl border border-dashed border-line text-sm text-ink-3">
                     Loading cost transparency metrics...
                   </div>
                 )}
@@ -1229,30 +1227,30 @@ export default function SettingsPage() {
           {activeTab === 'categories' && (
             <div>
               <div className="grid gap-4 sm:grid-cols-3">
-                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+                <div className="rounded-2xl border border-brand-100 bg-brand-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-brand-700">
                     Categories
                   </p>
-                  <p className="mt-2 text-2xl font-bold text-blue-950">{rootCategories.length}</p>
+                  <p className="mt-2 text-2xl font-bold text-brand-950">{rootCategories.length}</p>
                 </div>
-                <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">
+                <div className="rounded-2xl border border-brand-100 bg-brand-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-brand-700">
                     Subcategories
                   </p>
-                  <p className="mt-2 text-2xl font-bold text-indigo-950">{subcategoryCount}</p>
+                  <p className="mt-2 text-2xl font-bold text-brand-950">{subcategoryCount}</p>
                 </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                <div className="rounded-2xl border border-line bg-surface-2 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-ink-2">
                     Total labels
                   </p>
-                  <p className="mt-2 text-2xl font-bold text-slate-900">{categories.length}</p>
+                  <p className="mt-2 text-2xl font-bold text-ink">{categories.length}</p>
                 </div>
               </div>
 
-              <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <section className="mt-6 rounded-2xl border border-line bg-surface p-5 shadow-sm">
                 <div className="mb-4">
-                  <h2 className="text-lg font-semibold text-gray-900">Add category</h2>
-                  <p className="text-sm text-gray-500">
+                  <h2 className="text-lg font-semibold text-ink">Add category</h2>
+                  <p className="text-sm text-ink-3">
                     Create a top-level category for expenses or income.
                   </p>
                 </div>
@@ -1265,7 +1263,7 @@ export default function SettingsPage() {
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') void handleCreate();
                     }}
-                    className="flex-1 rounded-xl border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                    className="flex-1 rounded-xl border border-line-strong px-4 py-2 text-sm focus:border-brand-500 focus:outline-none"
                   />
                   <div className="flex items-center gap-3">
                     <ColorPicker value={newColor} onChange={setNewColor} />
@@ -1273,7 +1271,7 @@ export default function SettingsPage() {
                       type="button"
                       onClick={() => void handleCreate()}
                       disabled={isCreating}
-                      className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
+                      className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50 cursor-pointer"
                     >
                       {isCreating ? 'Adding...' : 'Add'}
                     </button>
@@ -1282,9 +1280,9 @@ export default function SettingsPage() {
               </section>
 
               <section className="mt-6">
-                <h2 className="mb-3 text-lg font-semibold text-gray-900">Your categories</h2>
+                <h2 className="mb-3 text-lg font-semibold text-ink">Your categories</h2>
                 {rootCategories.length === 0 ? (
-                  <p className="text-sm text-gray-500">No categories created yet.</p>
+                  <p className="text-sm text-ink-3">No categories created yet.</p>
                 ) : (
                   <div className="space-y-3">
                     {rootCategories.map((cat) => {
@@ -1293,7 +1291,7 @@ export default function SettingsPage() {
                       return (
                         <div
                           key={cat.id}
-                          className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"
+                          className="rounded-2xl border border-line bg-surface p-4 shadow-sm"
                         >
                           <div className="flex items-center justify-between gap-3">
                             {isEditingThis ? (
@@ -1302,20 +1300,20 @@ export default function SettingsPage() {
                                   type="text"
                                   value={editName}
                                   onChange={(e) => setEditName(e.target.value)}
-                                  className="flex-1 rounded-lg border border-gray-300 px-3 py-1 text-sm focus:outline-none"
+                                  className="flex-1 rounded-lg border border-line-strong px-3 py-1 text-sm focus:outline-none"
                                 />
                                 <ColorPicker value={editColor} onChange={setEditColor} />
                                 <button
                                   type="button"
                                   onClick={() => void handleUpdate(cat.id)}
-                                  className="rounded-lg bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700 cursor-pointer"
+                                  className="rounded-lg bg-brand-600 px-3 py-1 text-xs font-semibold text-white hover:bg-brand-700 cursor-pointer"
                                 >
                                   Save
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setEditingId(null)}
-                                  className="rounded-lg bg-gray-100 px-3 py-1 text-xs text-gray-700 hover:bg-gray-200 cursor-pointer"
+                                  className="rounded-lg bg-surface-3 px-3 py-1 text-xs text-ink-2 hover:bg-surface-4 cursor-pointer"
                                 >
                                   Cancel
                                 </button>
@@ -1327,9 +1325,9 @@ export default function SettingsPage() {
                                     className="h-3.5 w-3.5 rounded-full"
                                     style={{ backgroundColor: cat.color }}
                                   />
-                                  <span className="font-medium text-gray-900">{cat.name}</span>
+                                  <span className="font-medium text-ink">{cat.name}</span>
                                   {subs.length > 0 && (
-                                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
+                                    <span className="rounded-full bg-surface-3 px-2 py-0.5 text-xs text-ink-3">
                                       {subs.length}
                                     </span>
                                   )}
@@ -1340,14 +1338,14 @@ export default function SettingsPage() {
                                     onClick={() =>
                                       setAddingSubFor(addingSubFor === cat.id ? null : cat.id)
                                     }
-                                    className="rounded-xl bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100 cursor-pointer"
+                                    className="rounded-xl bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-100 cursor-pointer"
                                   >
                                     + Sub
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => startEdit(cat)}
-                                    className="rounded-xl bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200 cursor-pointer"
+                                    className="rounded-xl bg-surface-3 px-3 py-1 text-xs font-semibold text-ink-2 hover:bg-surface-4 cursor-pointer"
                                   >
                                     Edit
                                   </button>
@@ -1365,7 +1363,7 @@ export default function SettingsPage() {
 
                           {/* Add subcategory inline */}
                           {addingSubFor === cat.id && (
-                            <div className="mt-3 flex flex-col gap-2 rounded-xl bg-slate-50 p-3 sm:flex-row sm:items-center">
+                            <div className="mt-3 flex flex-col gap-2 rounded-xl bg-surface-2 p-3 sm:flex-row sm:items-center">
                               <input
                                 type="text"
                                 placeholder={`Subcategory for ${cat.name}`}
@@ -1374,7 +1372,7 @@ export default function SettingsPage() {
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') void handleCreate(cat.id);
                                 }}
-                                className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs focus:outline-none"
+                                className="flex-1 rounded-lg border border-line-strong bg-surface px-3 py-1.5 text-xs focus:outline-none"
                               />
                               <div className="flex items-center gap-2">
                                 <ColorPicker value={subColor} onChange={setSubColor} />
@@ -1382,14 +1380,14 @@ export default function SettingsPage() {
                                   type="button"
                                   onClick={() => void handleCreate(cat.id)}
                                   disabled={isCreatingSub}
-                                  className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
+                                  className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-50 cursor-pointer"
                                 >
                                   {isCreatingSub ? 'Adding...' : 'Add'}
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setAddingSubFor(null)}
-                                  className="rounded-lg bg-gray-200 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-300 cursor-pointer"
+                                  className="rounded-lg bg-surface-4 px-3 py-1.5 text-xs text-ink-2 hover:bg-line-strong cursor-pointer"
                                 >
                                   Cancel
                                 </button>
@@ -1399,7 +1397,7 @@ export default function SettingsPage() {
 
                           {/* Subcategories list */}
                           {subs.length > 0 && (
-                            <div className="mt-3 space-y-1.5 border-t border-gray-100 pt-2.5">
+                            <div className="mt-3 space-y-1.5 border-t border-line-soft pt-2.5">
                               {subs.map((sub) => {
                                 const isEditingSub = editingId === sub.id;
                                 return (
@@ -1413,20 +1411,20 @@ export default function SettingsPage() {
                                           type="text"
                                           value={editName}
                                           onChange={(e) => setEditName(e.target.value)}
-                                          className="flex-1 rounded border border-gray-300 px-2 py-1 focus:outline-none"
+                                          className="flex-1 rounded border border-line-strong px-2 py-1 focus:outline-none"
                                         />
                                         <ColorPicker value={editColor} onChange={setEditColor} />
                                         <button
                                           type="button"
                                           onClick={() => void handleUpdate(sub.id)}
-                                          className="rounded bg-blue-600 px-2 py-1 text-white hover:bg-blue-700 cursor-pointer"
+                                          className="rounded bg-brand-600 px-2 py-1 text-white hover:bg-brand-700 cursor-pointer"
                                         >
                                           Save
                                         </button>
                                         <button
                                           type="button"
                                           onClick={() => setEditingId(null)}
-                                          className="rounded bg-gray-100 px-2 py-1 text-gray-700 cursor-pointer"
+                                          className="rounded bg-surface-3 px-2 py-1 text-ink-2 cursor-pointer"
                                         >
                                           Cancel
                                         </button>
@@ -1434,18 +1432,18 @@ export default function SettingsPage() {
                                     ) : (
                                       <>
                                         <div className="flex items-center gap-2">
-                                          <span className="h-px w-3 bg-gray-300" />
+                                          <span className="h-px w-3 bg-line-strong" />
                                           <span
                                             className="h-2.5 w-2.5 rounded-full"
                                             style={{ backgroundColor: sub.color }}
                                           />
-                                          <span className="text-gray-700">{sub.name}</span>
+                                          <span className="text-ink-2">{sub.name}</span>
                                         </div>
                                         <div className="flex gap-1.5">
                                           <button
                                             type="button"
                                             onClick={() => startEdit(sub)}
-                                            className="text-slate-500 hover:text-slate-800 cursor-pointer"
+                                            className="text-ink-3 hover:text-ink cursor-pointer"
                                           >
                                             Edit
                                           </button>
@@ -1482,13 +1480,13 @@ export default function SettingsPage() {
           {activeTab === 'preferences' && (
             <div className="space-y-6">
               {/* Theme Studio Card */}
-              <div className="rounded-2xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm">
+              <div className="rounded-2xl border border-line bg-surface p-6 shadow-sm">
                 <div className="flex flex-col gap-1 mb-6">
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2">
+                  <h2 className="text-lg font-semibold text-ink flex items-center gap-2">
                     <span>🎨</span>
                     <span>Application Theme &amp; Personalization</span>
                   </h2>
-                  <p className="text-sm text-gray-500 dark:text-slate-400">
+                  <p className="text-sm text-ink-3">
                     Completely customize the visual style of your entire application with light
                     &amp; dark mode and custom color palettes.
                   </p>
@@ -1498,28 +1496,28 @@ export default function SettingsPage() {
               </div>
 
               <form onSubmit={handleSavePreferences} className="space-y-6">
-                <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+                <div className="rounded-2xl border border-line bg-surface p-6 shadow-sm">
                   <div className="flex flex-col gap-1 mb-5">
-                    <h2 className="text-lg font-semibold text-gray-900">
+                    <h2 className="text-lg font-semibold text-ink">
                       {t('regionalTabName', 'Regional & Display Formats')}
                     </h2>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-ink-3">
                       Customize your interface language, display currency, timezone, date, and time
                       formatting.
                     </p>
                   </div>
 
                   {/* Live Rates Status Banner */}
-                  <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-indigo-200/80 bg-gradient-to-r from-indigo-50/80 via-blue-50/60 to-emerald-50/50 p-4 sm:flex-row sm:items-center sm:justify-between shadow-2xs">
+                  <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-brand-200/80 bg-gradient-to-r from-brand-50/80 via-brand-50/60 to-emerald-50/50 p-4 sm:flex-row sm:items-center sm:justify-between shadow-2xs">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm text-base">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white shadow-sm text-base">
                         ⚡
                       </div>
                       <div>
-                        <p className="text-xs font-bold uppercase tracking-wider text-indigo-900">
+                        <p className="text-xs font-bold uppercase tracking-wider text-brand-900">
                           {t('liveRatesActive', 'Live Internet Exchange Rates Active')}
                         </p>
-                        <p className="text-xs text-indigo-700/80">
+                        <p className="text-xs text-brand-700/80">
                           Live market rates synced from Open Exchange &amp; ECB (USD Pivot)
                           {ratesUpdated
                             ? ` • Last synced: ${new Date(ratesUpdated).toLocaleTimeString()}`
@@ -1536,7 +1534,7 @@ export default function SettingsPage() {
                         addToast('success', 'Exchange rates updated from live internet source.');
                       }}
                       disabled={isRefreshingRates}
-                      className="inline-flex items-center gap-1.5 self-start rounded-xl border border-indigo-300 bg-white px-3.5 py-1.5 text-xs font-semibold text-indigo-700 shadow-2xs hover:bg-indigo-50 active:scale-95 transition cursor-pointer disabled:opacity-50 sm:self-center"
+                      className="inline-flex items-center gap-1.5 self-start rounded-xl border border-brand-300 bg-surface px-3.5 py-1.5 text-xs font-semibold text-brand-700 shadow-2xs hover:bg-brand-50 active:scale-95 transition cursor-pointer disabled:opacity-50 sm:self-center"
                     >
                       <span className={isRefreshingRates ? 'animate-spin' : ''}>🔄</span>
                       <span>{isRefreshingRates ? 'Syncing...' : 'Sync Live Rates'}</span>
@@ -1545,13 +1543,13 @@ export default function SettingsPage() {
 
                   <div className="mt-6 grid gap-5 sm:grid-cols-2">
                     <div>
-                      <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5">
+                      <label className="block text-xs font-semibold uppercase tracking-wide text-ink-2 mb-1.5">
                         {t('interfaceLanguage', 'Interface Language')}
                       </label>
                       <select
                         value={language}
                         onChange={(e) => setLanguage(e.target.value)}
-                        className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none bg-white"
+                        className="w-full rounded-xl border border-line-strong px-4 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none bg-surface"
                       >
                         {SUPPORTED_LANGUAGES.map((l) => (
                           <option key={l.code} value={l.code}>
@@ -1559,19 +1557,19 @@ export default function SettingsPage() {
                           </option>
                         ))}
                       </select>
-                      <p className="mt-1 text-xs text-gray-400">
+                      <p className="mt-1 text-xs text-ink-4">
                         Changes the display language across the entire application in real time.
                       </p>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5">
+                      <label className="block text-xs font-semibold uppercase tracking-wide text-ink-2 mb-1.5">
                         {t('currencyLabel', 'Display Currency')}
                       </label>
                       <select
                         value={currency}
                         onChange={(e) => setCurrency(e.target.value)}
-                        className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none bg-white"
+                        className="w-full rounded-xl border border-line-strong px-4 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none bg-surface"
                       >
                         {SUPPORTED_CURRENCIES.map((c) => (
                           <option key={c.code} value={c.code}>
@@ -1579,19 +1577,19 @@ export default function SettingsPage() {
                           </option>
                         ))}
                       </select>
-                      <p className="mt-1 text-xs text-gray-400">
+                      <p className="mt-1 text-xs text-ink-4">
                         Default currency used for ledger totals, charts, and cash flow.
                       </p>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5">
+                      <label className="block text-xs font-semibold uppercase tracking-wide text-ink-2 mb-1.5">
                         {t('timezoneLabel', 'Timezone')}
                       </label>
                       <select
                         value={timezone}
                         onChange={(e) => setTimezone(e.target.value)}
-                        className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none bg-white"
+                        className="w-full rounded-xl border border-line-strong px-4 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none bg-surface"
                       >
                         {SUPPORTED_TIMEZONES.map((tz) => (
                           <option key={tz.code} value={tz.code}>
@@ -1599,19 +1597,19 @@ export default function SettingsPage() {
                           </option>
                         ))}
                       </select>
-                      <p className="mt-1 text-xs text-gray-400">
+                      <p className="mt-1 text-xs text-ink-4">
                         Used to group transaction timestamps and month cutoffs.
                       </p>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5">
+                      <label className="block text-xs font-semibold uppercase tracking-wide text-ink-2 mb-1.5">
                         Number Locale &amp; Separators
                       </label>
                       <select
                         value={locale}
                         onChange={(e) => setLocale(e.target.value)}
-                        className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none bg-white"
+                        className="w-full rounded-xl border border-line-strong px-4 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none bg-surface"
                       >
                         {SUPPORTED_LOCALES.map((l) => (
                           <option key={l.code} value={l.code}>
@@ -1619,19 +1617,19 @@ export default function SettingsPage() {
                           </option>
                         ))}
                       </select>
-                      <p className="mt-1 text-xs text-gray-400">
+                      <p className="mt-1 text-xs text-ink-4">
                         Determines comma formatting (e.g., 1,00,000 vs 100,000).
                       </p>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5">
+                      <label className="block text-xs font-semibold uppercase tracking-wide text-ink-2 mb-1.5">
                         {t('dateFormatLabel', 'Date Format')}
                       </label>
                       <select
                         value={dateFormat}
                         onChange={(e) => setDateFormat(e.target.value)}
-                        className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none bg-white"
+                        className="w-full rounded-xl border border-line-strong px-4 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none bg-surface"
                       >
                         {SUPPORTED_DATE_FORMATS.map((df) => (
                           <option key={df.code} value={df.code}>
@@ -1639,19 +1637,19 @@ export default function SettingsPage() {
                           </option>
                         ))}
                       </select>
-                      <p className="mt-1 text-xs text-gray-400">
+                      <p className="mt-1 text-xs text-ink-4">
                         Applied across all transaction tables, statements, and calendar pickers.
                       </p>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1.5">
+                      <label className="block text-xs font-semibold uppercase tracking-wide text-ink-2 mb-1.5">
                         {t('timeFormatLabel', 'Time Format')}
                       </label>
                       <select
                         value={timeFormat}
                         onChange={(e) => setTimeFormat(e.target.value)}
-                        className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none bg-white"
+                        className="w-full rounded-xl border border-line-strong px-4 py-2.5 text-sm text-ink focus:border-brand-500 focus:outline-none bg-surface"
                       >
                         {SUPPORTED_TIME_FORMATS.map((tf) => (
                           <option key={tf.code} value={tf.code}>
@@ -1659,33 +1657,33 @@ export default function SettingsPage() {
                           </option>
                         ))}
                       </select>
-                      <p className="mt-1 text-xs text-gray-400">
+                      <p className="mt-1 text-xs text-ink-4">
                         Used for upload audit logs and report timestamps.
                       </p>
                     </div>
                   </div>
 
                   {/* Live Formatting Preview Card */}
-                  <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50/60 p-4">
-                    <p className="text-xs font-bold uppercase tracking-wider text-blue-800 mb-2">
+                  <div className="mt-6 rounded-2xl border border-brand-100 bg-brand-50/60 p-4">
+                    <p className="text-xs font-bold uppercase tracking-wider text-brand-800 mb-2">
                       ✨ Live Formatting Preview
                     </p>
-                    <div className="grid gap-3 sm:grid-cols-3 text-xs text-blue-950">
-                      <div className="rounded-xl bg-white p-3 border border-blue-200">
-                        <p className="text-gray-500 text-[11px]">Formatted Date</p>
-                        <p className="text-sm font-bold text-gray-900 mt-0.5">
+                    <div className="grid gap-3 sm:grid-cols-3 text-xs text-brand-950">
+                      <div className="rounded-xl bg-surface p-3 border border-brand-200">
+                        <p className="text-ink-3 text-[11px]">Formatted Date</p>
+                        <p className="text-sm font-bold text-ink mt-0.5">
                           {formatCustomDate(new Date(), dateFormat)}
                         </p>
                       </div>
-                      <div className="rounded-xl bg-white p-3 border border-blue-200">
-                        <p className="text-gray-500 text-[11px]">Formatted Date &amp; Time</p>
-                        <p className="text-sm font-bold text-gray-900 mt-0.5">
+                      <div className="rounded-xl bg-surface p-3 border border-brand-200">
+                        <p className="text-ink-3 text-[11px]">Formatted Date &amp; Time</p>
+                        <p className="text-sm font-bold text-ink mt-0.5">
                           {formatCustomDateTime(new Date(), dateFormat, timeFormat, timezone)}
                         </p>
                       </div>
-                      <div className="rounded-xl bg-white p-3 border border-blue-200">
-                        <p className="text-gray-500 text-[11px]">Formatted Currency</p>
-                        <p className="text-sm font-bold text-gray-900 mt-0.5">
+                      <div className="rounded-xl bg-surface p-3 border border-brand-200">
+                        <p className="text-ink-3 text-[11px]">Formatted Currency</p>
+                        <p className="text-sm font-bold text-ink mt-0.5">
                           {formatCurrency(125000.5, currency, locale)}
                         </p>
                       </div>
@@ -1703,7 +1701,7 @@ export default function SettingsPage() {
                         setDateFormat('DD/MM/YYYY');
                         setTimeFormat('12h');
                       }}
-                      className="rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition cursor-pointer"
+                      className="rounded-xl border border-line-strong bg-surface px-5 py-2.5 text-sm font-semibold text-ink-2 hover:bg-surface-2 transition cursor-pointer"
                     >
                       Reset to Defaults
                     </button>
@@ -1728,7 +1726,7 @@ export default function SettingsPage() {
                     <button
                       type="submit"
                       disabled={isSavingPreferences || !isPreferencesDirty}
-                      className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition cursor-pointer"
+                      className="rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white shadow hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed transition cursor-pointer"
                     >
                       {isSavingPreferences
                         ? t('saving', 'Saving Preferences...')
@@ -1752,23 +1750,23 @@ export default function SettingsPage() {
           {/* TAB 5: DATA EXPORT (Step 9) */}
           {activeTab === 'data' && (
             <div className="space-y-6">
-              <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-                <h2 className="text-lg font-semibold text-gray-900">Export Your Data</h2>
-                <p className="mt-1 text-sm text-gray-500">
+              <div className="rounded-2xl border border-line bg-surface p-5 shadow-sm">
+                <h2 className="text-lg font-semibold text-ink">Export Your Data</h2>
+                <p className="mt-1 text-sm text-ink-3">
                   Pursuant to your data rights, you can request and download a complete archive of
                   your financial information, parsed records, and transaction history.
                 </p>
 
                 <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                  <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-5 flex flex-col justify-between">
+                  <div className="rounded-2xl border border-brand-100 bg-brand-50/60 p-5 flex flex-col justify-between">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="rounded-lg bg-blue-600 px-2 py-1 text-xs font-bold text-white">
+                        <span className="rounded-lg bg-brand-600 px-2 py-1 text-xs font-bold text-white">
                           JSON
                         </span>
-                        <h3 className="font-bold text-gray-900">Machine-Readable Archive</h3>
+                        <h3 className="font-bold text-ink">Machine-Readable Archive</h3>
                       </div>
-                      <p className="mt-2 text-xs text-gray-600">
+                      <p className="mt-2 text-xs text-ink-2">
                         Contains complete structured JSON records of all your profile settings, bank
                         accounts, statements, draft extractions, transactions, categories, bills,
                         chat history, and consent records.
@@ -1778,21 +1776,21 @@ export default function SettingsPage() {
                       type="button"
                       onClick={handleExportJson}
                       disabled={isExportingJson}
-                      className="mt-4 w-full rounded-xl bg-blue-600 py-2.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50 cursor-pointer shadow"
+                      className="mt-4 w-full rounded-xl bg-brand-600 py-2.5 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-50 cursor-pointer shadow"
                     >
                       {isExportingJson ? 'Preparing JSON...' : 'Download Full Archive (.json)'}
                     </button>
                   </div>
 
-                  <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-5 flex flex-col justify-between">
+                  <div className="rounded-2xl border border-brand-100 bg-brand-50/60 p-5 flex flex-col justify-between">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="rounded-lg bg-indigo-600 px-2 py-1 text-xs font-bold text-white">
+                        <span className="rounded-lg bg-brand-600 px-2 py-1 text-xs font-bold text-white">
                           PDF
                         </span>
-                        <h3 className="font-bold text-gray-900">Financial Summary Report</h3>
+                        <h3 className="font-bold text-ink">Financial Summary Report</h3>
                       </div>
-                      <p className="mt-2 text-xs text-gray-600">
+                      <p className="mt-2 text-xs text-ink-2">
                         A formatted, printable PDF summary containing your account overview, net
                         cash flow, debit/credit totals, statement coverage, and legal consent
                         provenance.
@@ -1802,15 +1800,15 @@ export default function SettingsPage() {
                       type="button"
                       onClick={handleExportPdf}
                       disabled={isExportingPdf}
-                      className="mt-4 w-full rounded-xl bg-indigo-600 py-2.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 cursor-pointer shadow"
+                      className="mt-4 w-full rounded-xl bg-brand-600 py-2.5 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-50 cursor-pointer shadow"
                     >
                       {isExportingPdf ? 'Generating PDF...' : 'Download Summary Report (.pdf)'}
                     </button>
                   </div>
                 </div>
 
-                <div className="mt-6 rounded-xl border border-slate-100 bg-slate-50 p-4 text-xs text-slate-500">
-                  <p className="font-semibold text-slate-700">Confidentiality Note:</p>
+                <div className="mt-6 rounded-xl border border-line-soft bg-surface-2 p-4 text-xs text-ink-3">
+                  <p className="font-semibold text-ink-2">Confidentiality Note:</p>
                   <p className="mt-1">
                     Data exports strictly omit authentication credentials, password hashes, and
                     active verification tokens for security.
@@ -1819,7 +1817,7 @@ export default function SettingsPage() {
               </div>
 
               {/* Danger Zone: Account Closure & Data Deletion Card */}
-              <div className="rounded-2xl border border-red-200 bg-white p-6 shadow-sm">
+              <div className="rounded-2xl border border-red-200 bg-surface p-6 shadow-sm">
                 <div className="flex items-center gap-2">
                   <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-red-100 text-red-600 text-sm font-bold">
                     ⚠️
@@ -1828,7 +1826,7 @@ export default function SettingsPage() {
                     <h2 className="text-lg font-bold text-red-900">
                       Account Closure & Data Deletion
                     </h2>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-ink-3">
                       Permanently delete your account and all associated personal financial records.
                     </p>
                   </div>
@@ -1872,20 +1870,20 @@ export default function SettingsPage() {
           <div
             role="dialog"
             aria-modal="true"
-            className="w-full max-w-md rounded-3xl border border-white/20 bg-white p-6 shadow-2xl"
+            className="w-full max-w-md rounded-3xl border border-white/20 bg-surface p-6 shadow-2xl"
           >
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-red-100 text-red-600 font-bold">
               ⚠️
             </div>
-            <h3 className="text-lg font-bold text-gray-900">Close Account Permanently?</h3>
-            <p className="mt-1 text-xs text-gray-500">
+            <h3 className="text-lg font-bold text-ink">Close Account Permanently?</h3>
+            <p className="mt-1 text-xs text-ink-3">
               Please enter your password to confirm identity before we permanently delete your
               account and personal records.
             </p>
 
             <form onSubmit={handleDeleteAccount} className="mt-4 space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-ink-2 mb-1">
                   Current Password
                 </label>
                 <input
@@ -1893,12 +1891,12 @@ export default function SettingsPage() {
                   placeholder="Enter your password"
                   value={deletePassword}
                   onChange={(e) => setDeletePassword(e.target.value)}
-                  className="w-full rounded-xl border border-gray-300 px-3.5 py-2 text-sm focus:border-red-500 focus:outline-none"
+                  className="w-full rounded-xl border border-line-strong px-3.5 py-2 text-sm focus:border-red-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-ink-2 mb-1">
                   Type <span className="font-bold text-red-600">DELETE</span> to confirm
                 </label>
                 <input
@@ -1906,7 +1904,7 @@ export default function SettingsPage() {
                   placeholder="DELETE"
                   value={deleteConfirmText}
                   onChange={(e) => setDeleteConfirmText(e.target.value)}
-                  className="w-full rounded-xl border border-gray-300 px-3.5 py-2 text-sm focus:border-red-500 focus:outline-none"
+                  className="w-full rounded-xl border border-line-strong px-3.5 py-2 text-sm focus:border-red-500 focus:outline-none"
                 />
               </div>
 
@@ -1914,7 +1912,7 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={() => setShowDeleteModal(false)}
-                  className="rounded-xl bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-200 cursor-pointer"
+                  className="rounded-xl bg-surface-3 px-4 py-2 text-sm font-semibold text-ink-2 hover:bg-surface-4 cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -1949,12 +1947,12 @@ export default function SettingsPage() {
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="delete-dialog-title"
-                className="w-full max-w-sm rounded-3xl border border-white/20 bg-white p-6 shadow-2xl"
+                className="w-full max-w-sm rounded-3xl border border-white/20 bg-surface p-6 shadow-2xl"
               >
                 <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-600">
                   Delete
                 </div>
-                <h3 id="delete-dialog-title" className="mb-2 text-lg font-bold text-gray-900">
+                <h3 id="delete-dialog-title" className="mb-2 text-lg font-bold text-ink">
                   Delete &quot;{deleteConfirm.name}&quot;?
                 </h3>
                 {childCount > 0 ? (
@@ -1964,13 +1962,13 @@ export default function SettingsPage() {
                     transactions.
                   </p>
                 ) : (
-                  <p className="mb-5 text-sm text-gray-500">This action cannot be undone.</p>
+                  <p className="mb-5 text-sm text-ink-3">This action cannot be undone.</p>
                 )}
                 <div className="flex gap-2 justify-end">
                   <button
                     autoFocus
                     onClick={() => setDeleteConfirm(null)}
-                    className="rounded-xl bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-200 cursor-pointer"
+                    className="rounded-xl bg-surface-3 px-4 py-2 text-sm font-semibold text-ink-2 hover:bg-surface-4 cursor-pointer"
                   >
                     Cancel
                   </button>

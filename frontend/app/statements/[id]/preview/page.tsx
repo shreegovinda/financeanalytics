@@ -96,9 +96,9 @@ export default function StatementPreviewPage() {
     return (
       <div className="animate-fade-in pb-12 p-2">
         <div className="mx-auto max-w-5xl animate-pulse space-y-4">
-          <div className="h-8 w-64 rounded bg-gray-200" />
-          <div className="h-32 rounded bg-gray-200" />
-          <div className="h-96 rounded bg-gray-200" />
+          <div className="h-8 w-64 rounded bg-surface-4" />
+          <div className="h-32 rounded bg-surface-4" />
+          <div className="h-96 rounded bg-surface-4" />
         </div>
       </div>
     );
@@ -137,20 +137,20 @@ export default function StatementPreviewPage() {
         <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="text-3xl font-bold text-gray-900">Review before importing</h1>
-              <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-blue-800">
+              <h1 className="text-3xl font-bold text-ink">Review before importing</h1>
+              <span className="rounded-full bg-brand-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-brand-800">
                 {formatMonthYear(draft.statementMonth)}
               </span>
             </div>
-            <p className="mt-1 text-gray-600">
-              Statement for <span className="font-semibold text-gray-800">{draft.bankName}</span> is
+            <p className="mt-1 text-ink-2">
+              Statement for <span className="font-semibold text-ink">{draft.bankName}</span> is
               saved as a draft. Review transactions below or return later.
             </p>
           </div>
           <button
             type="button"
             onClick={() => router.push('/statements')}
-            className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-2xs transition-all hover:bg-gray-50 active:scale-95 cursor-pointer"
+            className="rounded-xl border border-line-strong bg-surface px-4 py-2 text-sm font-semibold text-ink-2 shadow-2xs transition-all hover:bg-surface-2 active:scale-95 cursor-pointer"
           >
             Review later
           </button>
@@ -172,11 +172,11 @@ export default function StatementPreviewPage() {
           />
         </div>
 
-        <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-5 text-sm text-gray-700 shadow-xs">
+        <div className="mt-6 rounded-2xl border border-line bg-surface p-5 text-sm text-ink-2 shadow-xs">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Detail label="File Name" value={draft.fileName} />
             <div>
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wider text-gray-500">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wider text-ink-3">
                 File Type / Format
               </span>
               <span
@@ -210,30 +210,30 @@ export default function StatementPreviewPage() {
           </div>
         )}
 
-        <div className="mt-6 overflow-hidden rounded-lg border border-gray-200 bg-white">
+        <div className="mt-6 overflow-hidden rounded-lg border border-line bg-surface">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-line text-sm">
+              <thead className="bg-surface-2">
                 <tr>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                  <th className="px-4 py-3 text-left font-semibold text-ink-2">
                     {t('date', 'Date')}
                   </th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                  <th className="px-4 py-3 text-left font-semibold text-ink-2">
                     {t('description', 'Description')}
                   </th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                  <th className="px-4 py-3 text-left font-semibold text-ink-2">
                     {t('type', 'Type')}
                   </th>
-                  <th className="px-4 py-3 text-right font-semibold text-gray-700">
+                  <th className="px-4 py-3 text-right font-semibold text-ink-2">
                     {t('amount', 'Amount')}
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-line-soft">
                 {draft.transactions.map((txn, index) => (
-                  <tr key={`${txn.date}-${index}`} className="hover:bg-gray-50">
-                    <td className="whitespace-nowrap px-4 py-3 text-gray-700">{txn.date}</td>
-                    <td className="px-4 py-3 text-gray-900">{txn.description}</td>
+                  <tr key={`${txn.date}-${index}`} className="hover:bg-surface-2">
+                    <td className="whitespace-nowrap px-4 py-3 text-ink-2">{txn.date}</td>
+                    <td className="px-4 py-3 text-ink">{txn.description}</td>
                     <td className="px-4 py-3">
                       <span
                         className={`rounded-full px-2 py-1 text-xs font-medium ${
@@ -264,7 +264,7 @@ export default function StatementPreviewPage() {
             type="button"
             onClick={() => void handleConfirm()}
             disabled={busy !== null}
-            className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white shadow-xs transition hover:bg-blue-700 active:scale-98 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+            className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 py-3 font-semibold text-white shadow-xs transition hover:bg-brand-700 active:scale-98 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -284,7 +284,7 @@ export default function StatementPreviewPage() {
             type="button"
             onClick={() => void handleDiscard()}
             disabled={busy !== null}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-300 bg-white px-5 py-3 font-semibold text-red-700 shadow-xs transition hover:bg-red-50 active:scale-98 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-300 bg-surface px-5 py-3 font-semibold text-red-700 shadow-xs transition hover:bg-red-50 active:scale-98 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -298,7 +298,7 @@ export default function StatementPreviewPage() {
           </button>
         </div>
 
-        <p className="mt-3 text-center text-xs text-gray-500">
+        <p className="mt-3 text-center text-xs text-ink-3">
           Discarding frees {draft.statementMonth} so you can upload it again.
         </p>
       </div>
@@ -316,10 +316,10 @@ function SummaryCard({
   tone?: 'debit' | 'credit';
 }) {
   const toneClass =
-    tone === 'debit' ? 'text-red-700' : tone === 'credit' ? 'text-green-700' : 'text-gray-900';
+    tone === 'debit' ? 'text-red-700' : tone === 'credit' ? 'text-green-700' : 'text-ink';
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4">
-      <p className="text-sm text-gray-500">{label}</p>
+    <div className="rounded-lg border border-line bg-surface p-4">
+      <p className="text-sm text-ink-3">{label}</p>
       <p className={`mt-1 text-2xl font-bold ${toneClass}`}>{value}</p>
     </div>
   );
@@ -328,8 +328,8 @@ function SummaryCard({
 function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <span className="text-gray-500">{label}: </span>
-      <span className="font-medium text-gray-900">{value}</span>
+      <span className="text-ink-3">{label}: </span>
+      <span className="font-medium text-ink">{value}</span>
     </div>
   );
 }

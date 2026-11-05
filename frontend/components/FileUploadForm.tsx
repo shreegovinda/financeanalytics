@@ -229,7 +229,7 @@ export default function FileUploadForm({
   return (
     <div className="w-full max-w-2xl mx-auto p-6">
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+        <div className="rounded-lg border border-brand-100 bg-brand-50 px-4 py-3 text-sm text-brand-800">
           Nothing is imported until you review it. We read the statement and show you everything we
           found first.
         </div>
@@ -246,7 +246,7 @@ export default function FileUploadForm({
                   id: name,
                   name: bankLabels[name] || name,
                   initials: name.slice(0, 2),
-                  accent: 'from-blue-500 to-indigo-600',
+                  accent: 'from-brand-500 to-brand-600',
                 }))
                 .map((option) => {
                   const selected = bank === option.id;
@@ -263,8 +263,8 @@ export default function FileUploadForm({
                       }}
                       className={`flex min-w-0 items-center gap-3 rounded-xl border-2 p-4 text-left transition ${
                         selected
-                          ? 'border-blue-600 bg-blue-50 shadow-sm'
-                          : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/40'
+                          ? 'border-brand-600 bg-brand-50 shadow-sm'
+                          : 'border-line bg-surface hover:border-brand-300 hover:bg-brand-50/40'
                       } disabled:cursor-not-allowed disabled:opacity-60`}
                     >
                       <span
@@ -273,11 +273,11 @@ export default function FileUploadForm({
                         {option.initials}
                       </span>
                       <span className="min-w-0">
-                        <span className="block break-words font-semibold text-gray-900">
+                        <span className="block break-words font-semibold text-ink">
                           {option.name}
                         </span>
                       </span>
-                      {selected && <span className="ml-auto text-lg text-blue-600">✓</span>}
+                      {selected && <span className="ml-auto text-lg text-brand-600">✓</span>}
                     </button>
                   );
                 })}
@@ -294,7 +294,7 @@ export default function FileUploadForm({
               disabled={loading}
             />
           ) : (
-            <p className="text-sm text-gray-400">Choose a bank first.</p>
+            <p className="text-sm text-ink-4">Choose a bank first.</p>
           )}
         </Step>
 
@@ -315,12 +315,12 @@ export default function FileUploadForm({
                   }}
                   className={`rounded-xl border-2 p-3 text-center transition ${
                     selected
-                      ? 'border-blue-600 bg-blue-50 shadow-sm'
-                      : 'border-gray-200 bg-white hover:border-blue-300'
+                      ? 'border-brand-600 bg-brand-50 shadow-sm'
+                      : 'border-line bg-surface hover:border-brand-300'
                   } disabled:cursor-not-allowed disabled:opacity-50`}
                 >
-                  <span className="block font-semibold text-gray-900">{format}</span>
-                  <span className="block text-xs text-gray-500">
+                  <span className="block font-semibold text-ink">{format}</span>
+                  <span className="block text-xs text-ink-3">
                     {format === 'XLSX' ? 'Reads more accurately' : 'Most common'}
                   </span>
                 </button>
@@ -332,7 +332,9 @@ export default function FileUploadForm({
         <Step n={4} title="Upload the file" muted={!fileFormat}>
           <div
             className={`border-2 border-dashed rounded-lg p-8 text-center transition ${
-              dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
+              dragActive
+                ? 'border-brand-500 bg-brand-50'
+                : 'border-line-strong hover:border-gray-400'
             }`}
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
@@ -355,13 +357,13 @@ export default function FileUploadForm({
             >
               <div className="space-y-2">
                 <div className="text-4xl">📄</div>
-                <p className="text-sm font-medium text-gray-700">
+                <p className="text-sm font-medium text-ink-2">
                   {fileFormat
                     ? `Drop your ${fileFormat} statement here`
                     : 'Choose a file type above first'}
                 </p>
-                <p className="text-xs text-gray-500">or click to select a file</p>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-ink-3">or click to select a file</p>
+                <p className="text-xs text-ink-4">
                   {fileFormat ? `${FORMAT_EXTENSIONS[fileFormat]} only` : 'PDF or XLSX'} • Max 10MB
                 </p>
               </div>
@@ -369,20 +371,18 @@ export default function FileUploadForm({
           </div>
 
           {file && (
-            <div className="mt-3 flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
+            <div className="mt-3 flex items-center gap-3 rounded-lg border border-brand-200 bg-brand-50 p-3">
               <span className="text-2xl">📄</span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium text-gray-900">
-                  {file.name}
-                </span>
-                <span className="block text-xs text-gray-500">
+                <span className="block truncate text-sm font-medium text-ink">{file.name}</span>
+                <span className="block text-xs text-ink-3">
                   {(file.size / 1024 / 1024).toFixed(2)} MB
                 </span>
               </span>
               <button
                 type="button"
                 onClick={() => setFile(null)}
-                className="text-sm font-medium text-blue-700 hover:text-blue-900"
+                className="text-sm font-medium text-brand-700 hover:text-brand-900"
               >
                 Remove
               </button>
@@ -439,7 +439,7 @@ export default function FileUploadForm({
         <button
           type="submit"
           disabled={loading || !bank || !statementMonth || !fileFormat || !file}
-          className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
+          className="w-full bg-brand-600 text-white py-3 rounded-lg font-medium hover:bg-brand-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition"
         >
           {loading ? 'Uploading...' : 'Upload Statement'}
         </button>
@@ -461,7 +461,7 @@ function Step({
 }) {
   return (
     <section className={muted ? 'opacity-60 transition' : 'transition'}>
-      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900">
+      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink">
         <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-900 text-xs font-bold text-white">
           {n}
         </span>

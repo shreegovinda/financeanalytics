@@ -79,14 +79,14 @@ function VerifyEmailInner() {
   }[status];
 
   const accent = {
-    verifying: 'text-blue-200',
+    verifying: 'text-white/70',
     success: 'text-emerald-300',
-    already: 'text-blue-200',
+    already: 'text-white/70',
     error: 'text-red-300',
   }[status];
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-brand-950 to-slate-900 px-4">
       <div className="w-full max-w-md bg-white/5 backdrop-blur border border-white/10 rounded-2xl p-8 text-center">
         <div className="mb-6 flex justify-center">
           {status === 'verifying' ? (
@@ -107,7 +107,7 @@ function VerifyEmailInner() {
           {status === 'error' && 'Verification failed'}
         </h1>
 
-        <p className="text-sm text-blue-100 mb-6">
+        <p className="text-sm text-white/85 mb-6">
           {message || 'Just a moment while we confirm your address.'}
         </p>
 
@@ -115,7 +115,7 @@ function VerifyEmailInner() {
           <button
             type="button"
             onClick={() => router.replace('/auth')}
-            className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold py-3 rounded-lg hover:from-blue-600 hover:to-indigo-700 transition"
+            className="w-full bg-gradient-to-r from-brand-500 to-brand-600 text-white font-semibold py-3 rounded-lg hover:from-brand-600 hover:to-brand-700 transition"
           >
             Go to sign in
           </button>

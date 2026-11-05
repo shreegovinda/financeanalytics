@@ -155,16 +155,16 @@ export default function BillAttachDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 shadow-xl">
-        <h2 className="text-xl font-bold text-gray-900">Attach a bill</h2>
-        <p className="mt-1 text-sm text-gray-600">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-surface p-6 shadow-xl">
+        <h2 className="text-xl font-bold text-ink">Attach a bill</h2>
+        <p className="mt-1 text-sm text-ink-2">
           {transactionDescription} &middot; {currency(transactionAmount)}
         </p>
 
         {existing.length > 0 && (
-          <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm">
-            <p className="font-medium text-gray-700">Already attached</p>
-            <ul className="mt-1 space-y-1 text-gray-600">
+          <div className="mt-4 rounded-lg border border-line bg-surface-2 p-3 text-sm">
+            <p className="font-medium text-ink-2">Already attached</p>
+            <ul className="mt-1 space-y-1 text-ink-2">
               {existing.map((bill) => (
                 <li key={bill.id}>
                   {bill.merchantName} &middot; {bill.lineItems.length} items
@@ -184,14 +184,14 @@ export default function BillAttachDialog({
         {!preview ? (
           <div className="mt-4 space-y-4">
             <label className="block">
-              <span className="mb-2 block text-sm font-medium text-gray-700">
+              <span className="mb-2 block text-sm font-medium text-ink-2">
                 Bill or invoice (PDF or Excel, max 10MB)
               </span>
               <input
                 type="file"
                 accept=".pdf,.xlsx,.xls"
                 onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-                className="block w-full text-sm text-gray-600 file:mr-4 file:rounded-lg file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100"
+                className="block w-full text-sm text-ink-2 file:mr-4 file:rounded-lg file:border-0 file:bg-brand-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-brand-700 hover:file:bg-brand-100"
               />
             </label>
 
@@ -200,14 +200,14 @@ export default function BillAttachDialog({
                 type="button"
                 onClick={() => void handleUpload()}
                 disabled={!file || loading}
-                className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex-1 rounded-lg bg-brand-600 px-4 py-2.5 font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? 'Reading bill...' : 'Upload and preview'}
               </button>
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-lg border border-gray-300 px-4 py-2.5 font-semibold text-gray-700 hover:bg-gray-50"
+                className="rounded-lg border border-line-strong px-4 py-2.5 font-semibold text-ink-2 hover:bg-surface-2"
               >
                 Cancel
               </button>
@@ -230,47 +230,47 @@ export default function BillAttachDialog({
               </div>
             )}
 
-            <div className="rounded-lg border border-gray-200 p-3 text-sm">
+            <div className="rounded-lg border border-line p-3 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-500">Merchant</span>
-                <span className="font-medium text-gray-900">{preview.bill.merchantName}</span>
+                <span className="text-ink-3">Merchant</span>
+                <span className="font-medium text-ink">{preview.bill.merchantName}</span>
               </div>
               {preview.bill.billDate && (
                 <div className="mt-1 flex justify-between">
-                  <span className="text-gray-500">Bill date</span>
-                  <span className="font-medium text-gray-900">{preview.bill.billDate}</span>
+                  <span className="text-ink-3">Bill date</span>
+                  <span className="font-medium text-ink">{preview.bill.billDate}</span>
                 </div>
               )}
               <div className="mt-1 flex justify-between">
-                <span className="text-gray-500">Bill total</span>
-                <span className="font-medium text-gray-900">
+                <span className="text-ink-3">Bill total</span>
+                <span className="font-medium text-ink">
                   {preview.bill.billTotal === null ? '—' : currency(preview.bill.billTotal)}
                 </span>
               </div>
             </div>
 
-            <div className="overflow-hidden rounded-lg border border-gray-200">
-              <table className="min-w-full divide-y divide-gray-200 text-sm">
-                <thead className="bg-gray-50">
+            <div className="overflow-hidden rounded-lg border border-line">
+              <table className="min-w-full divide-y divide-line text-sm">
+                <thead className="bg-surface-2">
                   <tr>
-                    <th className="px-3 py-2 text-left font-semibold text-gray-700">Item</th>
-                    <th className="px-3 py-2 text-right font-semibold text-gray-700">Qty</th>
-                    <th className="px-3 py-2 text-right font-semibold text-gray-700">Amount</th>
+                    <th className="px-3 py-2 text-left font-semibold text-ink-2">Item</th>
+                    <th className="px-3 py-2 text-right font-semibold text-ink-2">Qty</th>
+                    <th className="px-3 py-2 text-right font-semibold text-ink-2">Amount</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-line-soft">
                   {preview.bill.lineItems.map((item, index) => (
                     <tr key={`${item.description}-${index}`}>
-                      <td className="px-3 py-2 text-gray-900">{item.description}</td>
-                      <td className="px-3 py-2 text-right text-gray-600">{item.quantity ?? '—'}</td>
-                      <td className="px-3 py-2 text-right font-medium text-gray-900">
+                      <td className="px-3 py-2 text-ink">{item.description}</td>
+                      <td className="px-3 py-2 text-right text-ink-2">{item.quantity ?? '—'}</td>
+                      <td className="px-3 py-2 text-right font-medium text-ink">
                         {currency(item.amount)}
                       </td>
                     </tr>
                   ))}
                   {preview.bill.lineItems.length === 0 && (
                     <tr>
-                      <td colSpan={3} className="px-3 py-4 text-center text-gray-500">
+                      <td colSpan={3} className="px-3 py-4 text-center text-ink-3">
                         No line items could be read from this bill.
                       </td>
                     </tr>
@@ -284,7 +284,7 @@ export default function BillAttachDialog({
                 type="button"
                 onClick={() => void handleConfirm()}
                 disabled={busy !== null}
-                className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex-1 rounded-lg bg-brand-600 px-4 py-2.5 font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {busy === 'confirm' ? 'Attaching...' : 'Confirm and attach'}
               </button>

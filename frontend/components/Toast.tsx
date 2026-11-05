@@ -83,14 +83,14 @@ function Toast({ toast, onRemove }: { toast: ToastMessage; onRemove: (id: string
   const bgColorClass = {
     success: 'bg-green-50 border-green-200',
     error: 'bg-red-50 border-red-200',
-    info: 'bg-blue-50 border-blue-200',
+    info: 'bg-brand-50 border-brand-200',
     warning: 'bg-yellow-50 border-yellow-200',
   }[toast.type];
 
   const textColorClass = {
     success: 'text-green-800',
     error: 'text-red-800',
-    info: 'text-blue-800',
+    info: 'text-brand-800',
     warning: 'text-yellow-800',
   }[toast.type];
 
@@ -114,7 +114,7 @@ function Toast({ toast, onRemove }: { toast: ToastMessage; onRemove: (id: string
       </svg>
     ),
     info: (
-      <svg className="h-5 w-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+      <svg className="h-5 w-5 text-brand-600" fill="currentColor" viewBox="0 0 20 20">
         <path
           fillRule="evenodd"
           d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"

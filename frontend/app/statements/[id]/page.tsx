@@ -107,19 +107,19 @@ export default function StatementDetailsPage() {
 
   if (statement.status === 'pending_review') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-2xl p-6 shadow-md text-center">
+      <div className="min-h-screen bg-surface-2 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-surface rounded-2xl p-6 shadow-md text-center">
           <div className="mx-auto w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 text-xl mb-4">
             ⏳
           </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Pending Review</h2>
-          <p className="text-sm text-gray-600 mb-6">
+          <h2 className="text-xl font-bold text-ink mb-2">Pending Review</h2>
+          <p className="text-sm text-ink-2 mb-6">
             This statement draft is awaiting confirmation. Transactions will appear here once
             approved.
           </p>
           <button
             onClick={() => router.push(`/statements/${statement.id}/preview`)}
-            className="w-full bg-blue-600 text-white py-2.5 px-4 rounded-xl font-medium hover:bg-blue-700 transition cursor-pointer"
+            className="w-full bg-brand-600 text-white py-2.5 px-4 rounded-xl font-medium hover:bg-brand-700 transition cursor-pointer"
           >
             Review and Confirm Import
           </button>
@@ -136,38 +136,35 @@ export default function StatementDetailsPage() {
     .reduce((sum, t) => sum + Number(t.amount), 0);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-surface-2">
       <AuthSessionGuard />
       <div className="max-w-6xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
         <BackButton fallbackHref="/statements" label="Back to Statements" className="mb-6" />
 
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">{statement.bank_name}</h1>
+        <div className="bg-surface rounded-lg shadow-md p-6 mb-8">
+          <h1 className="text-3xl font-bold text-ink mb-4">{statement.bank_name}</h1>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
+              <p className="text-xs font-semibold uppercase tracking-wider text-ink-3 mb-1">
                 File Name
               </p>
-              <p
-                className="text-sm font-semibold text-gray-900 truncate"
-                title={statement.file_name}
-              >
+              <p className="text-sm font-semibold text-ink truncate" title={statement.file_name}>
                 {statement.file_name}
               </p>
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
+              <p className="text-xs font-semibold uppercase tracking-wider text-ink-3 mb-1">
                 Period
               </p>
-              <p className="text-sm font-semibold text-gray-900">
+              <p className="text-sm font-semibold text-ink">
                 {formatMonthYear(statement.statement_month)}
               </p>
               {statement.statement_month && (
-                <p className="text-xs text-gray-400">{statement.statement_month}</p>
+                <p className="text-xs text-ink-4">{statement.statement_month}</p>
               )}
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
+              <p className="text-xs font-semibold uppercase tracking-wider text-ink-3 mb-1">
                 Format
               </p>
               <div>
@@ -185,7 +182,7 @@ export default function StatementDetailsPage() {
               </div>
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
+              <p className="text-xs font-semibold uppercase tracking-wider text-ink-3 mb-1">
                 Status
               </p>
               <p className="text-sm font-medium">
@@ -203,56 +200,50 @@ export default function StatementDetailsPage() {
               </p>
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
+              <p className="text-xs font-semibold uppercase tracking-wider text-ink-3 mb-1">
                 Uploaded
               </p>
-              <p className="text-sm font-medium text-gray-900">
-                {formatDate(statement.uploaded_at)}
-              </p>
+              <p className="text-sm font-medium text-ink">{formatDate(statement.uploaded_at)}</p>
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
+              <p className="text-xs font-semibold uppercase tracking-wider text-ink-3 mb-1">
                 Transactions
               </p>
-              <p className="text-sm font-semibold text-gray-900">{transactions.length}</p>
+              <p className="text-sm font-semibold text-ink">{transactions.length}</p>
             </div>
           </div>
           {statement.status !== 'completed' && (
-            <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
-              <p className="mb-3 text-sm font-medium text-gray-700">Processing Timeline</p>
+            <div className="mt-6 rounded-lg border border-line bg-surface-2 p-4">
+              <p className="mb-3 text-sm font-medium text-ink-2">Processing Timeline</p>
               <StatementProcessingProgress statement={statement} />
             </div>
           )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-            <p className="text-sm text-gray-600 mb-2">{t('transactions', 'Total Transactions')}</p>
-            <p className="text-3xl font-bold text-blue-600">{transactions.length}</p>
+          <div className="bg-brand-50 border border-brand-200 rounded-lg p-6">
+            <p className="text-sm text-ink-2 mb-2">{t('transactions', 'Total Transactions')}</p>
+            <p className="text-3xl font-bold text-brand-600">{transactions.length}</p>
           </div>
           <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-            <p className="text-sm text-gray-600 mb-2">
-              {t('totalIncome', 'Total Credits (Income)')}
-            </p>
+            <p className="text-sm text-ink-2 mb-2">{t('totalIncome', 'Total Credits (Income)')}</p>
             <p className="text-3xl font-bold text-green-600">{prefs.formatMoney(totalCredit)}</p>
           </div>
           <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-            <p className="text-sm text-gray-600 mb-2">
+            <p className="text-sm text-ink-2 mb-2">
               {t('totalExpenses', 'Total Debits (Expenses)')}
             </p>
             <p className="text-3xl font-bold text-red-600">{prefs.formatMoney(totalDebit)}</p>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">
-              {t('transactions', 'Transactions')}
-            </h2>
+        <div className="bg-surface rounded-lg shadow-md overflow-hidden">
+          <div className="px-6 py-4 border-b border-line">
+            <h2 className="text-xl font-semibold text-ink">{t('transactions', 'Transactions')}</h2>
           </div>
 
           {transactions.length === 0 ? (
-            <div className="px-6 py-8 text-center text-gray-500">
+            <div className="px-6 py-8 text-center text-ink-3">
               {isStatementProcessing(statement)
                 ? 'Transactions will appear here after processing completes.'
                 : 'No transactions found'}
@@ -260,29 +251,29 @@ export default function StatementDetailsPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="bg-surface-2 border-b border-line">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-ink-2 uppercase tracking-wider">
                       {t('date', 'Date')}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-ink-2 uppercase tracking-wider">
                       {t('description', 'Description')}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-ink-2 uppercase tracking-wider">
                       {t('type', 'Type')}
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-right text-xs font-medium text-ink-2 uppercase tracking-wider">
                       {t('amount', 'Amount')}
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-surface divide-y divide-line">
                   {transactions.map((txn) => (
-                    <tr key={txn.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <tr key={txn.id} className="hover:bg-surface-2">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-ink">
                         {formatDate(txn.date)}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">
+                      <td className="px-6 py-4 text-sm text-ink-2 max-w-xs truncate">
                         {txn.description}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -296,7 +287,7 @@ export default function StatementDetailsPage() {
                           {txn.type.charAt(0).toUpperCase() + txn.type.slice(1)}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-ink">
                         {txn.type === 'credit' ? '+' : '-'} {prefs.formatMoney(txn.amount)}
                       </td>
                     </tr>

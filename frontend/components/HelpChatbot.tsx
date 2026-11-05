@@ -160,14 +160,14 @@ export default function HelpChatbot() {
   return (
     <section
       aria-labelledby="help-chat-title"
-      className="rounded-2xl border border-indigo-100 bg-white p-5 shadow-sm"
+      className="rounded-2xl border border-brand-100 bg-surface p-5 shadow-sm"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 id="help-chat-title" className="text-lg font-semibold">
             Help chatbot
           </h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-ink-2">
             Ask how Finlytix works. Speak or type; answers can be read aloud in your chosen Indian
             language.
           </p>
@@ -190,7 +190,7 @@ export default function HelpChatbot() {
           value={language}
           onChange={changeLanguage}
           options={options}
-          selectClassName="rounded-lg border border-slate-200 bg-white p-2"
+          selectClassName="rounded-lg border border-line bg-surface p-2"
         />
         {selected?.stt === 'limited' || selected?.tts === 'limited' ? (
           <p role="status" className="mt-2 text-xs text-amber-800">
@@ -200,8 +200,8 @@ export default function HelpChatbot() {
         ) : null}
       </div>
       {!signedIn && (
-        <p className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
-          <Link href="/auth" className="font-semibold text-indigo-700 underline">
+        <p className="mt-4 rounded-lg bg-surface-2 p-3 text-sm text-ink-2">
+          <Link href="/auth" className="font-semibold text-brand-700 underline">
             Sign in
           </Link>{' '}
           to ask the help chatbot. The FAQs below stay available without an account.
@@ -209,7 +209,7 @@ export default function HelpChatbot() {
       )}
       <div className="mt-4 max-h-80 space-y-3 overflow-y-auto">
         {messages.length === 0 && !pending && (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-ink-3">
             Try “How do I delete a statement?” or speak the same question in your selected language.
           </p>
         )}
@@ -218,11 +218,11 @@ export default function HelpChatbot() {
             key={index}
             className={
               message.role === 'user'
-                ? 'rounded-xl bg-indigo-50 p-3 text-sm'
-                : 'rounded-xl border border-slate-200 p-3 text-sm'
+                ? 'rounded-xl bg-brand-50 p-3 text-sm'
+                : 'rounded-xl border border-line p-3 text-sm'
             }
           >
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink-3">
               {message.role === 'user' ? 'You' : 'Finlytix help'}
             </p>
             <p className="mt-1 whitespace-pre-wrap leading-6">{message.content}</p>
@@ -232,7 +232,7 @@ export default function HelpChatbot() {
                   <Link
                     key={source.id}
                     href={source.href}
-                    className="text-xs font-medium text-indigo-700 underline"
+                    className="text-xs font-medium text-brand-700 underline"
                   >
                     {source.label}
                   </Link>
@@ -245,7 +245,7 @@ export default function HelpChatbot() {
                     voice.setError('');
                     voice.speak(message.content);
                   }}
-                  className="text-xs font-medium text-indigo-700 underline disabled:opacity-40"
+                  className="text-xs font-medium text-brand-700 underline disabled:opacity-40"
                 >
                   Read aloud
                 </button>
@@ -254,15 +254,15 @@ export default function HelpChatbot() {
           </article>
         ))}
         {pending && (
-          <p role="status" className="text-sm text-indigo-700">
+          <p role="status" className="text-sm text-brand-700">
             Checking the product guide…
           </p>
         )}
         <div ref={bottom} />
       </div>
       {voiceMode && (
-        <div className="mt-4 rounded-xl bg-indigo-50 p-4">
-          <p role="status" className="text-sm font-medium text-indigo-900">
+        <div className="mt-4 rounded-xl bg-brand-50 p-4">
+          <p role="status" className="text-sm font-medium text-brand-900">
             {voice.status === 'listening'
               ? 'Listening… finish your question to send it.'
               : voice.status === 'thinking'
@@ -271,7 +271,7 @@ export default function HelpChatbot() {
                   ? 'Finlytix is speaking…'
                   : 'Voice mode on — tap Speak or type below.'}
           </p>
-          {voice.heard && <p className="mt-2 text-sm text-indigo-800">{voice.heard}</p>}
+          {voice.heard && <p className="mt-2 text-sm text-brand-800">{voice.heard}</p>}
           {!voice.supported && (
             <p role="status" className="mt-2 text-sm text-amber-800">
               Speech recognition is unavailable here. Type your question, or use a browser with
@@ -283,7 +283,7 @@ export default function HelpChatbot() {
               type="button"
               disabled={!signedIn || !voice.supported || voice.status === 'thinking' || busy}
               onClick={voice.toggleListen}
-              className="rounded-lg bg-indigo-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-40"
+              className="rounded-lg bg-brand-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-40"
             >
               {voice.status === 'listening'
                 ? 'Finish question'
@@ -294,7 +294,7 @@ export default function HelpChatbot() {
             <button
               type="button"
               onClick={voice.pause}
-              className="rounded-lg border border-indigo-200 px-3 py-2 text-sm"
+              className="rounded-lg border border-brand-200 px-3 py-2 text-sm"
             >
               Pause voice
             </button>
@@ -336,7 +336,7 @@ export default function HelpChatbot() {
           }
           onChange={(event) => setInput(event.target.value)}
           placeholder="Ask a product question…"
-          className="min-w-0 flex-1 rounded-lg border border-slate-200 p-3 text-sm"
+          className="min-w-0 flex-1 rounded-lg border border-line p-3 text-sm"
         />
         <button
           disabled={
@@ -346,12 +346,12 @@ export default function HelpChatbot() {
             voice.status === 'listening' ||
             voice.status === 'thinking'
           }
-          className="rounded-lg bg-indigo-700 px-4 text-sm font-semibold text-white disabled:opacity-40"
+          className="rounded-lg bg-brand-700 px-4 text-sm font-semibold text-white disabled:opacity-40"
         >
           {busy ? 'Working…' : 'Ask'}
         </button>
       </form>
-      <p className="mt-3 text-xs text-slate-500">
+      <p className="mt-3 text-xs text-ink-3">
         Help answers use your text or voice AI connection and the product guide. Finlytix does not
         store microphone recordings. Browser speech services may process audio.
       </p>

@@ -69,11 +69,11 @@ const TIER_CONFIG = {
       'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-950/40 dark:text-emerald-300',
   },
   Strong: {
-    bg: 'bg-blue-500/10 border-blue-500/30 text-blue-400',
-    ring: 'stroke-blue-500',
-    text: 'text-blue-600 dark:text-blue-400',
-    gradient: 'from-blue-500 to-indigo-600',
-    badge: 'bg-blue-50 text-blue-700 ring-blue-600/20 dark:bg-blue-950/40 dark:text-blue-300',
+    bg: 'bg-brand-500/10 border-brand-500/30 text-brand-400',
+    ring: 'stroke-brand-500',
+    text: 'text-brand-600 dark:text-brand-400',
+    gradient: 'from-brand-500 to-brand-600',
+    badge: 'bg-brand-50 text-brand-700 ring-brand-600/20 dark:bg-brand-950/40 dark:text-brand-300',
   },
   Moderate: {
     bg: 'bg-amber-500/10 border-amber-500/30 text-amber-400',
@@ -131,14 +131,14 @@ export default function FinlytixHealthScore() {
 
   if (loading) {
     return (
-      <div className="rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-sm ring-1 ring-slate-100 dark:ring-slate-800 animate-pulse">
+      <div className="rounded-2xl bg-surface p-6 shadow-sm ring-1 ring-line-soft animate-pulse">
         <div className="flex items-center justify-between mb-6">
-          <div className="h-6 w-48 bg-slate-200 dark:bg-slate-800 rounded"></div>
-          <div className="h-6 w-24 bg-slate-200 dark:bg-slate-800 rounded-full"></div>
+          <div className="h-6 w-48 bg-surface-4 rounded"></div>
+          <div className="h-6 w-24 bg-surface-4 rounded-full"></div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="h-44 bg-slate-100 dark:bg-slate-800/60 rounded-xl"></div>
-          <div className="h-44 md:col-span-2 bg-slate-100 dark:bg-slate-800/60 rounded-xl"></div>
+          <div className="h-44 bg-surface-3 rounded-xl"></div>
+          <div className="h-44 md:col-span-2 bg-surface-3 rounded-xl"></div>
         </div>
       </div>
     );
@@ -146,17 +146,15 @@ export default function FinlytixHealthScore() {
 
   if (!data || !data.hasData) {
     return (
-      <div className="relative overflow-hidden rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 p-6 backdrop-blur">
+      <div className="relative overflow-hidden rounded-2xl border border-dashed border-line-strong bg-surface/60 p-6 backdrop-blur">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-600 dark:bg-brand-950/40 dark:text-brand-400">
               <ShieldCheck className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Finlytix Health Score (FinScore)
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <h3 className="text-base font-bold text-ink">Finlytix Health Score (FinScore)</h3>
+              <p className="text-xs text-ink-3">
                 Upload your bank statement to unlock your 5-pillar mathematical financial score.
               </p>
             </div>
@@ -182,23 +180,21 @@ export default function FinlytixHealthScore() {
   const progressOffset = circumference - (score / 100) * circumference;
 
   return (
-    <div className="rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-sm ring-1 ring-slate-100 dark:ring-slate-800 transition-all">
+    <div className="rounded-2xl bg-surface p-6 shadow-sm ring-1 ring-line-soft transition-all">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800/80 pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft pb-4">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-600 to-indigo-700 text-white shadow-sm">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-600 to-brand-700 text-white shadow-sm">
             <ShieldCheck className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
-                Finlytix Health Score
-              </h2>
-              <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+              <h2 className="text-lg font-bold tracking-tight text-ink">Finlytix Health Score</h2>
+              <span className="rounded-md bg-surface-3 px-1.5 py-0.5 text-[10px] font-semibold text-ink-2">
                 FinScore
               </span>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-ink-3">
               Deterministic 5-pillar algorithmic evaluation of your cash flow and habits
             </p>
           </div>
@@ -207,7 +203,7 @@ export default function FinlytixHealthScore() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowFormulaModal(!showFormulaModal)}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 px-2.5 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-2 transition"
             title="How is FinScore calculated?"
           >
             <HelpCircle className="w-3.5 h-3.5" />
@@ -226,7 +222,7 @@ export default function FinlytixHealthScore() {
       {/* Main Grid: Gauge on Left, 5 Pillars on Right */}
       <div className="mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Radial Dial Hero */}
-        <div className="lg:col-span-4 flex flex-col items-center justify-center rounded-2xl bg-gradient-to-b from-slate-50 to-white dark:from-slate-800/40 dark:to-slate-900 p-6 text-center ring-1 ring-slate-100 dark:ring-slate-800/80">
+        <div className="lg:col-span-4 flex flex-col items-center justify-center rounded-2xl bg-gradient-to-b from-surface-2 to-surface p-6 text-center ring-1 ring-line-soft">
           <div className="relative flex items-center justify-center">
             <svg className="w-44 h-44 -rotate-90 transform" viewBox="0 0 160 160">
               {/* Background Ring */}
@@ -260,11 +256,11 @@ export default function FinlytixHealthScore() {
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ delay: 0.3, duration: 0.5 }}
-                className="text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white"
+                className="text-4xl font-extrabold tracking-tight text-ink"
               >
                 {score}
               </motion.span>
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+              <span className="text-[11px] font-semibold text-ink-4 uppercase tracking-wider">
                 out of 100
               </span>
             </div>
@@ -272,26 +268,26 @@ export default function FinlytixHealthScore() {
 
           {/* Trend badge */}
           {data.trend && (
-            <div className="mt-3 flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-300">
+            <div className="mt-3 flex items-center gap-1 text-xs font-medium text-ink-2">
               {data.trend.startsWith('+') ? (
                 <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
               ) : data.trend.startsWith('-') ? (
                 <TrendingDown className="w-3.5 h-3.5 text-rose-500" />
               ) : (
-                <Info className="w-3.5 h-3.5 text-blue-500" />
+                <Info className="w-3.5 h-3.5 text-brand-500" />
               )}
               <span>{data.trend}</span>
             </div>
           )}
 
-          <div className="mt-4 border-t border-slate-100 dark:border-slate-800 pt-3 w-full text-xs text-slate-500 dark:text-slate-400">
+          <div className="mt-4 border-t border-line-soft pt-3 w-full text-xs text-ink-3">
             Based on {data.summary.monthsAnalyzed} month(s) of verified bank transactions
           </div>
         </div>
 
         {/* 5 Pillars Breakdown */}
         <div className="lg:col-span-8 space-y-3">
-          <div className="flex items-center justify-between text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider px-1">
+          <div className="flex items-center justify-between text-xs font-semibold text-ink-3 uppercase tracking-wider px-1">
             <span>Financial Pillar</span>
             <span>Current Status • Target</span>
           </div>
@@ -309,39 +305,35 @@ export default function FinlytixHealthScore() {
               <div
                 key={key}
                 onClick={() => setExpandedPillar(isExpanded ? null : key)}
-                className="cursor-pointer rounded-xl bg-slate-50 dark:bg-slate-800/50 p-3.5 transition-all hover:bg-slate-100 dark:hover:bg-slate-800 ring-1 ring-slate-100 dark:ring-slate-800/80"
+                className="cursor-pointer rounded-xl bg-surface-2 p-3.5 transition-all hover:bg-surface-3 ring-1 ring-line-soft"
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5">
                     <span className={`h-2.5 w-2.5 rounded-full ${statusColor}`}></span>
-                    <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-                      {pillar.name}
-                    </span>
-                    <span className="text-[10px] font-medium text-slate-400 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                    <span className="text-sm font-semibold text-ink">{pillar.name}</span>
+                    <span className="text-[10px] font-medium text-ink-4 bg-surface px-1.5 py-0.5 rounded border border-line">
                       Weight {pillar.weight}%
                     </span>
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                      {pillar.displayValue}
-                    </span>
-                    <span className="text-[11px] text-slate-400 hidden sm:inline">
+                    <span className="text-xs font-bold text-ink-2">{pillar.displayValue}</span>
+                    <span className="text-[11px] text-ink-4 hidden sm:inline">
                       ({pillar.benchmark})
                     </span>
-                    <span className="text-xs font-extrabold text-slate-900 dark:text-white min-w-[28px] text-right">
+                    <span className="text-xs font-extrabold text-ink min-w-[28px] text-right">
                       {pillar.score}
                     </span>
                     {isExpanded ? (
-                      <ChevronUp className="w-4 h-4 text-slate-400" />
+                      <ChevronUp className="w-4 h-4 text-ink-4" />
                     ) : (
-                      <ChevronDown className="w-4 h-4 text-slate-400" />
+                      <ChevronDown className="w-4 h-4 text-ink-4" />
                     )}
                   </div>
                 </div>
 
                 {/* Micro Progress Bar */}
-                <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-surface-4">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${statusColor}`}
                     style={{ width: `${Math.min(100, pillar.score)}%` }}
@@ -355,7 +347,7 @@ export default function FinlytixHealthScore() {
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      className="mt-3 pt-2 border-t border-slate-200/60 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-400 flex flex-col gap-1"
+                      className="mt-3 pt-2 border-t border-line/60 text-xs text-ink-2 flex flex-col gap-1"
                     >
                       <p>{pillar.description}</p>
                       <p className="text-[11px] font-medium text-brand-600 dark:text-brand-400">
@@ -372,12 +364,10 @@ export default function FinlytixHealthScore() {
 
       {/* Actionable Wins Section */}
       {data.actionableWins && data.actionableWins.length > 0 && (
-        <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800">
+        <div className="mt-6 pt-5 border-t border-line-soft">
           <div className="flex items-center gap-2 mb-3">
             <Sparkles className="w-4 h-4 text-brand-600 dark:text-brand-400" />
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-              Actionable Steps to Boost Your FinScore
-            </h3>
+            <h3 className="text-sm font-bold text-ink">Actionable Steps to Boost Your FinScore</h3>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -388,16 +378,12 @@ export default function FinlytixHealthScore() {
               >
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <h4 className="text-xs font-bold text-slate-900 dark:text-white">
-                      {win.title}
-                    </h4>
+                    <h4 className="text-xs font-bold text-ink">{win.title}</h4>
                     <span className="shrink-0 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 text-[10px] font-extrabold">
                       {win.impact}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                    {win.description}
-                  </p>
+                  <p className="text-xs text-ink-2 leading-relaxed">{win.description}</p>
                 </div>
               </div>
             ))}
@@ -413,24 +399,22 @@ export default function FinlytixHealthScore() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="relative w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-2xl ring-1 ring-slate-200 dark:ring-slate-800 text-left"
+              className="relative w-full max-w-lg rounded-2xl bg-surface p-6 shadow-2xl ring-1 ring-line text-left"
             >
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-4">
+              <div className="flex items-center justify-between border-b border-line-soft pb-3 mb-4">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="w-5 h-5 text-brand-600" />
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                    How FinScore is Calculated
-                  </h3>
+                  <h3 className="text-base font-bold text-ink">How FinScore is Calculated</h3>
                 </div>
                 <button
                   onClick={() => setShowFormulaModal(false)}
-                  className="rounded-lg p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  className="rounded-lg p-1 text-ink-4 hover:text-ink-2"
                 >
                   ✕
                 </button>
               </div>
 
-              <div className="space-y-4 text-xs text-slate-600 dark:text-slate-300 leading-relaxed max-h-[70vh] overflow-y-auto pr-1">
+              <div className="space-y-4 text-xs text-ink-2 leading-relaxed max-h-[70vh] overflow-y-auto pr-1">
                 <p>
                   The <strong>Finlytix Health Score (FinScore)</strong> is a 100% deterministic,
                   audit-grade financial health metric that evaluates 5 foundational pillars of
@@ -462,8 +446,8 @@ export default function FinlytixHealthScore() {
                   </div>
                 </div>
 
-                <div className="rounded-xl bg-slate-50 dark:bg-slate-800/80 p-3">
-                  <div className="font-semibold text-slate-900 dark:text-white mb-1">
+                <div className="rounded-xl bg-surface-2 p-3">
+                  <div className="font-semibold text-ink mb-1">
                     Deterministic Precision vs Black-Box AI:
                   </div>
                   All arithmetic and scoring functions execute programmatically in pure SQL and
@@ -472,7 +456,7 @@ export default function FinlytixHealthScore() {
                 </div>
               </div>
 
-              <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800 text-right">
+              <div className="mt-5 pt-3 border-t border-line-soft text-right">
                 <button
                   onClick={() => setShowFormulaModal(false)}
                   className="rounded-xl bg-brand-600 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-700 transition"

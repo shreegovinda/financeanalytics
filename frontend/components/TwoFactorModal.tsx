@@ -80,10 +80,10 @@ export function TwoFactorModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden">
-        <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-          <h2 className="text-lg font-bold text-slate-900">Two-Factor Authentication</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+      <div className="w-full max-w-md bg-surface rounded-2xl shadow-xl overflow-hidden">
+        <div className="px-6 py-5 border-b border-line-soft flex justify-between items-center bg-surface-2">
+          <h2 className="text-lg font-bold text-ink">Two-Factor Authentication</h2>
+          <button onClick={onClose} className="text-ink-4 hover:text-ink-2">
             ✕
           </button>
         </div>
@@ -96,12 +96,12 @@ export function TwoFactorModal({
 
           {step === 'select' && (
             <form onSubmit={handleNext}>
-              <p className="text-sm text-slate-600 mb-4">
+              <p className="text-sm text-ink-2 mb-4">
                 Choose a method to receive your two-factor authentication codes.
               </p>
 
               <div className="space-y-3 mb-6">
-                <label className="flex flex-col p-3 border rounded-xl cursor-pointer hover:bg-slate-50 transition">
+                <label className="flex flex-col p-3 border rounded-xl cursor-pointer hover:bg-surface-2 transition">
                   <div className="flex items-center gap-3">
                     <input
                       type="radio"
@@ -109,15 +109,15 @@ export function TwoFactorModal({
                       value="authenticator"
                       checked={method === 'authenticator'}
                       onChange={() => setMethod('authenticator')}
-                      className="w-4 h-4 text-indigo-600"
+                      className="w-4 h-4 text-brand-600"
                     />
                     <span className="text-sm font-bold">Authenticator App</span>
                   </div>
-                  <span className="text-xs text-slate-500 ml-7 mt-1">
+                  <span className="text-xs text-ink-3 ml-7 mt-1">
                     Google Authenticator, Authy, etc. (Recommended)
                   </span>
                 </label>
-                <label className="flex flex-col p-3 border rounded-xl cursor-pointer hover:bg-slate-50 transition opacity-50">
+                <label className="flex flex-col p-3 border rounded-xl cursor-pointer hover:bg-surface-2 transition opacity-50">
                   <div className="flex items-center gap-3">
                     <input
                       type="radio"
@@ -126,12 +126,12 @@ export function TwoFactorModal({
                       disabled
                       checked={method === 'email'}
                       onChange={() => setMethod('email')}
-                      className="w-4 h-4 text-indigo-600"
+                      className="w-4 h-4 text-brand-600"
                     />
                     <span className="text-sm font-bold">Email (Coming soon)</span>
                   </div>
                 </label>
-                <label className="flex flex-col p-3 border rounded-xl cursor-pointer hover:bg-slate-50 transition opacity-50">
+                <label className="flex flex-col p-3 border rounded-xl cursor-pointer hover:bg-surface-2 transition opacity-50">
                   <div className="flex items-center gap-3">
                     <input
                       type="radio"
@@ -140,7 +140,7 @@ export function TwoFactorModal({
                       disabled
                       checked={method === 'phone'}
                       onChange={() => setMethod('phone')}
-                      className="w-4 h-4 text-indigo-600"
+                      className="w-4 h-4 text-brand-600"
                     />
                     <span className="text-sm font-bold">WhatsApp (Coming soon)</span>
                   </div>
@@ -151,14 +151,14 @@ export function TwoFactorModal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+                  className="px-4 py-2 text-sm font-semibold text-ink-2 hover:bg-surface-3 rounded-xl"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl disabled:opacity-50"
+                  className="px-4 py-2 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-xl disabled:opacity-50"
                 >
                   {loading ? 'Setting up...' : 'Continue'}
                 </button>
@@ -168,7 +168,7 @@ export function TwoFactorModal({
 
           {step === 'setup_authenticator' && (
             <form onSubmit={handleEnable}>
-              <p className="text-sm text-slate-600 mb-4">
+              <p className="text-sm text-ink-2 mb-4">
                 Scan this QR code with your Authenticator App, then enter the 6-digit code below to
                 confirm.
               </p>
@@ -177,7 +177,7 @@ export function TwoFactorModal({
                 {qrCode /* eslint-disable-next-line @next/next/no-img-element */ ? (
                   <img src={qrCode} alt="QR Code" className="w-48 h-48 border rounded-xl" />
                 ) : (
-                  <div className="w-48 h-48 bg-slate-100 animate-pulse rounded-xl" />
+                  <div className="w-48 h-48 bg-surface-3 animate-pulse rounded-xl" />
                 )}
               </div>
 
@@ -186,7 +186,7 @@ export function TwoFactorModal({
                 value={otp}
                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 placeholder="123456"
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-center text-xl tracking-widest font-mono focus:border-indigo-500 mb-6"
+                className="w-full rounded-xl border border-line-strong px-4 py-2 text-center text-xl tracking-widest font-mono focus:border-brand-500 mb-6"
                 autoFocus
               />
 
@@ -194,14 +194,14 @@ export function TwoFactorModal({
                 <button
                   type="button"
                   onClick={() => setStep('select')}
-                  className="text-sm font-medium text-indigo-600 hover:underline"
+                  className="text-sm font-medium text-brand-600 hover:underline"
                 >
                   Back
                 </button>
                 <button
                   type="submit"
                   disabled={loading || otp.length !== 6}
-                  className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl disabled:opacity-50"
+                  className="px-4 py-2 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-xl disabled:opacity-50"
                 >
                   {loading ? 'Verifying...' : 'Enable 2FA'}
                 </button>
@@ -211,7 +211,7 @@ export function TwoFactorModal({
 
           {step === 'disable' && (
             <form onSubmit={handleDisable}>
-              <p className="text-sm text-slate-600 mb-4">
+              <p className="text-sm text-ink-2 mb-4">
                 Two-Factor Authentication is currently enabled via <strong>{currentMethod}</strong>.
                 To disable it, enter your account password.
               </p>
@@ -221,7 +221,7 @@ export function TwoFactorModal({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Your password"
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm mb-6"
+                className="w-full rounded-xl border border-line-strong px-4 py-2 text-sm mb-6"
                 autoFocus
               />
 
@@ -229,7 +229,7 @@ export function TwoFactorModal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+                  className="px-4 py-2 text-sm font-semibold text-ink-2 hover:bg-surface-3 rounded-xl"
                 >
                   Cancel
                 </button>
