@@ -271,13 +271,13 @@ export default function DashboardPage() {
               New Feature
             </span>
             <h2 className="text-2xl font-bold mb-2">Talk to your Financial AI</h2>
-            <p className="text-ink-4 text-sm mb-6 leading-relaxed">
+            <p className="text-slate-400 text-sm mb-6 leading-relaxed">
               Ask questions about your spending, extract data from unstructured receipts, or get a
               full breakdown of your month using our new Voice and Text Assistant.
             </p>
             <Link
               href="/assistant"
-              className="inline-flex items-center gap-2 rounded-xl bg-surface px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:bg-brand-50 shadow-md"
+              className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 transition-colors hover:bg-brand-50 shadow-md"
             >
               <svg
                 className="w-4 h-4 text-brand-600"

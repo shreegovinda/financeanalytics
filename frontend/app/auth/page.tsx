@@ -635,7 +635,7 @@ export default function UnifiedAuthPage() {
                   <div className="w-full border-t border-white/20" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-slate-900/80 px-2 text-ink-4">or</span>
+                  <span className="bg-slate-900/80 px-2 text-gray-400">or</span>
                 </div>
               </div>
 
@@ -684,7 +684,7 @@ export default function UnifiedAuthPage() {
                         autoFocus
                       />
                     </div>
-                    <p className="text-xs text-ink-4 mt-1.5">
+                    <p className="text-xs text-gray-400 mt-1.5">
                       Include country code (e.g. +91 for India, +1 for US).
                     </p>
                   </div>
@@ -722,7 +722,7 @@ export default function UnifiedAuthPage() {
                       placeholder="••••••"
                       autoFocus
                     />
-                    <p className="text-xs text-ink-4 mt-1.5 text-center">
+                    <p className="text-xs text-gray-400 mt-1.5 text-center">
                       Sent to {maskedWaPhone || waPhone}. Or tap the link inside WhatsApp!
                     </p>
                   </div>
@@ -746,7 +746,7 @@ export default function UnifiedAuthPage() {
                     <button
                       type="button"
                       onClick={() => setWaOtpSent(false)}
-                      className="text-ink-4 hover:text-white transition cursor-pointer"
+                      className="text-gray-400 hover:text-white transition cursor-pointer"
                     >
                       Change Number
                     </button>
@@ -771,7 +771,7 @@ export default function UnifiedAuthPage() {
                   setError('');
                   setSuccess('');
                 }}
-                className="w-full text-sm text-ink-4 hover:text-white transition text-center pt-2 cursor-pointer"
+                className="w-full text-sm text-gray-400 hover:text-white transition text-center pt-2 cursor-pointer"
               >
                 ← Back to email sign in
               </button>
@@ -1266,7 +1266,7 @@ export default function UnifiedAuthPage() {
                         />
                       ))}
                     </div>
-                    <p className="text-xs text-ink-4">
+                    <p className="text-xs text-gray-400">
                       Strength:{' '}
                       <span
                         className={`${passwordStrength.color.replace('bg-', 'text-')} font-medium`}
@@ -1400,7 +1400,7 @@ export default function UnifiedAuthPage() {
 
           {/* Footer */}
           {step === 'email' && (
-            <p className="mt-6 text-center text-sm text-ink-4">
+            <p className="mt-6 text-center text-sm text-gray-400">
               By signing in, you agree to our{' '}
               <span className="text-brand-300 hover:text-white/70 cursor-pointer transition">
                 Terms of Service
