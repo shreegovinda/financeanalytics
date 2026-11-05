@@ -29,6 +29,7 @@ export function useVoiceSession({ language, onAsk }: Options) {
   const languageLatest = useRef(language);
   const audioEnabled = useRef(true);
   const continueListening = useRef(false);
+  const listenAgainTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [handsFree, setHandsFree] = useState(false);
   const [status, setStatus] = useState<VoiceStatus>('ready');
   const [error, setError] = useState('');
@@ -44,6 +45,11 @@ export function useVoiceSession({ language, onAsk }: Options) {
     languageLatest.current = language;
   }, [language]);
 
+  const cancelListenAgain = useCallback(() => {
+    clearTimeout(listenAgainTimer.current);
+    listenAgainTimer.current = undefined;
+  }, []);
+
   const stopMic = useCallback(() => {
     const mic = recognition.current;
     recognition.current = null;
@@ -58,10 +64,11 @@ export function useVoiceSession({ language, onAsk }: Options) {
     audioEnabled.current = false;
     continueListening.current = false;
     setHandsFree(false);
+    cancelListenAgain();
     stopMic();
     playback.current.stop();
     if (!pending.current) setStatus('ready');
-  }, [stopMic]);
+  }, [cancelListenAgain, stopMic]);
   const startListeningRef = useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -70,6 +77,8 @@ export function useVoiceSession({ language, onAsk }: Options) {
     return () => {
       alive.current = false;
       continueListening.current = false;
+      clearTimeout(listenAgainTimer.current);
+      listenAgainTimer.current = undefined;
       const mic = recognition.current;
       recognition.current = null;
       if (mic) {
@@ -82,6 +91,7 @@ export function useVoiceSession({ language, onAsk }: Options) {
 
   const speak = useCallback(
     (answer: string) => {
+      cancelListenAgain();
       stopMic();
       setStatus('speaking');
       playback.current.speak(
@@ -91,8 +101,9 @@ export function useVoiceSession({ language, onAsk }: Options) {
           if (!alive.current) return;
           setStatus('ready');
           if (continueListening.current) {
-            setTimeout(() => {
-              if (alive.current) startListeningRef.current();
+            listenAgainTimer.current = setTimeout(() => {
+              listenAgainTimer.current = undefined;
+              if (alive.current && continueListening.current) startListeningRef.current();
             }, 400);
           }
         },
@@ -108,7 +119,7 @@ export function useVoiceSession({ language, onAsk }: Options) {
         },
       );
     },
-    [stopMic],
+    [cancelListenAgain, stopMic],
   );
 
   const ask = useCallback(
@@ -154,6 +165,7 @@ export function useVoiceSession({ language, onAsk }: Options) {
     if (pending.current || !alive.current) return;
     const Constructor = recognitionConstructor();
     if (!Constructor) return;
+    cancelListenAgain();
     stopMic();
     playback.current.stop();
     setError('');
@@ -204,7 +216,7 @@ export function useVoiceSession({ language, onAsk }: Options) {
       mic.onerror({ error: 'audio-capture' });
       recognition.current = null;
     }
-  }, [ask, stopMic]);
+  }, [ask, cancelListenAgain, stopMic]);
   useEffect(() => {
     startListeningRef.current = startListening;
   }, [startListening]);
@@ -219,10 +231,14 @@ export function useVoiceSession({ language, onAsk }: Options) {
     playback.current.unlock();
   }, []);
 
-  const setHandsFreeListening = useCallback((enabled: boolean) => {
-    continueListening.current = enabled;
-    setHandsFree(enabled);
-  }, []);
+  const setHandsFreeListening = useCallback(
+    (enabled: boolean) => {
+      continueListening.current = enabled;
+      setHandsFree(enabled);
+      if (!enabled) cancelListenAgain();
+    },
+    [cancelListenAgain],
+  );
 
   return {
     supported,
