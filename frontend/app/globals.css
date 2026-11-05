@@ -184,7 +184,8 @@
   color-scheme: light;
 }
 
-html.dark {
+html.dark,
+.dark {
   --bg: #0a0d16;
   --surface: #121624;
   --surface-2: #171c2e;

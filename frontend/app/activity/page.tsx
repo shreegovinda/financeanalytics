@@ -4,6 +4,14 @@ import React, { useEffect, useState, useCallback, useMemo, Fragment } from 'reac
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  BarChart3,
+  CreditCard,
+  LayoutList,
+  ShieldCheck,
+  SlidersHorizontal,
+  UserRound,
+} from 'lucide-react';
 import AuthSessionGuard from '@/components/AuthSessionGuard';
 import { activityLogAPI, ActivityLog, getErrorMessage } from '@/lib/api';
 import { formatDateTime, useUserPreferences } from '@/lib/date';
@@ -910,11 +918,11 @@ export default function ActivityLogsPage() {
   }, [logs]);
 
   const categories = [
-    { id: 'all', label: t('allLogs', 'All'), icon: '📋' },
-    { id: 'security', label: t('securityTab', 'Security'), icon: '🛡️' },
-    { id: 'profile', label: t('profileTab', 'Profile'), icon: '👤' },
-    { id: 'preferences', label: t('preferencesTab', 'Settings'), icon: '⚙️' },
-    { id: 'financial', label: t('statementsTab', 'Financial'), icon: '💳' },
+    { id: 'all', label: t('allLogs', 'All'), icon: LayoutList },
+    { id: 'security', label: t('securityTab', 'Security'), icon: ShieldCheck },
+    { id: 'profile', label: t('profileTab', 'Profile'), icon: UserRound },
+    { id: 'preferences', label: t('preferencesTab', 'Settings'), icon: SlidersHorizontal },
+    { id: 'financial', label: t('statementsTab', 'Financial'), icon: CreditCard },
   ];
 
   return (
@@ -1005,25 +1013,25 @@ export default function ActivityLogsPage() {
                 {
                   label: 'Total Events',
                   value: totalRecords,
-                  icon: '📊',
+                  icon: BarChart3,
                   accent: 'from-white/10 to-white/5',
                 },
                 {
                   label: 'Security',
                   value: quickStats.security,
-                  icon: '🛡️',
+                  icon: ShieldCheck,
                   accent: 'from-emerald-500/20 to-emerald-500/5',
                 },
                 {
                   label: 'Profile',
                   value: quickStats.profile,
-                  icon: '👤',
+                  icon: UserRound,
                   accent: 'from-brand-500/20 to-brand-500/5',
                 },
                 {
                   label: 'Financial',
                   value: quickStats.financial,
-                  icon: '💳',
+                  icon: CreditCard,
                   accent: 'from-amber-500/20 to-amber-500/5',
                 },
               ].map((stat) => (
@@ -1036,7 +1044,7 @@ export default function ActivityLogsPage() {
                     <span className="text-[11px] font-semibold uppercase tracking-wider text-white/55">
                       {stat.label}
                     </span>
-                    <span className="text-base">{stat.icon}</span>
+                    <stat.icon size={16} className="text-white/70" />
                   </div>
                   <p className="mt-1 text-xl font-bold text-white">{stat.value}</p>
                 </motion.div>
@@ -1071,7 +1079,7 @@ export default function ActivityLogsPage() {
                       : 'text-ink-3 hover:text-ink hover:bg-surface/60'
                   }`}
                 >
-                  <span className="text-sm">{c.icon}</span>
+                  <c.icon size={14} />
                   {c.label}
                 </button>
               ))}

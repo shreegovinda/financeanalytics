@@ -168,8 +168,9 @@ export function AppShell({ children }: AppShellProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const user = useSyncExternalStore(subscribeToStoredUser, readStoredUser, serverUser);
 
-  // Do not wrap Auth pages
-  const isAuthPage = pathname?.startsWith('/auth') || pathname?.startsWith('/verify-email');
+  // The landing and auth pages are public and render without the app shell
+  const isAuthPage =
+    pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/verify-email');
 
   const handleLogout = () => {
     localStorage.removeItem('token');

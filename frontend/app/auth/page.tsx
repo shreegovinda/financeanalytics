@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { ArrowRight, MessageCircle, Smartphone } from 'lucide-react';
 import PhoneInput from '@/components/PhoneInput';
 import { authAPI } from '@/lib/api';
 import axios from 'axios';
@@ -539,24 +540,27 @@ export default function UnifiedAuthPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-brand-900 to-slate-900 flex items-center justify-center px-4 py-8 relative overflow-hidden">
+    <div className="dark min-h-screen bg-gradient-to-br from-slate-950 via-brand-900 to-slate-950 flex items-center justify-center px-4 py-8 relative overflow-hidden">
       {/* Decorative background */}
       <div className="absolute top-0 left-0 w-96 h-96 bg-brand-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" />
-      <div className="absolute bottom-0 right-0 w-96 h-96 bg-brand-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" />
+      <div className="absolute bottom-0 right-0 w-[28rem] h-[28rem] bg-accent-500 rounded-full filter blur-3xl opacity-25 animate-pulse" />
 
       <div className="w-full max-w-md relative z-10">
-        <div className="bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl p-8 border border-white/20">
+        <div className="bg-white/[0.07] backdrop-blur-xl rounded-3xl shadow-2xl p-8 border border-white/15 ring-1 ring-inset ring-white/5">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="flex justify-center mb-4">
-              <div className="w-14 h-14 bg-gradient-to-br from-brand-400 to-brand-600 rounded-xl flex items-center justify-center shadow-lg">
-                <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z" />
-                </svg>
-              </div>
-            </div>
-            <h1 className="text-3xl font-bold text-white mb-2">Finance Analytics</h1>
-            <p className="text-white/85">
+            <Link
+              href="/"
+              className="mb-5 inline-flex items-center gap-2.5"
+              aria-label="Finlytix home"
+            >
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-gradient text-lg font-bold text-white shadow-lg ring-1 ring-white/25">
+                F
+              </span>
+              <span className="text-2xl font-semibold tracking-tight text-white">Finlytix</span>
+            </Link>
+            <h1 className="sr-only">Sign in to Finlytix</h1>
+            <p className="text-base text-white/80">
               {step === 'email' && 'Enter your email to get started'}
               {step === 'login' && `Welcome back, ${existingUserName || 'User'}!`}
               {step === 'signup' && 'Create your account'}
@@ -613,7 +617,7 @@ export default function UnifiedAuthPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-brand-500 to-brand-600 text-white font-semibold py-3 rounded-lg hover:from-brand-600 hover:to-brand-700 transition transform hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+                className="w-full bg-brand-gradient text-white font-semibold py-3 rounded-xl shadow-md hover:brightness-110 transition disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
@@ -622,9 +626,7 @@ export default function UnifiedAuthPage() {
                   </>
                 ) : (
                   <>
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M11 7l-6 6 6 6v-5c6.08 0 10.81 3.79 12 9-1.06-3.83-5.25-7-11-7v-5m0 16h12v-2h-10v-2h10v-2h-12v6z" />
-                    </svg>
+                    <ArrowRight size={18} />
                     Continue
                   </>
                 )}
@@ -635,7 +637,7 @@ export default function UnifiedAuthPage() {
                   <div className="w-full border-t border-white/20" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-slate-900/80 px-2 text-gray-400">or</span>
+                  <span className="rounded bg-slate-900/70 px-2 text-white/50">or</span>
                 </div>
               </div>
 
@@ -646,9 +648,9 @@ export default function UnifiedAuthPage() {
                   setError('');
                   setSuccess('');
                 }}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-lg transition transform hover:scale-105 flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 rounded-xl transition transform hover:scale-105 flex items-center justify-center gap-2 cursor-pointer"
               >
-                <span className="text-lg">💬</span>
+                <MessageCircle size={18} />
                 Sign in with WhatsApp
               </button>
             </form>
@@ -672,7 +674,7 @@ export default function UnifiedAuthPage() {
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-emerald-400 font-semibold">
-                        📱
+                        <Smartphone size={18} />
                       </div>
                       <input
                         type="tel"
@@ -701,7 +703,7 @@ export default function UnifiedAuthPage() {
                       </>
                     ) : (
                       <>
-                        <span>💬</span> Send Security Code
+                        <MessageCircle size={16} /> Send Security Code
                       </>
                     )}
                   </button>
@@ -825,7 +827,7 @@ export default function UnifiedAuthPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-brand-500 to-brand-600 text-white font-semibold py-3 rounded-lg hover:from-brand-600 hover:to-brand-700 transition transform hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+                className="w-full bg-brand-gradient text-white font-semibold py-3 rounded-xl shadow-md hover:brightness-110 transition disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
@@ -834,9 +836,7 @@ export default function UnifiedAuthPage() {
                   </>
                 ) : (
                   <>
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M11 7l-6 6 6 6v-5c6.08 0 10.81 3.79 12 9-1.06-3.83-5.25-7-11-7v-5z" />
-                    </svg>
+                    <ArrowRight size={18} />
                     Sign In
                   </>
                 )}
@@ -900,7 +900,7 @@ export default function UnifiedAuthPage() {
               <button
                 type="submit"
                 disabled={loading || twoFactorOtp.length !== 6}
-                className="w-full bg-gradient-to-r from-brand-500 to-brand-600 text-white font-semibold py-3 rounded-lg hover:from-brand-600 hover:to-brand-700 transition transform hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+                className="w-full bg-brand-gradient text-white font-semibold py-3 rounded-xl shadow-md hover:brightness-110 transition disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {loading ? 'Verifying...' : 'Verify Login'}
               </button>
@@ -1400,11 +1400,29 @@ export default function UnifiedAuthPage() {
 
           {/* Footer */}
           {step === 'email' && (
-            <p className="mt-6 text-center text-sm text-gray-400">
+            <p className="mt-6 text-center text-sm text-white/60">
               By signing in, you agree to our{' '}
-              <span className="text-brand-300 hover:text-white/70 cursor-pointer transition">
-                Terms of Service
-              </span>
+              <Link
+                href="/terms"
+                className="text-brand-300 underline-offset-2 transition hover:text-white hover:underline"
+              >
+                Terms
+              </Link>
+              ,{' '}
+              <Link
+                href="/privacy"
+                className="text-brand-300 underline-offset-2 transition hover:text-white hover:underline"
+              >
+                Privacy Policy
+              </Link>{' '}
+              and{' '}
+              <Link
+                href="/cookies"
+                className="text-brand-300 underline-offset-2 transition hover:text-white hover:underline"
+              >
+                Cookie Policy
+              </Link>
+              .
             </p>
           )}
         </div>
