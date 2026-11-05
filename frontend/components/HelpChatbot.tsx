@@ -135,6 +135,7 @@ export default function HelpChatbot() {
 
   function changeLanguage(code: string) {
     saveSpeechLanguage(code);
+    voice.applyLanguage(code);
   }
 
   async function sendTyped(question: string) {
@@ -189,7 +190,6 @@ export default function HelpChatbot() {
           value={language}
           onChange={changeLanguage}
           options={options}
-          disabled={voice.status !== 'ready' && voiceMode}
           selectClassName="rounded-lg border border-slate-200 bg-white p-2"
         />
         {selected?.stt === 'limited' || selected?.tts === 'limited' ? (

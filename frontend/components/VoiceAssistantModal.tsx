@@ -39,6 +39,7 @@ export default function VoiceAssistantModal({ onClose, onAsk, locale }: Props) {
   function changeLanguage(code: string) {
     setLanguage(code);
     saveSpeechLanguage(code);
+    voice.applyLanguage(code);
   }
 
   useEffect(() => {
@@ -379,7 +380,6 @@ export default function VoiceAssistantModal({ onClose, onAsk, locale }: Props) {
                 value={language}
                 onChange={changeLanguage}
                 options={options}
-                disabled={status !== 'ready'}
                 className="flex items-center gap-2 font-medium text-slate-600"
                 selectClassName="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-medium text-slate-700 focus:outline-none cursor-pointer"
               />

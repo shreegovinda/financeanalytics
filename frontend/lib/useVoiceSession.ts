@@ -221,6 +221,28 @@ export function useVoiceSession({ language, onAsk }: Options) {
     startListeningRef.current = startListening;
   }, [startListening]);
 
+  const statusRef = useRef<VoiceStatus>('ready');
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
+
+  // Changing the language mid-conversation takes effect immediately: restart the
+  // microphone in the new language, or stop speech that is still playing in the old one.
+  const applyLanguage = useCallback(
+    (code: string) => {
+      languageLatest.current = code;
+      if (statusRef.current === 'listening') {
+        stopMic();
+        startListeningRef.current();
+      } else if (statusRef.current === 'speaking') {
+        playback.current.stop();
+        setStatus('ready');
+        if (continueListening.current) startListeningRef.current();
+      }
+    },
+    [stopMic],
+  );
+
   const toggleListen = useCallback(() => {
     playback.current.unlock();
     if (status === 'listening') recognition.current?.stop();
@@ -257,5 +279,6 @@ export function useVoiceSession({ language, onAsk }: Options) {
     startListening,
     unlock,
     setError,
+    applyLanguage,
   };
 }
