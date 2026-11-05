@@ -212,15 +212,10 @@ export function AppShell({ children }: AppShellProps) {
   const user = useSyncExternalStore(subscribeToStoredUser, readStoredUser, serverUser);
   const signedIn = useSyncExternalStore(subscribeToStoredUser, readHasToken, serverHasToken);
 
-  // Public pages render without the app shell
+  // The landing and auth pages are public and always render without the app shell.
+  // Help and legal pages keep the shell for signed-in users (see below).
   const isAuthPage =
-    pathname === '/' ||
-    pathname === '/help' ||
-    pathname === '/privacy' ||
-    pathname === '/terms' ||
-    pathname === '/cookies' ||
-    pathname?.startsWith('/auth') ||
-    pathname?.startsWith('/verify-email');
+    pathname === '/' || pathname?.startsWith('/auth') || pathname?.startsWith('/verify-email');
 
   const handleLogout = () => {
     localStorage.removeItem('token');
