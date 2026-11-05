@@ -145,7 +145,7 @@ const AI_CATALOGUE = {
   },
   // Retained only for older API clients; feature execution never inherits these.
   defaultProvider: 'gemini',
-  defaultModel: 'gemini-2.5-flash',
+  defaultModel: 'gemini-3.5-flash-lite',
   disclosures: {
     adminPaidNotice: 'Platform-managed keys use the platform provider account and its limits.',
     personalKeyNotice:

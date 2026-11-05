@@ -27,6 +27,8 @@ const {
 const { isValidProvider, isValidModel } = require('../config/aiCatalogue');
 const { encrypt, safeDecrypt, computeBlindIndex } = require('../services/crypto');
 const { logActivity } = require('../services/activityLogService');
+const { checkOtpRateLimit, clearOtpRateLimit } = require('../utils/otpRateLimit');
+const { validatePassword } = require('../utils/passwordValidation');
 
 function sanitizeUser(user) {
   if (!user) return user;
@@ -38,36 +40,6 @@ function sanitizeUser(user) {
 }
 
 const router = express.Router();
-const otpAttempts = new Map();
-const OTP_MAX_ATTEMPTS = 5;
-const OTP_WINDOW_MS = 15 * 60 * 1000;
-
-function getOtpRateLimitKey(req, email, purpose) {
-  return `${purpose}:${email.toLowerCase()}:${req.ip}`;
-}
-
-function checkOtpRateLimit(req, email, purpose) {
-  const key = getOtpRateLimitKey(req, email, purpose);
-  const now = Date.now();
-  const current = otpAttempts.get(key);
-
-  if (!current || current.resetAt <= now) {
-    otpAttempts.set(key, { count: 1, resetAt: now + OTP_WINDOW_MS });
-    return true;
-  }
-
-  current.count += 1;
-  if (current.count > OTP_MAX_ATTEMPTS) {
-    return false;
-  }
-
-  otpAttempts.set(key, current);
-  return true;
-}
-
-function clearOtpRateLimit(req, email, purpose) {
-  otpAttempts.delete(getOtpRateLimitKey(req, email, purpose));
-}
 
 // Register
 router.post('/register', async (req, res) => {
@@ -100,8 +72,9 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'User already exists' });
     }
 
-    if (password.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters long' });
+    const passwordCheck = validatePassword(password);
+    if (!passwordCheck.valid) {
+      return res.status(400).json({ error: passwordCheck.message });
     }
 
     const normalizedPhone = phone.trim();
@@ -326,6 +299,21 @@ router.post('/login', async (req, res) => {
     }
 
     const user = sanitizeUser(rawUser);
+
+    if (rawUser.two_factor_method && rawUser.two_factor_method !== 'none') {
+      if (rawUser.two_factor_method === 'email') {
+        await sendOTP(rawUser.email, user.name || 'User', OTP_PURPOSES.TWO_FACTOR);
+      } else if (rawUser.two_factor_method === 'phone') {
+        const phone = safeDecrypt(rawUser.phone);
+        if (phone) await sendWhatsAppOTP(phone, '', OTP_PURPOSES.TWO_FACTOR);
+      }
+      return res.json({
+        requires2FA: true,
+        method: rawUser.two_factor_method,
+        email: rawUser.email,
+      });
+    }
+
     const token = issueAuthToken(user);
 
     await logActivity(pool, {
@@ -348,7 +336,7 @@ router.post('/login', async (req, res) => {
 });
 
 router.post('/forgot-password/send-otp', async (req, res) => {
-  const { email } = req.body;
+  const { email, method = 'email' } = req.body;
 
   if (!email) {
     return res.status(400).json({ error: 'Email is required' });
@@ -357,14 +345,26 @@ router.post('/forgot-password/send-otp', async (req, res) => {
   const normalizedEmail = email.trim().toLowerCase();
 
   try {
-    const userResult = await pool.query('SELECT name FROM users WHERE LOWER(email) = LOWER($1)', [
-      normalizedEmail,
-    ]);
+    const userResult = await pool.query(
+      'SELECT name, phone FROM users WHERE LOWER(email) = LOWER($1)',
+      [normalizedEmail],
+    );
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: 'No account found for this email' });
     }
 
-    const name = (userResult.rows[0].name && safeDecrypt(userResult.rows[0].name)) || 'User';
+    const user = userResult.rows[0];
+    const name = (user.name && safeDecrypt(user.name)) || 'User';
+
+    if (method === 'phone') {
+      if (!user.phone) {
+        return res.status(400).json({ error: 'No phone number associated with this account.' });
+      }
+      const phone = safeDecrypt(user.phone);
+      await sendWhatsAppOTP(phone, '', OTP_PURPOSES.PASSWORD_RESET);
+      return res.json({ success: true, message: 'Password reset OTP sent to phone via WhatsApp' });
+    }
+
     await sendOTP(normalizedEmail, name, OTP_PURPOSES.PASSWORD_RESET);
     res.json({ success: true, message: 'Password reset OTP sent to email' });
   } catch (err) {
@@ -381,7 +381,7 @@ router.post('/forgot-password/send-otp', async (req, res) => {
 });
 
 router.post('/forgot-password/reset', async (req, res) => {
-  const { email, otp, newPassword } = req.body;
+  const { email, otp, newPassword, method = 'email' } = req.body;
 
   if (!email || !otp || !newPassword) {
     return res.status(400).json({ error: 'Email, OTP, and new password are required' });
@@ -389,8 +389,9 @@ router.post('/forgot-password/reset', async (req, res) => {
 
   const normalizedEmail = email.trim().toLowerCase();
 
-  if (newPassword.length < 8) {
-    return res.status(400).json({ error: 'Password must be at least 8 characters long' });
+  const passwordCheck = validatePassword(newPassword);
+  if (!passwordCheck.valid) {
+    return res.status(400).json({ error: passwordCheck.message });
   }
 
   try {
@@ -400,9 +401,26 @@ router.post('/forgot-password/reset', async (req, res) => {
         .json({ error: 'Too many invalid OTP attempts. Please try again later.' });
     }
 
-    const otpResult = await verifyOTP(normalizedEmail, otp, OTP_PURPOSES.PASSWORD_RESET);
-    if (!otpResult.success) {
-      return res.status(401).json({ error: otpResult.message });
+    if (method === 'email') {
+      const otpResult = await verifyOTP(normalizedEmail, otp, OTP_PURPOSES.PASSWORD_RESET);
+      if (!otpResult.success) {
+        return res.status(401).json({ error: otpResult.message });
+      }
+    } else if (method === 'phone') {
+      const userResult = await pool.query(
+        'SELECT phone FROM users WHERE LOWER(email) = LOWER($1)',
+        [normalizedEmail],
+      );
+      if (userResult.rows.length === 0 || !userResult.rows[0].phone) {
+        return res.status(400).json({ error: 'No phone number on account' });
+      }
+      const phone = safeDecrypt(userResult.rows[0].phone);
+      const otpResult = await verifyPhoneOTP(phone, otp, OTP_PURPOSES.PASSWORD_RESET);
+      if (!otpResult.success) {
+        return res.status(401).json({ error: otpResult.message });
+      }
+    } else {
+      return res.status(400).json({ error: 'Invalid method' });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -522,7 +540,7 @@ router.get('/me', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT id, email, name, phone, role, locale, timezone, currency, language,
-              date_format, time_format,
+              date_format, time_format, password_changed_at,
               selected_ai_provider, selected_ai_model, ai_key_mode
        FROM users WHERE id = $1`,
       [req.user.id],
@@ -579,7 +597,7 @@ router.put('/me', authenticateToken, async (req, res) => {
   try {
     const currentUser = await pool.query(
       `SELECT phone, name, locale, id, email, timezone, currency, language,
-              date_format, time_format,
+              date_format, time_format, password_changed_at,
               selected_ai_provider, selected_ai_model, ai_key_mode, token_version
        FROM users WHERE id = $1`,
       [req.user.id],
@@ -628,7 +646,16 @@ router.put('/me', authenticateToken, async (req, res) => {
           error: 'A mobile number with country code is required, for example +919876543210.',
         });
       }
-      finalPhone = phone.trim();
+      const newPhone = phone.trim();
+      if (current.phone && newPhone !== current.phone) {
+        // Replacing a number that already reaches the user must prove control of
+        // the new one, otherwise a stolen session could redirect OTP delivery.
+        return res.status(400).json({
+          error:
+            'Phone number cannot be changed from profile settings until the new number has been verified.',
+        });
+      }
+      finalPhone = newPhone;
     } else if (!finalPhone && (name !== undefined || phone !== undefined || email !== undefined)) {
       return res.status(400).json({
         error: 'A mobile number with country code is required, for example +919876543210.',
@@ -636,7 +663,7 @@ router.put('/me', authenticateToken, async (req, res) => {
     }
 
     const phoneHash = finalPhone ? computeBlindIndex(normalizePhoneNumber(finalPhone)) : null;
-    if (finalPhone && phoneHash) {
+    if (finalPhone && phoneHash && finalPhone !== current.phone) {
       const existingPhone = await pool.query(
         'SELECT id FROM users WHERE phone_hash = $1 AND id != $2',
         [phoneHash, req.user.id],
@@ -751,7 +778,7 @@ router.put('/me', authenticateToken, async (req, res) => {
                selected_ai_provider = $11, selected_ai_model = $12, ai_key_mode = $13
            WHERE id = $14
            RETURNING id, email, name, phone, locale, timezone, currency, language,
-                     date_format, time_format,
+                     date_format, time_format, password_changed_at,
                      selected_ai_provider, selected_ai_model, ai_key_mode, token_version`,
           [
             encryptedName,
@@ -774,7 +801,7 @@ router.put('/me', authenticateToken, async (req, res) => {
         result = await pool.query(
           `UPDATE users SET name = $1, phone = $2, phone_hash = $3, email = $4 WHERE id = $5
            RETURNING id, email, name, phone, locale, timezone, currency, language,
-                     date_format, time_format,
+                     date_format, time_format, password_changed_at,
                      selected_ai_provider, selected_ai_model, ai_key_mode, token_version`,
           [encryptedName, encryptedPhone, phoneHash, finalEmail, req.user.id],
         );
@@ -787,7 +814,7 @@ router.put('/me', authenticateToken, async (req, res) => {
              selected_ai_provider = $10, selected_ai_model = $11, ai_key_mode = $12
          WHERE id = $13
          RETURNING id, email, name, phone, locale, timezone, currency, language,
-                   date_format, time_format,
+                   date_format, time_format, password_changed_at,
                    selected_ai_provider, selected_ai_model, ai_key_mode, token_version`,
         [
           encryptedName,
@@ -809,7 +836,7 @@ router.put('/me', authenticateToken, async (req, res) => {
       result = await pool.query(
         `UPDATE users SET name = $1, phone = $2, phone_hash = $3 WHERE id = $4
          RETURNING id, email, name, phone, locale, timezone, currency, language,
-                   date_format, time_format,
+                   date_format, time_format, password_changed_at,
                    selected_ai_provider, selected_ai_model, ai_key_mode, token_version`,
         [encryptedName, encryptedPhone, phoneHash, req.user.id],
       );
@@ -1029,54 +1056,6 @@ router.put('/me', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Error updating profile:', err);
     res.status(500).json({ error: 'Failed to update profile' });
-  }
-});
-
-router.put('/password', authenticateToken, async (req, res) => {
-  const { currentPassword, newPassword } = req.body;
-
-  if (!currentPassword || !newPassword) {
-    return res.status(400).json({ error: 'Current password and new password are required' });
-  }
-
-  if (newPassword.length < 8) {
-    return res.status(400).json({ error: 'Password must be at least 8 characters long' });
-  }
-
-  try {
-    const result = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    const validPassword = await bcrypt.compare(currentPassword, result.rows[0].password_hash || '');
-    if (!validPassword) {
-      return res.status(401).json({ error: 'Current password is incorrect' });
-    }
-
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    const updateResult = await pool.query(
-      `UPDATE users
-       SET password_hash = $1, token_version = token_version + 1
-       WHERE id = $2
-       RETURNING id, email, token_version`,
-      [hashedPassword, req.user.id],
-    );
-    const token = issueAuthToken(updateResult.rows[0]);
-
-    await logActivity(pool, {
-      userId: req.user.id,
-      action: 'PASSWORD_CHANGE',
-      category: 'security',
-      description: 'Password updated from account settings',
-      details: { method: 'settings' },
-      ip: req.ip,
-    });
-
-    res.json({ success: true, message: 'Password updated successfully', token });
-  } catch (err) {
-    console.error('Error updating password:', err);
-    res.status(500).json({ error: 'Failed to update password' });
   }
 });
 

@@ -477,3 +477,6 @@ DO $$ BEGIN
 END $$;
 CREATE INDEX IF NOT EXISTS idx_chat_conversations_owner ON chat_conversations(user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_conversation ON chat_messages(user_id, conversation_id, sequence DESC);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_method VARCHAR(20) DEFAULT 'none';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_secret VARCHAR(255);

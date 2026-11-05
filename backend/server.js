@@ -62,6 +62,11 @@ app.get('/health', (req, res) => {
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/auth', require('./routes/updateProfile'));
+app.use('/api/auth/password-update', require('./routes/passwordChange'));
+app.use('/api/auth/2fa', require('./routes/twoFactor'));
+app.use('/api/auth/2fa', require('./routes/twoFactorLogin'));
+
 app.use('/api/upload', uploadRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/categories', categoryRoutes);

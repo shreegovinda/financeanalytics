@@ -20,7 +20,14 @@ interface APIError {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-type AuthStep = 'email' | 'login' | 'signup' | 'forgotPassword' | 'verifyEmail' | 'whatsapp';
+type AuthStep =
+  | 'email'
+  | 'login'
+  | 'signup'
+  | 'forgotPassword'
+  | 'verifyEmail'
+  | 'whatsapp'
+  | '2fa';
 
 export default function UnifiedAuthPage() {
   const [step, setStep] = useState<AuthStep>('email');
@@ -43,6 +50,10 @@ export default function UnifiedAuthPage() {
   const [resetOtpSent, setResetOtpSent] = useState(false);
   const [resetPassword, setResetPassword] = useState('');
   const [resetConfirmPassword, setResetConfirmPassword] = useState('');
+  const [resetMethod, setResetMethod] = useState<'email' | 'phone'>('email');
+  const [twoFactorOtp, setTwoFactorOtp] = useState('');
+  const [twoFactorMethod, setTwoFactorMethod] = useState('');
+
   const [verifyCode, setVerifyCode] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
 
@@ -164,7 +175,15 @@ export default function UnifiedAuthPage() {
 
     try {
       const response = await authAPI.login(cleanEmail, password);
-      localStorage.setItem('token', response.data.token);
+      if (response.data.requires2FA) {
+        setStep('2fa');
+        setTwoFactorMethod(response.data.method || 'authenticator');
+        setSuccess('Security check required');
+        return;
+      }
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+      }
       localStorage.setItem('user', JSON.stringify(response.data.user));
       setSuccess('Login successful! Redirecting...');
       setTimeout(() => {
@@ -203,6 +222,28 @@ export default function UnifiedAuthPage() {
     }
   };
 
+  const handle2FAVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const response = await authAPI.verify2FALogin(email.trim().toLowerCase(), twoFactorOtp);
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+        setSuccess('Login successful! Redirecting... ');
+        setTimeout(() => {
+          void router.replace('/dashboard');
+        }, 500);
+      }
+    } catch (err: unknown) {
+      const apiError = err as APIError;
+      setError(apiError.response?.data?.error || 'Invalid 2FA code');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleOTPVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -215,7 +256,15 @@ export default function UnifiedAuthPage() {
         otp: otpCode,
       });
 
-      localStorage.setItem('token', response.data.token);
+      if (response.data.requires2FA) {
+        setStep('2fa');
+        setTwoFactorMethod(response.data.method || 'authenticator');
+        setSuccess('Security check required');
+        return;
+      }
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+      }
       localStorage.setItem('user', JSON.stringify(response.data.user));
       setSuccess('OTP verified! Logging in...');
       setTimeout(() => {
@@ -287,7 +336,15 @@ export default function UnifiedAuthPage() {
         otp: verifyCode,
       });
 
-      localStorage.setItem('token', response.data.token);
+      if (response.data.requires2FA) {
+        setStep('2fa');
+        setTwoFactorMethod(response.data.method || 'authenticator');
+        setSuccess('Security check required');
+        return;
+      }
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+      }
       localStorage.setItem('user', JSON.stringify(response.data.user));
       setSuccess('Email verified! Redirecting...');
       setTimeout(() => {
@@ -365,9 +422,10 @@ export default function UnifiedAuthPage() {
     try {
       await axios.post(`${API_BASE_URL}/api/auth/forgot-password/send-otp`, {
         email: cleanEmail,
+        method: resetMethod,
       });
       setResetOtpSent(true);
-      setSuccess(`Password reset OTP sent to ${cleanEmail}.`);
+      setSuccess(`Password reset OTP sent to your ${resetMethod}.`);
     } catch (err: unknown) {
       const apiError = err as APIError;
       setError(apiError.response?.data?.error || 'Failed to send password reset OTP');
@@ -400,6 +458,7 @@ export default function UnifiedAuthPage() {
         email: cleanEmail,
         otp: resetOtpCode,
         newPassword: resetPassword,
+        method: resetMethod,
       });
       setSuccess('Password reset successfully. Please sign in with your new password.');
       setStep('login');
@@ -810,6 +869,52 @@ export default function UnifiedAuthPage() {
             </form>
           )}
 
+          {step === '2fa' && (
+            <form onSubmit={handle2FAVerify} className="space-y-5">
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 mb-4">
+                <p className="text-sm text-blue-100">
+                  {twoFactorMethod === 'authenticator'
+                    ? 'Enter the 6-digit code from your Authenticator app.'
+                    : `We&apos;ve sent a 6-digit security code to your ${twoFactorMethod}.`}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-200 mb-2">
+                  Security Code
+                </label>
+                <input
+                  type="text"
+                  value={twoFactorOtp}
+                  onChange={(e) =>
+                    setTwoFactorOtp(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))
+                  }
+                  maxLength={6}
+                  required
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition text-center text-2xl tracking-widest"
+                  placeholder="000000"
+                  autoFocus
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading || twoFactorOtp.length !== 6}
+                className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold py-3 rounded-lg hover:from-blue-600 hover:to-indigo-700 transition transform hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+              >
+                {loading ? 'Verifying...' : 'Verify Login'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStep('login')}
+                className="w-full bg-white/10 hover:bg-white/20 border border-white/20 text-blue-100 font-semibold py-3 rounded-lg transition"
+              >
+                Back to Login
+              </button>
+            </form>
+          )}
+
           {/* STEP 2B: OTP Login */}
           {step === 'login' && useOTP && (
             <form onSubmit={handleOTPVerify} className="space-y-5">
@@ -944,21 +1049,51 @@ export default function UnifiedAuthPage() {
             <form onSubmit={handleForgotPasswordReset} className="space-y-5">
               <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 mb-4">
                 <p className="text-sm text-blue-100">
-                  We&apos;ll send a reset OTP to <span className="font-semibold">{email}</span>.
+                  We&apos;ll send a reset OTP to your selected delivery method.
                 </p>
+
                 {!resetOtpSent && (
-                  <button
-                    type="button"
-                    onClick={() => void handleForgotPasswordOTPSend()}
-                    disabled={loading}
-                    className="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition disabled:opacity-70"
-                  >
-                    {loading ? 'Sending...' : 'Send Reset OTP'}
-                  </button>
+                  <div className="mt-4 space-y-2">
+                    <label className="flex items-center gap-3 p-3 border border-blue-500/30 rounded-lg cursor-pointer hover:bg-white/5 transition">
+                      <input
+                        type="radio"
+                        name="resetMethod"
+                        value="email"
+                        checked={resetMethod === 'email'}
+                        onChange={() => setResetMethod('email')}
+                        className="w-4 h-4 text-blue-500"
+                      />
+                      <span className="text-sm font-medium text-blue-50">
+                        Email Address ({email})
+                      </span>
+                    </label>
+                    <label className="flex items-center gap-3 p-3 border border-blue-500/30 rounded-lg cursor-pointer hover:bg-white/5 transition">
+                      <input
+                        type="radio"
+                        name="resetMethod"
+                        value="phone"
+                        checked={resetMethod === 'phone'}
+                        onChange={() => setResetMethod('phone')}
+                        className="w-4 h-4 text-blue-500"
+                      />
+                      <span className="text-sm font-medium text-blue-50">
+                        Mobile Number (WhatsApp)
+                      </span>
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() => void handleForgotPasswordOTPSend()}
+                      disabled={loading}
+                      className="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition disabled:opacity-70 cursor-pointer"
+                    >
+                      {loading ? 'Sending...' : 'Send Reset OTP'}
+                    </button>
+                  </div>
                 )}
                 {resetOtpSent && (
                   <p className="mt-3 text-xs text-blue-100">
-                    OTP has been sent to your email address.
+                    OTP has been sent to your {resetMethod}.
                   </p>
                 )}
               </div>

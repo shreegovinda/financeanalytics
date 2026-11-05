@@ -1,4 +1,5 @@
 const { resolveUseCase } = require('../services/aiUseCases');
+const { getUserAiExecutionConfig } = require('../services/ai');
 const express = require('express');
 const auth = require('../middleware/auth');
 const pool = require('../config/db');
@@ -106,7 +107,20 @@ router.post('/', auth, async (req, res) => {
       req.user.id,
       message.trim(),
       scopedHistory,
-      () => resolveUseCase(pool, req.user.id, useCase),
+      async () => {
+        try {
+          return await resolveUseCase(pool, req.user.id, useCase);
+        } catch (err) {
+          if (useCase === 'voice_chat') {
+            try {
+              return await resolveUseCase(pool, req.user.id, 'text_chat');
+            } catch (_) {
+              // fall through
+            }
+          }
+          return await getUserAiExecutionConfig(pool, req.user.id, req.headers['x-ai-provider']);
+        }
+      },
       undefined,
       { language: speechLanguage, scope },
     );

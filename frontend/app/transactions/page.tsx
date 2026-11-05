@@ -553,7 +553,7 @@ export default function TransactionsPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="animate-fade-in pb-12">
       <AuthSessionGuard />
       {/* ── Header ── */}
       <header className="bg-white border-b border-gray-200">

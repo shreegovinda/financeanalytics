@@ -292,7 +292,7 @@ test('POST /register records policy consent when valid consent is provided', asy
       get: (header) => (header === 'User-Agent' ? 'TestBrowser/1.0' : undefined),
       body: {
         email: 'test@example.com',
-        password: 'password123',
+        password: 'Password123!',
         name: 'Test User',
         phone: '+919876543210',
         consentGiven: true,
@@ -400,6 +400,105 @@ test('PUT /me rejects email change without ownership verification', async () => 
     await handler(req, res);
     assert.equal(res.statusCode, 400);
     assert.match(res.body.error, /not been verified/);
+    assert.equal(updated, false);
+  } finally {
+    cleanup();
+  }
+});
+
+test('POST /register rejects a password that fails the complexity policy', async () => {
+  let inserted = false;
+  const pool = {
+    async query(sql) {
+      if (sql.includes('INSERT INTO users')) {
+        inserted = true;
+      }
+      return { rows: [] };
+    },
+  };
+
+  const { router, cleanup } = loadAuthRouter(pool);
+  try {
+    const handler = getRouteHandler(router, 'POST', '/register');
+    const req = {
+      ip: '127.0.0.1',
+      get: () => undefined,
+      body: {
+        email: 'weak@example.com',
+        password: 'password123',
+        name: 'Test User',
+        phone: '+919876543210',
+        consentGiven: true,
+      },
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+    assert.equal(res.statusCode, 400);
+    assert.match(res.body.error, /uppercase/);
+    assert.equal(inserted, false, 'a non-compliant password must not create an account');
+  } finally {
+    cleanup();
+  }
+});
+
+test('PUT /me rejects replacing an existing phone number without verification', async () => {
+  let updated = false;
+  const pool = {
+    async query(sql) {
+      if (sql.includes('SELECT phone')) {
+        return { rows: [{ phone: '+919876543210' }] };
+      }
+      if (sql.includes('UPDATE users')) {
+        updated = true;
+        return { rows: [] };
+      }
+      return { rows: [] };
+    },
+  };
+
+  const { router, cleanup } = loadAuthRouter(pool);
+  try {
+    const handler = getRouteHandler(router, 'PUT', '/me');
+    const req = { user: { id: 'user-1' }, body: { phone: '+919999999999' } };
+    const res = createMockRes();
+
+    await handler(req, res);
+    assert.equal(res.statusCode, 400);
+    assert.match(res.body.error, /until the new number has been verified/);
+    assert.equal(updated, false);
+  } finally {
+    cleanup();
+  }
+});
+
+test('PUT /me rejects a first phone number already held by another account', async () => {
+  let updated = false;
+  const pool = {
+    async query(sql) {
+      if (sql.includes('SELECT phone')) {
+        return { rows: [{ phone: null }] };
+      }
+      if (sql.includes('phone_hash = $1')) {
+        return { rows: [{ id: 'other-user' }] };
+      }
+      if (sql.includes('UPDATE users')) {
+        updated = true;
+        return { rows: [] };
+      }
+      return { rows: [] };
+    },
+  };
+
+  const { router, cleanup } = loadAuthRouter(pool);
+  try {
+    const handler = getRouteHandler(router, 'PUT', '/me');
+    const req = { user: { id: 'user-1' }, body: { phone: '+919876543210' } };
+    const res = createMockRes();
+
+    await handler(req, res);
+    assert.equal(res.statusCode, 400);
+    assert.match(res.body.error, /already associated with another account/);
     assert.equal(updated, false);
   } finally {
     cleanup();

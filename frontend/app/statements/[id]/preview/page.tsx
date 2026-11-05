@@ -94,7 +94,7 @@ export default function StatementPreviewPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6">
+      <div className="animate-fade-in pb-12 p-2">
         <div className="mx-auto max-w-5xl animate-pulse space-y-4">
           <div className="h-8 w-64 rounded bg-gray-200" />
           <div className="h-32 rounded bg-gray-200" />
@@ -106,7 +106,7 @@ export default function StatementPreviewPage() {
 
   if (!draft) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6">
+      <div className="animate-fade-in pb-12 p-2">
         <div className="mx-auto max-w-3xl">
           <BackButton />
           <div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-6">
@@ -130,7 +130,7 @@ export default function StatementPreviewPage() {
   const net = Number(draft.totalCredit) - Number(draft.totalDebit);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="animate-fade-in pb-12 p-2">
       <div className="mx-auto max-w-5xl">
         <BackButton fallbackHref="/statements" label="Back to Statements" />
 
