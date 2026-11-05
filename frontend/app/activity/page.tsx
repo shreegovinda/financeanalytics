@@ -785,7 +785,9 @@ function ActivityDiffViewer({
               className="mt-4 overflow-hidden"
             >
               <div className="rounded-xl bg-slate-900 p-4 text-xs text-emerald-400 font-mono overflow-x-auto shadow-inner border border-slate-700/50">
-                <p className="text-[10px] uppercase font-bold text-ink-3 mb-2">Raw Audit Payload</p>
+                <p className="text-[10px] uppercase font-bold text-slate-500 mb-2">
+                  Raw Audit Payload
+                </p>
                 <pre className="whitespace-pre-wrap leading-relaxed">
                   {JSON.stringify(details, null, 2)}
                 </pre>
@@ -1251,7 +1253,7 @@ export default function ActivityLogsPage() {
                             className={`w-3 h-3 rounded-full ${meta.dotColor} ring-4 ring-surface shadow-sm mt-1.5 z-10 transition-transform`}
                           />
                           {!isLast && (
-                            <div className="w-0.5 flex-1 bg-gradient-to-b from-slate-200 to-surface-3 min-h-[24px]" />
+                            <div className="w-0.5 flex-1 bg-gradient-to-b from-surface-4 to-surface-3 min-h-[24px]" />
                           )}
                         </div>
 
